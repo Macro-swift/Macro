@@ -93,4 +93,5 @@ iOSInjectionProject/
 Package.resolved
 xcuserdata
 .docker.build
+.swiftpm
 

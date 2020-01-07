@@ -77,6 +77,7 @@ open class Server: ErrorEmitter {
                    backlog     : Int  = 512,
                    onListening : ( ( Server ) -> Void)? = nil) -> Self
   {
+    addDefaultListener(onListening)
     listen(backlog: backlog) { bootstrap in
       // TBD: does 0 trigger the wildcard port?
       return bootstrap.bind(host: host, port: port ?? 0)
@@ -85,12 +86,27 @@ open class Server: ErrorEmitter {
   }
   @discardableResult
   open func listen(unixSocket : String = "express.socket",
-                   backlog    : Int    = 256) -> Self
+                   backlog    : Int    = 256,
+                   onListening : ( ( Server ) -> Void)? = nil) -> Self
   {
+    addDefaultListener(onListening)
     listen(backlog: backlog) { bootstrap in
       return bootstrap.bind(unixDomainSocketPath: unixSocket)
     }
     return self
+  }
+  
+  private func addDefaultListener(_ listener: ( ( Server ) -> Void)?) {
+    guard let listener = listener else { return }
+    
+    // essentially emulate `once`
+    var pendingServer : Server? = self
+    onListening { eventServer in
+      guard let server = pendingServer else { return }
+      pendingServer = nil
+      assert(eventServer === server)
+      listener(server)
+    }
   }
 
   private func listen(backlog: Int,
@@ -113,11 +129,21 @@ open class Server: ErrorEmitter {
       }
   }
   
+  public var listening : Bool {
+    lock.lock()
+    let flag = !_channels.isEmpty
+    lock.unlock()
+    return flag
+  }
+  
   private var _channels = [ Channel ]()
   private func registerChannel(_ channel: Channel) {
     lock.lock()
     _channels.append(channel)
+    var listeners = _listeningListeners
     lock.unlock()
+    
+    listeners.emit(self)
     
     if let address = channel.localAddress {
       log.debug("Server running on: \(address)")
@@ -142,6 +168,8 @@ open class Server: ErrorEmitter {
     EventListenerSet<( IncomingMessage, ServerResponse )>()
   private var _expectListeners =
     EventListenerSet<( IncomingMessage, ServerResponse )>()
+  private var _listeningListeners =
+    EventListenerSet<Server>()
 
   private var hasRequestListeners : Bool {
     lock.lock()
@@ -178,6 +206,15 @@ open class Server: ErrorEmitter {
     return self
   }
   
+  @discardableResult
+  public func onListening(execute: @escaping ( Server ) -> Void) -> Self {
+    lock.lock()
+    _listeningListeners.add(execute)
+    lock.unlock()
+    if listening { execute(self) }
+    return self
+  }
+
   private func emitContinue(request: IncomingMessage, response: ServerResponse)
   {
     lock.lock()
