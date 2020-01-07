@@ -92,4 +92,5 @@ iOSInjectionProject/
 # hh
 Package.resolved
 xcuserdata
+.docker.build
 
