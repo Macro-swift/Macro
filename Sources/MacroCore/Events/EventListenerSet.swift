@@ -217,7 +217,7 @@ public func += <V>(listenerSet : inout EventListenerSet<V>,
                    handler     : @escaping EventListenerSet<V>.EventHandler)
                   -> ListenerType
 {
-  listenerSet.add(handler)
+  return listenerSet.add(handler)
 }
 @inlinable
 public func -= <V>(listenerSet : inout EventListenerSet<V>,

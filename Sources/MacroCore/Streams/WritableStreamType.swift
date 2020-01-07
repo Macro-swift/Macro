@@ -42,7 +42,7 @@ public extension WritableStreamType {
   @discardableResult
   @inlinable
   func onFinish(execute: @escaping () -> Void) -> Self {
-    onceFinish(execute: execute)
+    return onceFinish(execute: execute)
   }
 }
 
