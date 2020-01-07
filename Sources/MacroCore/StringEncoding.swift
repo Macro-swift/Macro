@@ -32,7 +32,7 @@ public extension String.Encoding {
   }
   
   @inlinable
-  static func encodingWithName(_ name: String) -> Self {
+  static func encodingWithName(_ name: String) -> String.Encoding {
     let lc = name.lowercased()
     switch lc {
       case "utf8", "utf-8"                     : return .utf8
@@ -59,6 +59,6 @@ public extension String.Encoding {
 }
 
 public enum CharsetConversionError: Swift.Error {
-  case failedToConverData(encoding: String.Encoding)
+  case failedToConverData   (encoding: String.Encoding)
   case failedToConvertString(encoding: String.Encoding)
 }

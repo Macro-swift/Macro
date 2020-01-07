@@ -77,7 +77,7 @@ public extension process { // Process Info
   // TODO: release
 
   #if os(Linux)
-    public let isRunningInXCode = false
+    static let isRunningInXCode = false
   #else
     static let isRunningInXCode : Bool = {
       // TBD: is there a better way?
