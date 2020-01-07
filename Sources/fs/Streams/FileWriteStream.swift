@@ -55,14 +55,14 @@ open class FileWriteStream: WritableByteStream, FileStream,
   // The stream can end before it is even open!
   private var _didEnd = false
   
-  override public var writableEnded: Bool {
+  override open var writableEnded: Bool {
     // not 100% right, it might be destroyed w/o a call to `end`?
     return _didEnd || (state == .ending || state == .destroyed)
   }
-  override public var writableFinished: Bool {
+  override open var writableFinished: Bool {
     return destroyed
   }
-  override public var writable : Bool {
+  override open var writable : Bool {
     guard state == .pending || state == .open else { return false }
     return true
   }

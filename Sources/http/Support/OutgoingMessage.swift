@@ -43,12 +43,12 @@ open class OutgoingMessage: WritableByteStream,
 
   var state = StreamState.ready
 
-  override public var writableFinished : Bool { return state == .finished }
-  override public var writableEnded    : Bool {
+  override open var writableFinished : Bool { return state == .finished }
+  override open var writableEnded    : Bool {
     return state == .isEnding || state == .finished
   }
   @inlinable
-  override public var writable : Bool { return !writableEnded  }
+  override open var writable : Bool { return !writableEnded  }
 
   public init(channel: Channel, log: Logger) {
     self.channel = channel

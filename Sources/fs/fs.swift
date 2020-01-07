@@ -11,6 +11,7 @@ import struct NIO.NonBlockingFileIO
 import enum   NIO.System
 import class  NIO.NIOFileHandle
 import enum   MacroCore.process
+import xsys
 
 /**
  * The Macro fs module exports.
@@ -19,8 +20,6 @@ import enum   MacroCore.process
  * module `fs`, but gets the namespace by importing `Macro`.
  */
 public enum FileSystemModule {
-  // TODO: Maybe we should rewrite the workerQueue to use the NIO filesystem
-  //       stuff
   
   /**
    * The worker queue for FS functions.
@@ -37,13 +36,14 @@ public enum FileSystemModule {
 
 public let _defaultIOThreadCount =
   process.getenv("macro.core.iothreads",
-                 defaultValue      : System.coreCount,
+                 defaultValue      : System.coreCount / 2,
                  upperWarningBound : 64)
 
 
 // MARK: - Directory
 
 public extension FileSystemModule {
+  
   @inlinable
   static func readdir(_ path: String,
                       yield: @escaping ( Error?, [ String ]? ) -> Void)
@@ -54,7 +54,7 @@ public extension FileSystemModule {
   // TBD: should that be a stream? Maybe, but it may not be worth it
   @inlinable
   static func readdirSync(_ path: String) throws -> [ String ] {
-    try fs.readdirSync(path)
+    return try fs.readdirSync(path)
   }
 }
 

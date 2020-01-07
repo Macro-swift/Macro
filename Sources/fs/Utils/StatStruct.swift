@@ -62,15 +62,15 @@ public extension xsys.stat_struct {
   
   #if os(Linux)
     @inlinable var atime : Date {
-      return Date(timeIntervalSince1970: st_atime.timeInterval)
+      return Date(timeIntervalSince1970: st_atim.timeInterval)
     }
     /// The timestamp of the last modification to the file.
     @inlinable var mtime : Date {
-      return Date(timeIntervalSince1970: st_mtime.timeInterval)
+      return Date(timeIntervalSince1970: st_mtim.timeInterval)
     }
     /// The timestamp of the last file status change.
     @inlinable var ctime : Date {
-      return Date(timeIntervalSince1970: st_ctime.timeInterval)
+      return Date(timeIntervalSince1970: st_ctim.timeInterval)
     }
     @available(*, unavailable)
     @inlinable var birthtime : Date {
