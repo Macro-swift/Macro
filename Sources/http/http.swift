@@ -43,8 +43,9 @@ public extension HTTPModule {
 ///
 @inlinable
 @discardableResult
-func createServer(handler: (( IncomingMessage, ServerResponse ) -> Void)? = nil)
-     -> Server
+public func createServer(handler: (( IncomingMessage, ServerResponse ) -> Void)?
+                         = nil)
+            -> Server
 {
   let server = Server()
   if let handler = handler { _ = server.onRequest(execute: handler) }
