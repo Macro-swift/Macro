@@ -53,8 +53,12 @@ open class IncomingMessage: ReadableByteStream {
     }
   }
   
-  public let head : IncomingType
-  public let log  : Logger
+  public let head  : IncomingType
+  public let log   : Logger
+
+  /// Store extra information alongside the request. Try to use unique keys,
+  /// e.g. via reverse-DNS to avoid middleware conflicts.
+  public var extra = [ String : Any ]()
 
   @inlinable
   override open var errorLog : Logger { return log }
