@@ -12,14 +12,15 @@ import class  Foundation.JSONSerialization
 import class  Foundation.JSONEncoder
 import struct NIO.ByteBuffer
 
-public enum JSON {}
+public enum JSONModule {}
+public typealias json = JSONModule
 
 /**
  * Node like API for JSON parsing.
  *
  * The functions return what `JSONSerialization` returns, i.e. property list objects.
  */
-public extension JSON {
+public extension JSONModule {
   
   @inlinable
   static func parse(_ string: Swift.String) -> Any? {
@@ -73,7 +74,7 @@ public extension JSON {
 /**
  * Node like API for JSON string generation.
  */
-public extension JSON {
+public extension JSONModule {
   
   @inlinable
   static func dataify(_ object : Any?,
