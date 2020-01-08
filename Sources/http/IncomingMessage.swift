@@ -9,6 +9,7 @@
 import struct   Logging.Logger
 import struct   NIO.ByteBuffer
 import struct   NIO.ByteBufferAllocator
+import protocol NIO.Channel
 import struct   NIOHTTP1.HTTPRequestHead
 import struct   NIOHTTP1.HTTPResponseHead
 import struct   NIOHTTP1.HTTPVersion
@@ -55,6 +56,8 @@ open class IncomingMessage: ReadableByteStream {
   
   public let head  : IncomingType
   public let log   : Logger
+  
+  public private(set) var socket : NIO.Channel?
 
   /// Store extra information alongside the request. Try to use unique keys,
   /// e.g. via reverse-DNS to avoid middleware conflicts.
@@ -80,23 +83,27 @@ open class IncomingMessage: ReadableByteStream {
     readableListeners.removeAll()
     endListeners     .removeAll()
     errorListeners   .removeAll()
+    
+    socket = nil
   }
   
   internal var flowingToggler : (( Bool ) -> Void)?
 
-  @inlinable
-  public init(_ head: HTTPRequestHead,
-              log: Logger = .init(label: "μ.http"))
+  public init(_ head : HTTPRequestHead,
+              socket : NIO.Channel? = nil,
+              log    : Logger = .init(label: "μ.http"))
   {
-    self.log  = log
-    self.head = .request(head)
+    self.log    = log
+    self.head   = .request(head)
+    self.socket = socket
   }
-  @inlinable
-  public init(_ head: HTTPResponseHead,
-              log: Logger = .init(label: "μ.http"))
+  public init(_ head : HTTPResponseHead,
+              socket : NIO.Channel? = nil,
+              log    : Logger = .init(label: "μ.http"))
   {
-    self.log  = log
-    self.head = .response(head)
+    self.log    = log
+    self.head   = .response(head)
+    self.socket = socket
   }
   
   

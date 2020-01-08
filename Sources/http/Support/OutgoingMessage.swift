@@ -33,10 +33,11 @@ open class OutgoingMessage: WritableByteStream,
 
   public let log         : Logger
   public var headers     = HTTPHeaders()
-  public var channel     : Channel?
   public var headersSent = false
   public var sendDate    = true
-  public var extra       = [ ExtraKey : Any ]()
+  public var extra       = [ String : Any ]()
+  
+  public internal(set) var socket : Channel?
 
   @inlinable
   override open var errorLog : Logger { return log }
@@ -51,18 +52,11 @@ open class OutgoingMessage: WritableByteStream,
   override open var writable : Bool { return !writableEnded  }
 
   public init(channel: Channel, log: Logger) {
-    self.channel = channel
-    self.log     = log
+    self.socket = channel
+    self.log    = log
     super.init()
   }
 
-  // MARK: - Extra Keys
-  
-  public struct ExtraKey : Hashable, RawRepresentable {
-    public var rawValue: String
-    public init(rawValue: String) { self.rawValue = rawValue }
-  }
-  
   // MARK: - End Stream
   
   open func end() {
@@ -73,8 +67,8 @@ open class OutgoingMessage: WritableByteStream,
 
   func handleError(_ error: Error) {
     log.error("\(error)")
-    _ = channel?.close() // TBD
-    channel = nil
+    _ = socket?.close() // TBD
+    socket = nil
     emit(error: error)
     finishListeners.emit()
   }
@@ -90,7 +84,7 @@ open class OutgoingMessage: WritableByteStream,
   @discardableResult @inlinable
   open func write(_ string: String, whenDone: @escaping () -> Void = {}) -> Bool
   {
-    guard let channel = channel else { whenDone(); return false }
+    guard let channel = socket else { whenDone(); return false }
     var byteBuffer = channel.allocator.buffer(capacity: string.count)
     byteBuffer.writeString(string)
     return write(byteBuffer, whenDone: whenDone)
