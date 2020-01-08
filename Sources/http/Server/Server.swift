@@ -353,7 +353,8 @@ open class Server: ErrorEmitter {
           
           // TBD:  Should the ServerResponse know its IncomingMessage?
           // TODO: The IncomingMessage needs a way to control auto-read.
-          let request  = IncomingMessage(head, log: log)
+          let request  = IncomingMessage(head, socket: context.channel,
+                                         log: log)
           let response = ServerResponse(channel: context.channel, log: log)
           self.transaction = ( id, request, response )
           self.waitForEnd  = false

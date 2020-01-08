@@ -52,8 +52,8 @@ open class ServerResponse: OutgoingMessage {
     assert(!headersSent)
     guard !headersSent else { return }
     headersSent = true
-    channel?.writeAndFlush(HTTPServerResponsePart.head(part))
-            .whenFailure(handleError)
+    socket?.writeAndFlush(HTTPServerResponsePart.head(part))
+           .whenFailure(handleError)
   }
   @usableFromInline
   internal func primaryWriteHead() {
@@ -90,7 +90,7 @@ open class ServerResponse: OutgoingMessage {
     guard !writableEnded else { return }
     
     
-    if let channel = channel {
+    if let channel = socket {
       state = .isEnding
       channel.writeAndFlush(HTTPServerResponsePart.end(nil))
              .whenComplete { result in
@@ -165,7 +165,7 @@ open class ServerResponse: OutgoingMessage {
       handleError(WritableError.writableEnded)
       return
     }
-    guard let channel = channel else {
+    guard let channel = socket else {
       handleError(WritableError.writableEnded)
       return
     }
@@ -188,7 +188,7 @@ open class ServerResponse: OutgoingMessage {
     }
     
     if !headersSent { primaryWriteHead() }
-    guard let channel = channel else {
+    guard let channel = socket else {
       handleError(WritableError.writableEnded)
       whenDone(WritableError.writableEnded)
       return false
