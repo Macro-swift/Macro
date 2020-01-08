@@ -34,12 +34,14 @@ public extension process { // Environment
 
 public extension process { // File System
 
-  func chdir(path: String) throws {
+  @inlinable
+  static func chdir(path: String) throws {
     let rc = xsys.chdir(path)
     guard rc == 0 else { throw POSIXErrorCode(rawValue: xsys.errno)! }
   }
 
-  func cwd() -> String {
+  @inlinable
+  static func cwd() -> String {
     let rc = xsys.getcwd(nil /* malloc */, 0)
     assert(rc != nil, "process has no cwd??")
     defer { free(rc) }
