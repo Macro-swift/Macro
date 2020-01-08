@@ -23,7 +23,7 @@ public typealias json = JSONModule
 public extension JSONModule {
   
   @inlinable
-  static func parse(_ string: Swift.String) -> Any? {
+  static func parse<S: StringProtocol>(_ string: S) -> Any? {
     guard !string.isEmpty else { return nil }
     
     guard let data = string.data(using: .utf8) else {
