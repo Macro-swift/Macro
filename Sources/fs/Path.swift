@@ -15,7 +15,7 @@
 public enum PathModule {
   
   @inlinable
-  public func basename(_ path: String) -> String {
+  static func basename(_ path: String) -> String {
     // TODO: this doesn't deal proper with trailing slashes
     return path.withCString { cs in
       let sp = rindex(cs, 47 /* / */)
@@ -26,7 +26,7 @@ public enum PathModule {
   }
   
   @inlinable
-  public func dirname(_ path: String) -> String {
+  static func dirname(_ path: String) -> String {
     // TODO: this doesn't deal proper with trailing slashes
     return path.withCString { cs in
       let sp = UnsafePointer<CChar>(rindex(cs, 47 /* / */))

@@ -352,10 +352,29 @@ open class Server: ErrorEmitter {
           log[metadataKey: "request-id"] = "\(id)"
           
           // TBD:  Should the ServerResponse know its IncomingMessage?
-          // TODO: The IncomingMessage needs a way to control auto-read.
           let request  = IncomingMessage(head, socket: context.channel,
                                          log: log)
+          
           let response = ServerResponse(channel: context.channel, log: log)
+          response.version = head.version
+          
+          if head.version.major == 1 {
+            let connectionHeaderCount = head
+              .headers[canonicalForm: "connection"]
+              .lazy
+              .map    { $0.lowercased() }
+              .filter { $0 == "keep-alive" || $0 == "close" }
+              .count
+            if connectionHeaderCount == 0 { // no connection headers
+              if head.isKeepAlive, head.version.minor == 0 {
+                response.headers.add(name: "Connection", value: "keep-alive")
+              }
+              else if !head.isKeepAlive, head.version.minor >= 1 {
+                response.headers.add(name: "Connection", value: "close")
+              }
+            }
+          }
+
           self.transaction = ( id, request, response )
           self.waitForEnd  = false
           assert(!request.complete)
