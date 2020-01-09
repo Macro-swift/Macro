@@ -152,6 +152,7 @@ public extension WritableStreamType where WritablePayload == Buffer,
                                           Self : ErrorEmitterTarget
 {
 
+  @discardableResult
   @inlinable
   func write<S: Encodable>(_ jsonObject: S,
                            outputFormatting:
@@ -171,6 +172,7 @@ public extension WritableStreamType where WritablePayload == Buffer,
     }
   }
 
+  @discardableResult
   @inlinable
   func writeJSON(_ object : Any?,
                  options  : JSONSerialization.WritingOptions
@@ -189,6 +191,7 @@ public extension WritableStreamType where WritablePayload == Buffer,
     }
   }
 
+  @discardableResult
   @inlinable
   func writeJSON(_ string : String?,
                  whenDone : @escaping () -> Void = {}) -> Bool
