@@ -35,6 +35,24 @@ public struct Buffer {
   {
     byteBuffer = allocator.buffer(capacity: capacity)
   }
+  
+  @inlinable public var isEmpty : Bool { return byteBuffer.readableBytes < 1 }
+  @inlinable public var count   : Int  { return byteBuffer.readableBytes }
+  
+  @inlinable public mutating func append(_ buffer: Buffer) {
+    byteBuffer.writeBytes(buffer.byteBuffer.readableBytesView)
+  }
+  
+  @inlinable public mutating func consumeFirst(_ k: Int) -> Buffer {
+    guard k > 0 else { return MacroCore.shared.emptyBuffer }
+    if k >= count {
+      let swap = byteBuffer
+      byteBuffer = MacroCore.shared.emptyByteBuffer
+      return Buffer(swap)
+    }
+    let readBuffer = byteBuffer.readSlice(length: k)!
+    return Buffer(readBuffer)
+  }
 }
 
 public extension Buffer {
@@ -50,7 +68,7 @@ public extension Buffer {
     self.init(data)
   }
   
-  @inlinable public var data : Data {
+  @inlinable var data : Data {
     return byteBuffer.getData(at     : byteBuffer.readerIndex,
                               length : byteBuffer.readableBytes) ?? Data()
   }
