@@ -67,7 +67,13 @@ public extension Buffer {
     }
     self.init(data)
   }
-  
+  @inlinable init<S: StringProtocol>(_ string: S) {
+    guard let data = string.data(using: .utf8) else {
+      fatalError("failed to encode string in UTF-8")
+    }
+    self.init(data)
+  }
+
   @inlinable var data : Data {
     return byteBuffer.getData(at     : byteBuffer.readerIndex,
                               length : byteBuffer.readableBytes) ?? Data()
@@ -85,9 +91,21 @@ public extension Buffer {
     }
     return Buffer(data)
   }
-  
   @inlinable
-  static func from(_ string: String, encoding: String) throws -> Buffer {
+  static func from<S: StringProtocol>(_ string: S,
+                                      encoding: String.Encoding = .utf8)
+                throws -> Buffer
+  {
+    guard let data = string.data(using: encoding) else {
+      throw CharsetConversionError.failedToConverData(encoding: encoding)
+    }
+    return Buffer(data)
+  }
+
+  @inlinable
+  static func from<S: StringProtocol>(_ string: S, encoding: String) throws
+              -> Buffer
+  {
     switch encoding {
       case "hex":
         var buffer = Buffer(capacity: string.utf16.count / 2)
@@ -97,7 +115,7 @@ public extension Buffer {
         return buffer
       
       case "base64":
-        guard let data = Data(base64Encoded: string) else {
+        guard let data = Data(base64Encoded: String(string)) else {
           throw DataDecodingError.failedToDecodeBase64
         }
         return Buffer(data)
@@ -156,7 +174,7 @@ extension Buffer {
   }
 
   @inlinable
-  mutating func writeHexString(_ hexString: String) -> Bool {
+  mutating func writeHexString<S: StringProtocol>(_ hexString: S) -> Bool {
     // https://stackoverflow.com/questions/41485494/convert-hex-encoded-string
     func decodeNibble(u: UInt16) -> UInt8? {
       switch(u) {
