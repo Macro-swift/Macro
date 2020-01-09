@@ -9,48 +9,116 @@
 import Foundation
 import NIOFoundationCompat
 import struct NIO.ByteBuffer
+import struct NIO.ByteBufferAllocator
 
 /**
+ * A lightweight wrapper around the NIO ByteBuffer.
+ *
  * Node Buffer API:
  * https://nodejs.org/api/buffer.html
- * We use the NIO.ByteBuffer instead.
- *
- * The API is a bit different, a Node buffer is more like a prefilled array
- * of some size.
  */
-public extension ByteBuffer {
-  // Yes, I know. Do not extend types you don't own. etc etc.
+public struct Buffer {
+  
+  public var byteBuffer : ByteBuffer
+  
+  @inlinable public init(_ byteBuffer: ByteBuffer) {
+    self.byteBuffer = byteBuffer
+  }
+  
+  @inlinable public init(_ buffer: Buffer) {
+    byteBuffer = buffer.byteBuffer
+  }
+  
+  @inlinable
+  public init(capacity  : Int = 1024,
+              allocator : ByteBufferAllocator = MacroCore.shared.allocator)
+  {
+    byteBuffer = allocator.buffer(capacity: capacity)
+  }
+  
+  @inlinable public var isEmpty : Bool { return byteBuffer.readableBytes < 1 }
+  @inlinable public var count   : Int  { return byteBuffer.readableBytes }
+  
+  @inlinable public mutating func append(_ buffer: Buffer) {
+    byteBuffer.writeBytes(buffer.byteBuffer.readableBytesView)
+  }
+  
+  @inlinable public mutating func consumeFirst(_ k: Int) -> Buffer {
+    guard k > 0 else { return MacroCore.shared.emptyBuffer }
+    if k >= count {
+      let swap = byteBuffer
+      byteBuffer = MacroCore.shared.emptyByteBuffer
+      return Buffer(swap)
+    }
+    let readBuffer = byteBuffer.readSlice(length: k)!
+    return Buffer(readBuffer)
+  }
+}
+
+public extension Buffer {
+  
+  @inlinable init(_ data: Data) {
+    self.init(capacity: data.count)
+    byteBuffer.writeBytes(data)
+  }
+  @inlinable init(_ string: String) {
+    guard let data = string.data(using: .utf8) else {
+      fatalError("failed to encode string in UTF-8")
+    }
+    self.init(data)
+  }
+  @inlinable init<S: StringProtocol>(_ string: S) {
+    guard let data = string.data(using: .utf8) else {
+      fatalError("failed to encode string in UTF-8")
+    }
+    self.init(data)
+  }
+
+  @inlinable var data : Data {
+    return byteBuffer.getData(at     : byteBuffer.readerIndex,
+                              length : byteBuffer.readableBytes) ?? Data()
+  }
+}
+
+public extension Buffer {
   
   @inlinable
   static func from(_ string: String, encoding: String.Encoding = .utf8)
-                throws -> ByteBuffer
+                throws -> Buffer
   {
     guard let data = string.data(using: encoding) else {
       throw CharsetConversionError.failedToConverData(encoding: encoding)
     }
-    var bb = MacroCore.shared.allocator.buffer(capacity: data.count)
-    bb.writeBytes(data)
-    return bb
+    return Buffer(data)
   }
-  
   @inlinable
-  static func from(_ string: String, encoding: String) throws -> ByteBuffer {
+  static func from<S: StringProtocol>(_ string: S,
+                                      encoding: String.Encoding = .utf8)
+                throws -> Buffer
+  {
+    guard let data = string.data(using: encoding) else {
+      throw CharsetConversionError.failedToConverData(encoding: encoding)
+    }
+    return Buffer(data)
+  }
+
+  @inlinable
+  static func from<S: StringProtocol>(_ string: S, encoding: String) throws
+              -> Buffer
+  {
     switch encoding {
       case "hex":
-        var bb = MacroCore.shared.allocator
-                  .buffer(capacity: string.utf16.count / 2)
-        guard bb.writeHexString(string) else {
+        var buffer = Buffer(capacity: string.utf16.count / 2)
+        guard buffer.writeHexString(string) else {
           throw DataDecodingError.failedToDecodeHexString
         }
-        return bb
+        return buffer
       
       case "base64":
-        guard let data = Data(base64Encoded: string) else {
+        guard let data = Data(base64Encoded: String(string)) else {
           throw DataDecodingError.failedToDecodeBase64
         }
-        var bb = MacroCore.shared.allocator.buffer(capacity: data.count)
-        bb.writeBytes(data)
-        return bb
+        return Buffer(data)
 
       default:
         return try from(string, encoding: .encodingWithName(encoding))
@@ -67,9 +135,6 @@ public extension ByteBuffer {
   
   @inlinable
   func toString(_ encoding: String.Encoding = .utf8) throws -> String {
-    guard let data = getData(at: readerIndex, length: readableBytes) else {
-      throw DataEncodingError.failedToReadData
-    }
     guard let string = String(data: data, encoding: encoding) else {
       throw CharsetConversionError.failedToConvertString(encoding: encoding)
     }
@@ -79,13 +144,8 @@ public extension ByteBuffer {
   @inlinable
   func toString(_ encoding: String) throws -> String {
     switch encoding {
-      case "hex":
-        return hexEncodedString()
-      case "base64":
-        guard let data = getData(at: readerIndex, length: readableBytes) else {
-          throw DataEncodingError.failedToReadData
-        }
-        return data.base64EncodedString()
+      case "hex"    : return hexEncodedString()
+      case "base64" : return data.base64EncodedString()
       default: return try toString(.encodingWithName(encoding))
     }
   }
@@ -102,11 +162,11 @@ public enum DataEncodingError: Swift.Error {
 @usableFromInline
 internal let hexAlphabet = "0123456789abcdef".unicodeScalars.map { $0 }
 
-extension ByteBuffer {
+extension Buffer {
 
   public func hexEncodedString() -> String {
       // https://stackoverflow.com/questions/39075043/how-to-convert-data-to-hex
-    return String(readableBytesView.reduce(into: "".unicodeScalars, {
+    return String(byteBuffer.readableBytesView.reduce(into: "".unicodeScalars, {
       ( result, value ) in
       result.append(hexAlphabet[Int(value / 16)])
       result.append(hexAlphabet[Int(value % 16)])
@@ -114,7 +174,7 @@ extension ByteBuffer {
   }
 
   @inlinable
-  mutating func writeHexString(_ hexString: String) -> Bool {
+  mutating func writeHexString<S: StringProtocol>(_ hexString: S) -> Bool {
     // https://stackoverflow.com/questions/41485494/convert-hex-encoded-string
     func decodeNibble(u: UInt16) -> UInt8? {
       switch(u) {
@@ -134,7 +194,7 @@ extension ByteBuffer {
       }
       else {
         byte += val
-        writeInteger(byte)
+        byteBuffer.writeInteger(byte)
       }
       even = !even
     }

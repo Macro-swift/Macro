@@ -7,7 +7,6 @@
 //
 
 import protocol NIO.EventLoop
-import struct   NIO.ByteBuffer
 import class    NIO.NIOThreadPool
 import enum     NIO.ChannelError
 import class    MacroCore.MacroCore

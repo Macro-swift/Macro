@@ -9,8 +9,8 @@
 import class    MacroCore.ErrorEmitter
 import enum     MacroCore.EventListenerSet
 import class    MacroCore.MacroCore
+import struct   MacroCore.Buffer
 import struct   Logging.Logger
-import struct   NIO.ByteBuffer
 import struct   NIO.NIOAny
 import class    NIO.EventLoopFuture
 import class    NIO.ServerBootstrap
@@ -260,7 +260,7 @@ open class Server: ErrorEmitter {
     return true
   }
   
-  private func feed(request: IncomingMessage, data: ByteBuffer) {
+  private func feed(request: IncomingMessage, data: Buffer) {
     request.push(data)
   }
   
@@ -417,7 +417,7 @@ open class Server: ErrorEmitter {
         
         case .body(let bytes):
           if let ( _, request, _ ) = transaction {
-            server.feed(request: request, data: bytes)
+            server.feed(request: request, data: Buffer(bytes))
           }
           else if !waitForEnd {
             log.error("received HTTP body data, but no TX is running! Closing.")

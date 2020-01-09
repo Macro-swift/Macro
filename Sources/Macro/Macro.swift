@@ -14,7 +14,7 @@
 @_exported import enum     MacroCore.JSONModule
 @_exported import enum     MacroCore.ReadableError
 @_exported import enum     MacroCore.WritableError
-@_exported import struct   NIO.ByteBuffer
+@_exported import struct   MacroCore.Buffer
 @_exported import protocol NIO.EventLoop
 @_exported import protocol NIO.EventLoopGroup
 

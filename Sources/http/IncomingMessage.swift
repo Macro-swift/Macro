@@ -7,8 +7,6 @@
 //
 
 import struct   Logging.Logger
-import struct   NIO.ByteBuffer
-import struct   NIO.ByteBufferAllocator
 import protocol NIO.Channel
 import struct   NIOHTTP1.HTTPRequestHead
 import struct   NIOHTTP1.HTTPResponseHead

@@ -6,14 +6,10 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
-import struct NIO.ByteBuffer
-
 /**
  * A non-generic materialized variant of `WritableStreamType`
  */
 public protocol WritableByteStreamType: ErrorEmitterType {
-
-  typealias ByteBuffer = NIO.ByteBuffer
   
   var  writableEnded : Bool { get }
   
@@ -21,11 +17,9 @@ public protocol WritableByteStreamType: ErrorEmitterType {
   //      Yes, and provide those w/o args as wrappers.
   
   @discardableResult
-  func write(_ bytes  : ByteBuffer, whenDone : @escaping () -> Void)
-       -> Bool
+  func write(_ bytes  : Buffer, whenDone : @escaping () -> Void) -> Bool
   @discardableResult
-  func write(_ string : String,     whenDone : @escaping () -> Void)
-       -> Bool
+  func write(_ string : String, whenDone : @escaping () -> Void) -> Bool
 
   // MARK: - Events
   // TODO: drain/close
@@ -39,28 +33,22 @@ public protocol WritableByteStreamType: ErrorEmitterType {
 }
 
 
-import struct NIO.ByteBufferAllocator
-
-public extension WritableStreamType where WritablePayload == ByteBuffer {
+public extension WritableStreamType where WritablePayload == Buffer {
   
   @inlinable
   @discardableResult
   func write(_ string: String, whenDone: @escaping () -> Void = {}) -> Bool {
-    var byteBuffer = ByteBufferAllocator().buffer(capacity: string.count)
-    byteBuffer.writeString(string)
-    return write(byteBuffer, whenDone: whenDone)
+    return write(Buffer(string), whenDone: whenDone)
   }
 }
 
 import struct Foundation.Data
 
-public extension WritableStreamType where WritablePayload == ByteBuffer {
+public extension WritableStreamType where WritablePayload == Buffer {
   
   @inlinable
   @discardableResult
   func write(_ data: Data, whenDone: @escaping () -> Void = {}) -> Bool {
-    var byteBuffer = ByteBufferAllocator().buffer(capacity: data.count)
-    byteBuffer.writeBytes(data)
-    return write(byteBuffer, whenDone: whenDone)
+    return write(Buffer(data), whenDone: whenDone)
   }
 }

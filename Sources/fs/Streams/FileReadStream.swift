@@ -9,6 +9,7 @@
 import class    MacroCore.MacroCore
 import class    MacroCore.ReadableByteStream
 import enum     MacroCore.EventListenerSet
+import struct   MacroCore.Buffer
 import class    NIO.NIOFileHandle
 import protocol NIO.EventLoop
 import struct   NIO.NonBlockingFileIO
@@ -109,7 +110,7 @@ open class FileReadStream: ReadableByteStream, FileStream {
               self.handleEOF()
             }
             else {
-              self.push(buffer)
+              self.push(Buffer(buffer))
               self.startReading() // not actually recursive ...
             }
           case .failure(let error):
