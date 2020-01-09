@@ -6,28 +6,24 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
-import struct NIO.ByteBuffer
-
 /**
- * A `ByteBuffer` based stream. This buffers the data until it is read.
+ * A `Buffer` based stream. This buffers the data until it is read.
  */
-open class ReadableByteStream: ReadableStreamBase<ByteBuffer>,
+open class ReadableByteStream: ReadableStreamBase<Buffer>,
                                ReadableStreamType,
                                ReadableByteStreamType
 {
   
-  public var readableBuffer : ByteBuffer?
+  public var readableBuffer : Buffer?
   
   @inlinable
-  override open var readableLength : Int {
-    return readableBuffer?.readableBytes ?? 0
-  }
+  override open var readableLength : Int { return readableBuffer?.count ?? 0 }
 
   /// This is used to coalesce multiple reads. Do not trigger readable, if we
   /// sent readable already, but the client didn't call `read()` yet.
   @usableFromInline internal var readPending = false
   
-  public func push(_ bytes: ByteBuffer) {
+  public func push(_ bytes: Buffer) {
     guard !readableEnded else {
       assert(!readableEnded, "trying to push to a readable which ended!")
       emit(error: ReadableError.readableEnded)
@@ -35,7 +31,7 @@ open class ReadableByteStream: ReadableStreamBase<ByteBuffer>,
     }
     
     // TBD: was push <empty> the same like EOF/end?
-    guard bytes.readableBytes > 0 else { return }
+    guard bytes.count > 0 else { return }
     
     // when in reading mode, `data` is only emitted when `read` is called
     if readableListeners.isEmpty && !dataListeners.isEmpty {
@@ -44,7 +40,7 @@ open class ReadableByteStream: ReadableStreamBase<ByteBuffer>,
     }
     
     if readableBuffer == nil { readableBuffer = bytes }
-    else { readableBuffer?.writeBytes(bytes.readableBytesView) }
+    else { readableBuffer?.append(bytes) }
     
     if !readPending && !readableListeners.isEmpty {
       readPending = true
@@ -52,15 +48,14 @@ open class ReadableByteStream: ReadableStreamBase<ByteBuffer>,
     }
   }
   
-  public func read(_ count: Int? = nil) -> ByteBuffer {
+  public func read(_ count: Int? = nil) -> Buffer {
     readPending = false
-    guard let buffer = readableBuffer else { return core.emptyByteBuffer }
+    guard let buffer = readableBuffer else { return core.emptyBuffer }
     
-    let readBuffer : ByteBuffer
-    if let count = count, count < buffer.readableBytes {
-      readBuffer = count > 0
-        ? self.readableBuffer!.readSlice(length: count)!
-        : core.emptyByteBuffer
+    let readBuffer : Buffer
+    if let count = count, count < buffer.count {
+      guard count > 0 else { return core.emptyBuffer }
+      readBuffer = self.readableBuffer!.consumeFirst(count)
     }
     else {
       readBuffer = buffer
@@ -72,9 +67,9 @@ open class ReadableByteStream: ReadableStreamBase<ByteBuffer>,
   
   
   @usableFromInline
-  internal func _emitDataIfAppropriate(execute: ( ByteBuffer ) -> Void) -> Bool
+  internal func _emitDataIfAppropriate(execute: ( Buffer ) -> Void) -> Bool
   {
-    guard let buffer = self.readableBuffer, buffer.readableBytes > 0 else {
+    guard let buffer = self.readableBuffer, !buffer.isEmpty else {
       return false
     }
     if readableListeners.isEmpty {
@@ -92,7 +87,7 @@ open class ReadableByteStream: ReadableStreamBase<ByteBuffer>,
 
   @discardableResult
   @inlinable
-  open func onceData(execute: @escaping ( ByteBuffer ) -> Void) -> Self {
+  open func onceData(execute: @escaping ( Buffer ) -> Void) -> Self {
     if !_emitDataIfAppropriate(execute: execute) {
       dataListeners.once(execute)
       readableFlowing = true
@@ -102,7 +97,7 @@ open class ReadableByteStream: ReadableStreamBase<ByteBuffer>,
   
   @discardableResult
   @inlinable
-  open func onData(execute: @escaping ( ByteBuffer ) -> Void) -> Self {
+  open func onData(execute: @escaping ( Buffer ) -> Void) -> Self {
     dataListeners.add(execute)
     readableFlowing = true
     _ = _emitDataIfAppropriate(execute: execute)

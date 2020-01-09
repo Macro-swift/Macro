@@ -8,8 +8,6 @@
 
 import protocol NIO.EventLoop
 import class    NIO.MultiThreadedEventLoopGroup
-import struct   NIO.ByteBufferAllocator
-import struct   NIO.ByteBuffer
 import class    NIO.NIOThreadPool
 import enum     NIO.ChannelError
 import struct   Foundation.Data
@@ -18,22 +16,21 @@ import class    MacroCore.MacroCore
 import enum     MacroCore.process
 import enum     MacroCore.CharsetConversionError
 import enum     MacroCore.MacroError
+import struct   MacroCore.Buffer
 
 public func readFile(on eventLoop : EventLoop? = nil,
                      _       path : String,
-                     yield        : @escaping ( Error?, ByteBuffer? ) -> Void)
+                     yield        : @escaping ( Error?, Buffer? ) -> Void)
 {
   let module = MacroCore.shared.retain()
 
   FileSystemModule.threadPool.submit { shouldRun in
-    let result : Result<ByteBuffer, Error>
+    let result : Result<Buffer, Error>
     
     if case shouldRun = NIOThreadPool.WorkItemState.active {
       do {
         let data = try Data(contentsOf: URL(fileURLWithPath: path))
-        var buf = MacroCore.shared.allocator.buffer(capacity: data.count)
-        buf.writeBytes(data)
-        result = .success(buf)
+        result = .success(Buffer(data))
       }
       catch {
         result = .failure(error)
@@ -93,14 +90,10 @@ public func readFile(on eventLoop : EventLoop? = nil,
 }
 
 @inlinable
-public func writeFile(_ path: String, _ byteBuffer: ByteBuffer,
+public func writeFile(_ path: String, _ buffer: Buffer,
                       whenDone: @escaping ( Error? ) -> Void)
 {
-  var bb = byteBuffer
-  guard let data = bb.readData(length: bb.readableBytes) else {
-    return whenDone(MacroError.failedToConvertByteBufferToData)
-  }
-  writeFile(path, data, whenDone: whenDone)
+  writeFile(path, buffer.data, whenDone: whenDone)
 }
 @inlinable
 public func writeFile(on eventLoop : EventLoop? = nil,
@@ -154,12 +147,10 @@ public func writeFile(_ path: String, _ string: String,
 // MARK: - Synchronous
 
 @inlinable
-public func readFileSync(_ path: String) -> ByteBuffer? {
+public func readFileSync(_ path: String) -> Buffer? {
   do {
     let data = try Data(contentsOf: URL(fileURLWithPath: path))
-    var buf = MacroCore.shared.allocator.buffer(capacity: data.count)
-    buf.writeBytes(data)
-    return buf
+    return Buffer(data)
   }
   catch {
     process.emitWarning(error, name: #function)
@@ -191,12 +182,8 @@ public func readFileSync(_ path: String, _ encoding: String) -> String? {
 }
 
 @inlinable
-public func writeFileSync(_ path: String, _ byteBuffer: ByteBuffer) throws {
-  var bb = byteBuffer
-  guard let data = bb.readData(length: bb.readableBytes) else {
-    throw MacroError.failedToConvertByteBufferToData
-  }
-  try writeFileSync(path, data)
+public func writeFileSync(_ path: String, _ buffer: Buffer) throws {
+  try writeFileSync(path, buffer.data)
 }
 @inlinable
 public func writeFileSync(_ path: String, _ data: Data) throws {

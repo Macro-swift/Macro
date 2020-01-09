@@ -7,7 +7,6 @@
 //
 
 import protocol NIO.Channel
-import struct   NIO.ByteBuffer
 import struct   NIOHTTP1.HTTPHeaders
 import struct   Logging.Logger
 import class    MacroCore.WritableByteStream
@@ -17,6 +16,7 @@ import protocol MacroCore.ListenerType
 import class    MacroCore.ErrorEmitter
 import enum     MacroCore.EventListenerSet
 import func     MacroCore.nextTick
+import struct   MacroCore.Buffer
 
 /**
  * Baseclass for `ServerResponse` and `ClientRequest`.
@@ -76,7 +76,7 @@ open class OutgoingMessage: WritableByteStream,
   // MARK: - WritableByteStream
   
   @discardableResult
-  open func write(_ bytes: ByteBuffer, whenDone: @escaping () -> Void) -> Bool {
+  open func write(_ bytes: Buffer, whenDone: @escaping () -> Void) -> Bool {
     assertionFailure("subclass responsibility: \(#function)")
     whenDone()
     return false
@@ -84,10 +84,8 @@ open class OutgoingMessage: WritableByteStream,
   @discardableResult @inlinable
   open func write(_ string: String, whenDone: @escaping () -> Void = {}) -> Bool
   {
-    guard let channel = socket else { whenDone(); return false }
-    var byteBuffer = channel.allocator.buffer(capacity: string.count)
-    byteBuffer.writeString(string)
-    return write(byteBuffer, whenDone: whenDone)
+    guard socket != nil else { whenDone(); return false }
+    return write(Buffer(string), whenDone: whenDone)
   }
   
 }

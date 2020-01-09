@@ -16,6 +16,7 @@ import class    MacroCore.WritableByteStream
 import protocol MacroCore.WritableStreamType
 import protocol MacroCore.WritableByteStreamType
 import enum     MacroCore.EventListenerSet
+import struct   MacroCore.Buffer
 
 @inlinable
 public func createWriteStream(on eventLoop: EventLoop? = nil,
@@ -67,11 +68,11 @@ open class FileWriteStream: WritableByteStream, FileStream,
     return true
   }
 
-  public var writableBuffer = [ ( bytes: ByteBuffer, whenDone: () -> () ) ]()
+  public var writableBuffer = [ ( bytes: Buffer, whenDone: () -> () ) ]()
   
   @inlinable
   open var writableLength : Int {
-    return writableBuffer.reduce(0) { $0 + $1.bytes.readableBytes }
+    return writableBuffer.reduce(0) { $0 + $1.bytes.count }
   }
     
   @inlinable
@@ -139,20 +140,20 @@ open class FileWriteStream: WritableByteStream, FileStream,
   }
 
   @discardableResult
-  open func write(_ bytes: ByteBuffer, whenDone: @escaping () -> Void) -> Bool {
+  open func write(_ bytes: Buffer, whenDone: @escaping () -> Void) -> Bool {
     guard !writableEnded, state != .destroyed else {
       emit(error: WritableError.writableEnded)
       whenDone()
       return true
     }
-    guard bytes.readableBytes > 0 else {
+    guard !bytes.isEmpty else {
       whenDone()
       return writableLength < writableHighWaterMark
     }
     return _write(bytes, whenDone: whenDone)
   }
   
-  func _write(_ bytes: ByteBuffer, whenDone: @escaping () -> Void) -> Bool {
+  func _write(_ bytes: Buffer, whenDone: @escaping () -> Void) -> Bool {
     retainIfNecessary()
 
     if writableCorked && state != .ending {
@@ -167,9 +168,10 @@ open class FileWriteStream: WritableByteStream, FileStream,
         flushBuffer()
       }
       
-      let count = bytes.readableBytes
+      let count = bytes.count
       pendingWrites += count
-      fileIO.write(fileHandle: fileHandle, buffer: bytes, eventLoop: eventLoop)
+      fileIO.write(fileHandle: fileHandle, buffer: bytes.byteBuffer,
+                   eventLoop: eventLoop)
         .whenComplete { result in
           self.pendingWrites -= count
           assert(self.pendingWrites >= 0)

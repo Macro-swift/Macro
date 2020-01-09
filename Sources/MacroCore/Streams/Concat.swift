@@ -6,8 +6,6 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
-import struct NIO.ByteBuffer
-
 /**
  * Returns a stream in the spirit of the Node `concat-stream` module:
  *
@@ -18,12 +16,12 @@ import struct NIO.ByteBuffer
  */
 @inlinable
 public func concat(maximumSize: Int = _defaultConcatMaximumSize,
-                   yield: @escaping ( ByteBuffer ) -> Void) -> ConcatByteStream
+                   yield: @escaping ( Buffer ) -> Void) -> ConcatByteStream
 {
   let stream = ConcatByteStream(maximumSize: maximumSize)
   return stream.onceFinish {
     yield(stream.writableBuffer)
-    stream.writableBuffer = MacroCore.shared.emptyByteBuffer
+    stream.writableBuffer = MacroCore.shared.emptyBuffer
   }
 }
 
@@ -46,7 +44,7 @@ public class ConcatByteStream: WritableByteStream,
     case finished
   }
   
-  public  var writableBuffer = MacroCore.shared.emptyByteBuffer
+  public  var writableBuffer = MacroCore.shared.emptyBuffer
   public  let maximumSize    : Int
   private var state          = StreamState.ready
 
@@ -57,9 +55,7 @@ public class ConcatByteStream: WritableByteStream,
   override public var writable         : Bool { return !writableFinished  }
 
   @inlinable
-  open var writableLength : Int {
-    return writableBuffer.readableBytes
-  }
+  open var writableLength : Int { return writableBuffer.count }
 
   @usableFromInline init(maximumSize: Int) {
     self.maximumSize = maximumSize
@@ -67,7 +63,7 @@ public class ConcatByteStream: WritableByteStream,
   
   @discardableResult
   @inlinable
-  public func write(_ bytes: ByteBuffer, whenDone: @escaping () -> Void = {})
+  public func write(_ bytes: Buffer, whenDone: @escaping () -> Void = {})
               -> Bool
   {
     guard !writableEnded else {
@@ -76,7 +72,7 @@ public class ConcatByteStream: WritableByteStream,
       return true
     }
     
-    let newSize = writableBuffer.readableBytes + bytes.readableBytes
+    let newSize = writableBuffer.count + bytes.count
     guard newSize <= maximumSize else {
       emit(error: ConcatError
             .maximumSizeExceeded(maximumSize: maximumSize,
@@ -85,7 +81,7 @@ public class ConcatByteStream: WritableByteStream,
       return true
     }
     
-    writableBuffer.writeBytes(bytes.readableBytesView)
+    writableBuffer.append(bytes)
     whenDone()
     return true
   }
