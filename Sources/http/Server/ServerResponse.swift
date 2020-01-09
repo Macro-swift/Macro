@@ -7,7 +7,6 @@
 //
 
 import protocol NIO.Channel
-import struct   NIO.ByteBuffer
 import struct   NIOHTTP1.HTTPHeaders
 import enum     NIOHTTP1.HTTPResponseStatus
 import struct   NIOHTTP1.HTTPResponseHead
@@ -15,6 +14,7 @@ import struct   NIOHTTP1.HTTPVersion
 import enum     NIOHTTP1.HTTPServerResponsePart
 import struct   Logging.Logger
 import enum     MacroCore.WritableError
+import struct   MacroCore.Buffer
 
 /**
  * An object representing the response an HTTP server sends out to the client.
@@ -179,7 +179,7 @@ open class ServerResponse: OutgoingMessage {
   // MARK: - WritableByteStream
   
   @discardableResult
-  open func write(_ bytes: ByteBuffer, whenDone: @escaping ( Error? ) -> Void)
+  open func write(_ bytes: Buffer, whenDone: @escaping ( Error? ) -> Void)
             -> Bool
   {
     guard !writableEnded else {
@@ -194,7 +194,8 @@ open class ServerResponse: OutgoingMessage {
       return false
     }
     
-    channel.writeAndFlush(HTTPServerResponsePart.body(.byteBuffer(bytes)))
+    channel.writeAndFlush(HTTPServerResponsePart
+                            .body(.byteBuffer(bytes.byteBuffer)))
            .whenComplete { result in
              if case .failure(let error) = result {
                self.handleError(error)
@@ -208,7 +209,7 @@ open class ServerResponse: OutgoingMessage {
   }
   
   @discardableResult
-  override open func write(_ bytes: ByteBuffer,
+  override open func write(_ bytes: Buffer,
                            whenDone: @escaping () -> Void = {}) -> Bool
   {
     return write(bytes) { _ in whenDone() }

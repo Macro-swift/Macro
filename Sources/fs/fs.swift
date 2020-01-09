@@ -140,16 +140,16 @@ public extension FileSystemModule {
 
 // MARK: - File
 
-import struct   NIO.ByteBuffer
 import protocol NIO.EventLoop
 import struct   Foundation.Data
+import struct   MacroCore.Buffer
 
 public extension FileSystemModule {
   
   @inlinable
   static func readFile(on eventLoop : EventLoop? = nil,
                        _       path : String,
-                       yield        : @escaping ( Error?, ByteBuffer? ) -> Void)
+                       yield        : @escaping ( Error?, Buffer? ) -> Void)
   {
     fs.readFile(on: eventLoop, path, yield: yield)
   }
@@ -171,7 +171,7 @@ public extension FileSystemModule {
   }
 
   @inlinable
-  static func writeFile(_ path: String, _ data: ByteBuffer,
+  static func writeFile(_ path: String, _ data: Buffer,
                         whenDone: @escaping ( Error? ) -> Void)
   {
     fs.writeFile(path, data, whenDone: whenDone)
@@ -198,7 +198,7 @@ public extension FileSystemModule {
 
   // MARK: - Synchronous
 
-  @inlinable static func readFileSync(_ path: String) -> ByteBuffer? {
+  @inlinable static func readFileSync(_ path: String) -> Buffer? {
     return fs.readFileSync(path)
   }
   @inlinable
@@ -213,7 +213,7 @@ public extension FileSystemModule {
   }
 
   @inlinable
-  static func writeFileSync(_ path: String, _ data: ByteBuffer) throws {
+  static func writeFileSync(_ path: String, _ data: Buffer) throws {
     try fs.writeFileSync(path, data)
   }
   @inlinable

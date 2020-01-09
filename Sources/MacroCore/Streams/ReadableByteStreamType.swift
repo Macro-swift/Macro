@@ -6,24 +6,20 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
-import struct NIO.ByteBuffer
-
 /**
  * A non-generic materialized variant of `ReadableStreamType`
  */
 public protocol ReadableByteStreamType: ErrorEmitterType {
-  
-  typealias ByteBuffer = NIO.ByteBuffer
 
   var  readableHighWaterMark : Int  { get }
   var  readableLength        : Int  { get }
   var  readableEnded         : Bool { get }
   var  readableFlowing       : Bool { get }
 
-  func push(_ bytes: ByteBuffer)
+  func push(_ bytes: Buffer)
 
-  func read(_ count: Int?) -> ByteBuffer
-  func read()              -> ByteBuffer
+  func read(_ count: Int?) -> Buffer
+  func read()              -> Buffer
 
   // MARK: - Events
   
@@ -40,8 +36,8 @@ public protocol ReadableByteStreamType: ErrorEmitterType {
   func onReadable(execute: @escaping () -> Void) -> Self
 
   @discardableResult
-  func onceData(execute: @escaping ( ByteBuffer ) -> Void) -> Self
+  func onceData(execute: @escaping ( Buffer ) -> Void) -> Self
   
   @discardableResult
-  func onData(execute: @escaping ( ByteBuffer ) -> Void) -> Self
+  func onData(execute: @escaping ( Buffer ) -> Void) -> Self
 }

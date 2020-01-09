@@ -6,7 +6,6 @@
 //  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
 //
 
-import struct   NIO.ByteBuffer
 import struct   NIO.EventLoopPromise
 import class    NIO.EventLoopFuture
 import protocol NIO.EventLoop
@@ -14,6 +13,7 @@ import class    NIO.NIOThreadPool
 import enum     NIO.ChannelError
 import class    MacroCore.MacroCore
 import enum     MacroCore.CharsetConversionError
+import struct   MacroCore.Buffer
 import enum     MacroCore.MacroError
 import struct   Foundation.Data
 import struct   Foundation.URL
@@ -34,11 +34,11 @@ public extension promise {
   // Note: We dupe the imp, to avoid the extra promise overhead ¯\_(ツ)_/¯
   
   static func readFile(on eventLoop : EventLoop? = nil,
-                       _       path : String) -> EventLoopFuture<ByteBuffer>
+                       _       path : String) -> EventLoopFuture<Buffer>
   {
     let module    = MacroCore.shared.retain()
     let eventLoop = module.fallbackEventLoop(eventLoop)
-    let promise   = eventLoop.makePromise(of: ByteBuffer.self)
+    let promise   = eventLoop.makePromise(of: Buffer.self)
 
     FileSystemModule.threadPool.submit { shouldRun in
       defer { module.release() }
@@ -48,9 +48,7 @@ public extension promise {
       }
       do {
         let data = try Data(contentsOf: URL(fileURLWithPath: path))
-        var buf = MacroCore.shared.allocator.buffer(capacity: data.count)
-        buf.writeBytes(data)
-        promise.succeed(buf)
+        promise.succeed(Buffer(data))
       }
       catch {
         promise.fail(error)
@@ -102,17 +100,10 @@ public extension promise {
   
   @inlinable
   static func writeFile(on eventLoop : EventLoop? = nil,
-                        _ path: String, _ byteBuffer: ByteBuffer)
+                        _ path: String, _ buffer: Buffer)
               -> EventLoopFuture<Void>
   {
-    var bb = byteBuffer
-    guard let data = bb.readData(length: bb.readableBytes) else {
-      let eventLoop = MacroCore.shared.fallbackEventLoop(eventLoop)
-      let promise   = eventLoop.makePromise(of: Void.self)
-      promise.fail(MacroError.failedToConvertByteBufferToData)
-      return promise.futureResult
-    }
-    return writeFile(on: eventLoop, path, data)
+    return writeFile(on: eventLoop, path, buffer.data)
   }
 
   @inlinable

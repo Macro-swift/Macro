@@ -43,6 +43,8 @@ public final class MacroCore {
   
   @usableFromInline
   internal let emptyByteBuffer : ByteBuffer
+  @usableFromInline
+  internal let emptyBuffer : Buffer
 
   public var eventLoopGroup : EventLoopGroup
   
@@ -63,8 +65,10 @@ public final class MacroCore {
       //signal(SIGCHLD, SIG_IGN)
     #endif
     
+    let bb = allocator.buffer(capacity: 0)
     self.allocator       = allocator
-    self.emptyByteBuffer = allocator.buffer(capacity: 0)
+    self.emptyByteBuffer = bb
+    self.emptyBuffer     = Buffer(bb)
     self.eventLoopGroup  = eventLoopGroup
   }
 

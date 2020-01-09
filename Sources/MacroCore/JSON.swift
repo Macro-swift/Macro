@@ -10,7 +10,6 @@ import NIOFoundationCompat
 import struct Foundation.Data
 import class  Foundation.JSONSerialization
 import class  Foundation.JSONEncoder
-import struct NIO.ByteBuffer
 
 public enum JSONModule {}
 public typealias json = JSONModule
@@ -48,18 +47,9 @@ public extension JSONModule {
   }
 
   @inlinable
-  static func parse(_ bytes: ByteBuffer) -> Any? {
-    guard bytes.readableBytes > 0 else { return nil }
-    
-    let data = bytes.getData(at: bytes.readerIndex, length: bytes.readableBytes,
-                             byteTransferStrategy: .noCopy)
-    guard let data1 = data else {
-      process.emitWarning("could not extract data from ByteBuffer",
-                          name: "macro.json")
-      assert(data != nil, "could not extract data from ByteBuffer")
-      return nil
-    }
-    return parse(data1)
+  static func parse(_ bytes: Buffer) -> Any? {
+    guard !bytes.isEmpty else { return nil }
+    return parse(bytes.data)
   }
 
   @inlinable
@@ -158,7 +148,7 @@ public let _defaultJSONEncoderOptions : JSONEncoder.OutputFormatting
 
 // MARK: - JSON Streams
 
-public extension WritableStreamType where WritablePayload == ByteBuffer,
+public extension WritableStreamType where WritablePayload == Buffer,
                                           Self : ErrorEmitterTarget
 {
 
