@@ -12,7 +12,10 @@
   import Darwin
 #endif
 
-public enum PathModule {
+public enum PathModule {}
+public typealias path = PathModule
+
+public extension PathModule {
   
   @inlinable
   static func basename(_ path: String) -> String {
@@ -35,10 +38,8 @@ public enum PathModule {
       return String.fromCString(cs, length: len)!
     }
   }
-  
 }
 
-public typealias path = PathModule
 
 // MARK: - CString
 
