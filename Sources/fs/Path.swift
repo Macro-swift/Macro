@@ -1,6 +1,6 @@
 //
 //  Path.swift
-//  Noze.io
+//  Noze.io / Macro
 //
 //  Created by Helge Heß on 6/8/16.
 //  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
