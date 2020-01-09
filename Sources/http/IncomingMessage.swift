@@ -40,22 +40,46 @@ open class IncomingMessage: ReadableByteStream {
     
     @inlinable
     public var version : HTTPVersion {
-      switch self {
-        case .request (let request): return request.version
-        case .response(let request): return request.version
+      set {
+        switch self {
+          case .request (var request):
+            request.version = newValue
+            self = .request(request)
+          case .response(var response):
+            response.version = newValue
+            self = .response(response)
+        }
+      }
+      get {
+        switch self {
+          case .request (let request)  : return request .version
+          case .response(let response) : return response.version
+        }
       }
     }
     @inlinable
     public var headers : HTTPHeaders {
-      switch self {
-        case .request (let request): return request.headers
-        case .response(let request): return request.headers
+      set {
+        switch self {
+          case .request (var request):
+            request .headers = newValue
+            self = .request(request)
+          case .response(var response):
+            response.headers = newValue
+          self = .response(response)
+        }
+      }
+      get {
+        switch self {
+          case .request (let request)  : return request .headers
+          case .response(let response) : return response.headers
+        }
       }
     }
   }
   
-  public let head  : IncomingType
-  public let log   : Logger
+  public var head : IncomingType
+  public let log  : Logger
   
   public private(set) var socket : NIO.Channel?
 
@@ -140,8 +164,21 @@ open class IncomingMessage: ReadableByteStream {
   
   @inlinable
   public var method : String {
-    guard case .request(let request) = head else { return "" }
-    return request.method.rawValue
+    set {
+      switch head {
+        case .request(var request):
+          request.method = .init(rawValue: newValue)
+          self.head = .request(request)
+        case .response:
+          log.error("attempt to set method of response")
+          assertionFailure("attempt to set method of response?")
+          return
+      }
+    }
+    get {
+      guard case .request(let request) = head else { return "" }
+      return request.method.rawValue
+    }
   }
   
   @inlinable
