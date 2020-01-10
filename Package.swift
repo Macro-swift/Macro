@@ -15,7 +15,9 @@ let package = Package(
     .library(name: "MacroCore", targets: [ "MacroCore" ]),
     .library(name: "xsys",      targets: [ "xsys"      ]),
     .library(name: "http",      targets: [ "http"      ]),
-    .library(name: "fs",        targets: [ "fs"        ])
+    .library(name: "fs",        targets: [ "fs"        ]),
+    
+    .executable(name: "testserver", targets: ["testserver"])
   ],
   
   dependencies: [
@@ -47,6 +49,8 @@ let package = Package(
     .target(name: "Macro",
             dependencies: [ 
                 "MacroCore", "xsys", "http", "fs"
-            ])
+            ]),
+    
+    .target(name: "testserver", dependencies: ["Macro"])
   ]
 )
