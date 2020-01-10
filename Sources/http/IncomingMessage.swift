@@ -201,3 +201,25 @@ open class IncomingMessage: ReadableByteStream {
 }
 
 extension IncomingMessage: HTTPHeadersHolder {}
+
+extension IncomingMessage: CustomStringConvertible {
+
+  public var description: String {
+    var ms = "<IncomingMessage[\(ObjectIdentifier(self))]:"
+    defer { ms += ">" }
+    
+    if      socket         == nil { ms += " no-socket"       }
+    else if flowingToggler == nil { ms += " no-flow-toggler" }
+    
+    switch head {
+      case .request  : ms += " \(method) \(url)"
+      case .response : ms += " \(statusCode)"
+    }
+
+    if readableEnded { ms += " ended" }
+
+    for ( key, value ) in extra { ms += " \(key)=\(value)" }
+    
+    return ms
+  }
+}
