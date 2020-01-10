@@ -98,6 +98,7 @@ open class ServerResponse: OutgoingMessage {
                  self.handleError(error)
                }
                self.state = .finished
+               self.finishListeners.emit()
                self._clearListenersOnFinish()
              }
     }
