@@ -98,6 +98,7 @@ open class ServerResponse: OutgoingMessage {
                  self.handleError(error)
                }
                self.state = .finished
+               self.finishListeners.emit()
                self._clearListenersOnFinish()
              }
     }
@@ -213,5 +214,23 @@ open class ServerResponse: OutgoingMessage {
                            whenDone: @escaping () -> Void = {}) -> Bool
   {
     return write(bytes) { _ in whenDone() }
+  }
+}
+
+extension ServerResponse: CustomStringConvertible {
+
+  public var description: String {
+    var ms = "<ServerResponse[\(ObjectIdentifier(self))]:"
+    defer { ms += ">" }
+    
+    if socket == nil { ms += " no-socket" }
+    
+    ms += " \(statusCode)"
+    if writableEnded  { ms += " ended"  }
+    if writableCorked { ms += " corked" }
+    
+    for ( key, value ) in extra { ms += " \(key)=\(value)" }
+    
+    return ms
   }
 }
