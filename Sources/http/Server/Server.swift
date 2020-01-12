@@ -402,14 +402,22 @@ open class Server: ErrorEmitter {
             }
           }
           
-          request.flowingToggler = { flowing in
+          #if false
+            // This is not quite right, let's disable this until we have proper
+            // back-pressure. We should only disable reading if the
+            // IncomingMessage stream is full.
+            // Disabling it upfront is wrong, because no one might ever register
+            // for data-processing, and read affects reading the request end as
+            // well!
+            request.flowingToggler = { flowing in
+              let autoReadOption = ChannelOptions.Types.AutoReadOption()
+              _ = context.channel.setOption(autoReadOption, value: flowing)
+            }
+            
+            // Disable auto-read until there is a reader
             let autoReadOption = ChannelOptions.Types.AutoReadOption()
-            _ = context.channel.setOption(autoReadOption, value: flowing)
-          }
-          
-          // Disable auto-read until there is a reader
-          let autoReadOption = ChannelOptions.Types.AutoReadOption()
-          _ = context.channel.setOption(autoReadOption, value: false)
+            _ = context.channel.setOption(autoReadOption, value: false)
+          #endif
           
           // MARK: - Expect Handling
           
