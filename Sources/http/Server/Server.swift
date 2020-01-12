@@ -358,6 +358,7 @@ open class Server: ErrorEmitter {
           let response = ServerResponse(channel: context.channel, log: log)
           response.version = head.version
           
+          #if false
           if head.version.major == 1 {
             let connectionHeaderCount = head
               .headers[canonicalForm: "connection"]
@@ -374,6 +375,7 @@ open class Server: ErrorEmitter {
               }
             }
           }
+          #endif
 
           self.transaction = ( id, request, response )
           self.waitForEnd  = false
@@ -385,7 +387,9 @@ open class Server: ErrorEmitter {
             guard let ( id, request, aresponse ) = self.transaction else {
               return
             }
-            guard aresponse === response else { return }
+            guard aresponse === response else {
+              return
+            }
             
             // Consume rest of request if it wasn't read already
             if request.complete {
@@ -398,18 +402,24 @@ open class Server: ErrorEmitter {
               self.waitForEnd  = true
               let autoReadOption = ChannelOptions.Types.AutoReadOption()
               // make sure we read the request
+              print("set auto-read to YES")
               _ = context.channel.setOption(autoReadOption, value: true)
             }
           }
           
+          #if true
           request.flowingToggler = { flowing in
+            print("set auto-read to:", flowing)
             let autoReadOption = ChannelOptions.Types.AutoReadOption()
             _ = context.channel.setOption(autoReadOption, value: flowing)
           }
           
           // Disable auto-read until there is a reader
+          // Note: This also disables reading the end!
           let autoReadOption = ChannelOptions.Types.AutoReadOption()
           _ = context.channel.setOption(autoReadOption, value: false)
+          print("set auto-read to:", false)
+          #endif
           
           // MARK: - Expect Handling
           
