@@ -88,8 +88,8 @@ open class ServerResponse: OutgoingMessage {
   
   override open func end() {
     guard !writableEnded else { return }
-    
-    
+    if !headersSent { primaryWriteHead() }
+
     if let channel = socket {
       state = .isEnding
       channel.writeAndFlush(HTTPServerResponsePart.end(nil))
