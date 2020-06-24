@@ -209,12 +209,5 @@ public let _defaultThreadCount =
                  defaultValue      : System.coreCount, // vs 1 for beginners?
                  upperWarningBound : 64)
 
-private let debugRetain : Bool = {
-  guard let s = process.env["macro.core.retain.debug"] else { return false }
-  return s == "1" || s == "true" || s == "YES"
-}()
-
-internal let debugStreamRetain : Bool = {
-  guard let s = process.env["macro.streams.debug.rc"] else { return false }
-  return s == "1" || s == "true" || s == "YES"
-}()
+private  let debugRetain       = process.getenvflag("macro.core.retain.debug")
+internal let debugStreamRetain = process.getenvflag("macro.streams.debug.rc")
