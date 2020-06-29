@@ -20,7 +20,7 @@ let package = Package(
   
   dependencies: [
     .package(url: "https://github.com/apple/swift-nio.git",
-             from: "2.12.0"),
+             from: "2.18.0"),
     /* use this for proper 100-continue until 
        https://github.com/apple/swift-nio/pull/1330 is working:
       .package(url: "file:///Users/helge/dev/Swift/NIO/swift-nio-helje5",
