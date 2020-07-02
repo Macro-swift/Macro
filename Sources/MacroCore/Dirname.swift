@@ -66,7 +66,7 @@ public func ___dirname(caller: String) -> String {
   }
 #else
   @inlinable
-  public func ___dirname(caller: String = #file) -> String {
-    return __dirname(caller: caller)
+  public func __dirname(caller: String = #file) -> String {
+    return ___dirname(caller: caller)
   }
 #endif
