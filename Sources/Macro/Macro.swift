@@ -18,6 +18,7 @@
 @_exported import func     MacroCore.leftpad
 @_exported import protocol NIO.EventLoop
 @_exported import protocol NIO.EventLoopGroup
+@_exported import func     MacroCore.__dirname
 
 // To support the pipe (`|`) operators. Swift can't re-export operators?
 @_exported import MacroCore
@@ -25,19 +26,19 @@
 // MARK: - Submodules in `fs` Target
 
 import enum      fs.FileSystemModule
-public typealias fs = FileSystemModule
 import enum      fs.PathModule
-public typealias path = PathModule
 import enum      fs.JSONFileModule
+public typealias fs       = FileSystemModule
+public typealias path     = PathModule
 public typealias jsonfile = JSONFileModule
 
 // MARK: - Submodules in `http` Target
 
 import enum      http.HTTPModule
-public typealias http = HTTPModule
 import enum      http.BasicAuthModule
-public typealias basicAuth = BasicAuthModule
 import enum      http.QueryStringModule
+public typealias http        = HTTPModule
+public typealias basicAuth   = BasicAuthModule
 public typealias querystring = QueryStringModule
 
 // MARK: - Process stuff
