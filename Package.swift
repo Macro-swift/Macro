@@ -43,10 +43,11 @@ let package = Package(
               "NIO", "NIOConcurrencyHelpers", "NIOHTTP1",
               "MacroCore"
             ]),
-    .target(name: "fs",      dependencies: [ "NIO", "MacroCore", "xsys" ]),
-    .target(name: "Macro",
-            dependencies: [ 
-                "MacroCore", "xsys", "http", "fs"
-            ])
+    .target(name: "fs",    dependencies: [ "NIO", "MacroCore", "xsys" ]),
+    
+    // This is the Umbrella Target
+    .target(name: "Macro", dependencies: [ "MacroCore", "xsys", "http", "fs" ]),
+
+    .testTarget(name: "MacroTests", dependencies: ["Macro"])
   ]
 )
