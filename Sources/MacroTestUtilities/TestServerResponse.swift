@@ -46,8 +46,8 @@ open class TestServerResponse: ServerResponse {
   }
   
   @inlinable
-  override public func writeHead(_ status : HTTPResponseStatus = .ok,
-                                 headers  : HTTPHeaders = [:])
+  override open func writeHead(_ status : HTTPResponseStatus = .ok,
+                               headers  : HTTPHeaders = [:])
   {
     if !headers.isEmpty {
       for ( name, value ) in headers {
