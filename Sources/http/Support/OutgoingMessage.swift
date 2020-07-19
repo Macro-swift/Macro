@@ -25,7 +25,7 @@ open class OutgoingMessage: WritableByteStream,
                             WritableStreamType, WritableByteStreamType
 {
 
-  enum StreamState: Equatable {
+  public enum StreamState: Equatable {
     case ready
     case isEnding
     case finished
@@ -42,7 +42,7 @@ open class OutgoingMessage: WritableByteStream,
   @inlinable
   override open var errorLog : Logger { return log }
 
-  var state = StreamState.ready
+  public var state = StreamState.ready
 
   override open var writableFinished : Bool { return state == .finished }
   override open var writableEnded    : Bool {
@@ -51,7 +51,7 @@ open class OutgoingMessage: WritableByteStream,
   @inlinable
   override open var writable : Bool { return !writableEnded  }
 
-  public init(channel: Channel, log: Logger) {
+  public init(unsafeChannel channel: Channel?, log: Logger) {
     self.socket = channel
     self.log    = log
     super.init()
@@ -65,7 +65,7 @@ open class OutgoingMessage: WritableByteStream,
   
   // MARK: - Error Handling
 
-  func handleError(_ error: Error) {
+  open func handleError(_ error: Error) {
     log.error("\(error)")
     _ = socket?.close() // TBD
     socket = nil

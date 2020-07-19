@@ -11,11 +11,12 @@ let package = Package(
   ],
   
   products: [
-    .library(name: "Macro",     targets: [ "Macro"     ]),
-    .library(name: "MacroCore", targets: [ "MacroCore" ]),
-    .library(name: "xsys",      targets: [ "xsys"      ]),
-    .library(name: "http",      targets: [ "http"      ]),
-    .library(name: "fs",        targets: [ "fs"        ])
+    .library(name: "Macro",              targets: [ "Macro"              ]),
+    .library(name: "MacroCore",          targets: [ "MacroCore"          ]),
+    .library(name: "xsys",               targets: [ "xsys"               ]),
+    .library(name: "http",               targets: [ "http"               ]),
+    .library(name: "fs",                 targets: [ "fs"                 ]),
+    .library(name: "MacroTestUtilities", targets: [ "MacroTestUtilities" ])
   ],
   
   dependencies: [
@@ -27,7 +28,7 @@ let package = Package(
                .branch("feature/100-continue")),
     */
     .package(url: "https://github.com/apple/swift-log.git",
-             from: "1.2.0")
+             from: "1.4.0")
   ],
   
   targets: [
@@ -43,10 +44,16 @@ let package = Package(
               "NIO", "NIOConcurrencyHelpers", "NIOHTTP1",
               "MacroCore"
             ]),
-    .target(name: "fs",      dependencies: [ "NIO", "MacroCore", "xsys" ]),
-    .target(name: "Macro",
-            dependencies: [ 
-                "MacroCore", "xsys", "http", "fs"
-            ])
+    .target(name: "fs",    dependencies: [ "NIO", "MacroCore", "xsys" ]),
+    
+    // This is the Umbrella Target
+    .target(name: "Macro", dependencies: [ "MacroCore", "xsys", "http", "fs" ]),
+    
+    
+    // MARK: - Tests
+
+    .target(name: "MacroTestUtilities", dependencies: [ "Macro" ]),
+
+    .testTarget(name: "MacroTests", dependencies: [ "MacroTestUtilities" ])
   ]
 )
