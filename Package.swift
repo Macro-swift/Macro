@@ -11,11 +11,12 @@ let package = Package(
   ],
   
   products: [
-    .library(name: "Macro",     targets: [ "Macro"     ]),
-    .library(name: "MacroCore", targets: [ "MacroCore" ]),
-    .library(name: "xsys",      targets: [ "xsys"      ]),
-    .library(name: "http",      targets: [ "http"      ]),
-    .library(name: "fs",        targets: [ "fs"        ])
+    .library(name: "Macro",              targets: [ "Macro"              ]),
+    .library(name: "MacroCore",          targets: [ "MacroCore"          ]),
+    .library(name: "xsys",               targets: [ "xsys"               ]),
+    .library(name: "http",               targets: [ "http"               ]),
+    .library(name: "fs",                 targets: [ "fs"                 ]),
+    .library(name: "MacroTestUtilities", targets: [ "MacroTestUtilities" ])
   ],
   
   dependencies: [
@@ -47,7 +48,12 @@ let package = Package(
     
     // This is the Umbrella Target
     .target(name: "Macro", dependencies: [ "MacroCore", "xsys", "http", "fs" ]),
+    
+    
+    // MARK: - Tests
 
-    .testTarget(name: "MacroTests", dependencies: ["Macro"])
+    .target(name: "MacroTestUtilities", dependencies: [ "Macro" ]),
+
+    .testTarget(name: "MacroTests", dependencies: [ "MacroTestUtilities" ])
   ]
 )

@@ -33,17 +33,20 @@ import struct   MacroCore.Buffer
  * 
  * Make sure to call `end` to close the connection properly.
  */
-open class ServerResponse: OutgoingMessage {
+open class ServerResponse: OutgoingMessage, CustomStringConvertible {
 
   public var version = HTTPVersion(major: 1, minor: 1)
   public var status  = HTTPResponseStatus.ok
 
-  override public init(channel: Channel,
-                       log: Logger = .init(label: "μ.http"))
+  public convenience init(channel: Channel,
+                          log: Logger = .init(label: "μ.http"))
   {
-    super.init(channel: channel, log: log)
+    self.init(unsafeChannel: channel, log: log)
   }
-  
+  override public init(unsafeChannel channel: Channel?, log: Logger) {
+    super.init(unsafeChannel: channel, log: log)
+  }
+
   
   // MARK: - Emit Header
   
@@ -63,8 +66,8 @@ open class ServerResponse: OutgoingMessage {
   }
 
   @inlinable
-  public func writeHead(_ status: HTTPResponseStatus = .ok,
-                        headers: HTTPHeaders = [:])
+  open func writeHead(_ status: HTTPResponseStatus = .ok,
+                      headers: HTTPHeaders = [:])
   {
     if !headers.isEmpty {
       for ( name, value ) in headers {
@@ -81,7 +84,7 @@ open class ServerResponse: OutgoingMessage {
   
   public var trailers : NIOHTTP1.HTTPHeaders?
   
-  public func addTrailers(_ trailers: NIOHTTP1.HTTPHeaders) {
+  open func addTrailers(_ trailers: NIOHTTP1.HTTPHeaders) {
     if self.trailers == nil { self.trailers = trailers }
     else { self.trailers?.add(contentsOf: trailers) }
   }
@@ -134,9 +137,9 @@ open class ServerResponse: OutgoingMessage {
   }
   
   @inlinable
-  public func writeHead(_ statusCode: Int,
-                        _ statusMessage : String?,
-                        _ headers       : [ String : Any ] = [ : ])
+  open func writeHead(_ statusCode: Int,
+                      _ statusMessage : String?,
+                      _ headers       : [ String : Any ] = [ : ])
   {
     assert(!headersSent)
     guard !headersSent else { return }
@@ -161,7 +164,7 @@ open class ServerResponse: OutgoingMessage {
   
   // MARK: - 100-continue
   
-  public func writeContinue() {
+  open func writeContinue() {
     guard !writableEnded else {
       handleError(WritableError.writableEnded)
       return
@@ -215,11 +218,10 @@ open class ServerResponse: OutgoingMessage {
   {
     return write(bytes) { _ in whenDone() }
   }
-}
 
-extension ServerResponse: CustomStringConvertible {
+  // MARK: - CustomStringConvertible
 
-  public var description: String {
+  open var description: String {
     var ms = "<ServerResponse[\(ObjectIdentifier(self))]:"
     defer { ms += ">" }
     
