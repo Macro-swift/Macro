@@ -7,7 +7,7 @@
 //
 
 import xsys
-#if os(Linux)
+#if os(Linux) || os(Windows)
 #else
   import Foundation // for POSIXError
 #endif

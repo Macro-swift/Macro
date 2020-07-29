@@ -45,7 +45,14 @@ public func ___dirname(caller: String) -> String {
   
   if caller.contains("swift-sh.cache"), let toolname = process.env["_"] {
     let dirURL  = URL(fileURLWithPath: process.cwd(), isDirectory: true)
-    let toolURL = URL(fileURLWithPath: toolname, relativeTo: dirURL)
+    let toolURL : URL = {
+      if #available(macOS 10.11, iOS 11, *) {
+        return URL(fileURLWithPath: toolname, relativeTo: dirURL)
+      }
+      else {
+        return dirURL.appendingPathComponent(toolname) // TBD
+      }
+    }()
     
     if fm.fileExists(atPath: toolURL.path) {
       return toolURL.deletingLastPathComponent().path

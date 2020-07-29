@@ -1,15 +1,17 @@
 //
 //  timeval_any.swift
-//  Noze.io
+//  Noze.io / Macro
 //
 //  Created by Helge Hess on 21/07/16.
-//  Copyright © 2016 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
 //
 
-#if os(Linux)
-import func Glibc.gettimeofday
+#if os(Windows)
+  import WinSDK
+#elseif os(Linux)
+  import func Glibc.gettimeofday
 #else
-import func Darwin.gettimeofday
+  import func Darwin.gettimeofday
 #endif
 
 
@@ -36,12 +38,15 @@ public protocol timeval_any {
   var seconds      : Int { get }
   var milliseconds : Int { get }
   
+  #if !os(Windows)
   var componentsInUTC       : xsys.struct_tm { get }
   var componentsInLocalTime : xsys.struct_tm { get }
+  #endif
 
   static func -(left: Self, right: Self) -> Self
 }
 
+#if !os(Windows)
 public extension timeval_any {
 
   var componentsInUTC : xsys.struct_tm {
@@ -138,3 +143,4 @@ extension timespec : timeval_any {
   }
   
 }
+#endif // !os(Windows)

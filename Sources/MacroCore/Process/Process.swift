@@ -9,7 +9,9 @@
 import class Foundation.ProcessInfo
 import xsys
 
-#if os(Linux)
+#if os(Windows)
+  import WinSDK
+#elseif os(Linux)
   import Glibc
 #else
   import Darwin
@@ -45,6 +47,18 @@ public extension process { // File System
 }
 
 public extension process { // Process Info
+
+  #if os(Windows)
+    static let platform = "win32"
+  #elseif os(Linux)
+    static let platform = "linux"
+  #else
+    static let platform = "darwin"
+  #endif
+}
+
+#if !os(Windows)
+public extension process { // Process Info
   
   @inlinable
   static var pid     : Int { return Int(getpid()) }
@@ -60,26 +74,24 @@ public extension process { // Process Info
   // TODO: title { set get }
   // TODO: uptime
 
-  #if os(Linux)
-    static let platform = "linux"
-  #else
-    static let platform = "darwin"
-  #endif
-  
   // TODO: arch
   // TODO: release
 }
+#endif // !os(Windows)
 
 public extension process { // Run Control
-
-  static let abort = xsys.abort
 
   static var exitCode : Int {
     set { MacroCore.shared.exitCode = newValue }
     get { return MacroCore.shared.exitCode }
   }
   static func exit(code: Int? = nil) { MacroCore.shared.exit(code) }
+}
 
+#if !os(Windows)
+public extension process { // Run Control
+
+  static let abort = xsys.abort
 
   static func kill(_ pid: Int, _ signal: Int32 = xsys.SIGTERM) throws {
     let rc = xsys.kill(pid_t(pid), signal)
@@ -99,3 +111,4 @@ public extension process { // Run Control
     try kill(pid, sc)
   }
 }
+#endif // !os(Windows)

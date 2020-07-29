@@ -6,7 +6,9 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
-#if os(Linux)
+#if os(Windows)
+  import func WinSDK.strstr
+#elseif os(Linux)
   import func Glibc.strstr
 #else
   import func Darwin.strstr
@@ -15,7 +17,7 @@ import let xsys.getenv
 
 public extension process {
 
-  #if os(Linux)
+  #if os(Linux) || os(Windows)
     static let isRunningInXCode = false
   #else
     static let isRunningInXCode : Bool = {
