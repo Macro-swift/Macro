@@ -1,57 +1,58 @@
 //
 //  timespec.swift
-//  Noze.io
+//  Noze.io / Macro
 //
 //  Created by Helge Hess on 31/05/16.
-//  Copyright © 2016 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
 //
 
-#if os(Linux)
-import Glibc
+#if os(Windows)
+  import WinSDK
+#elseif os(Linux)
+  import Glibc
 
-public typealias timespec = Glibc.timespec
-public typealias timeval  = Glibc.timeval
+  public typealias timespec = Glibc.timespec
+  public typealias timeval  = Glibc.timeval
 
-public extension timespec {
-  
-  static func monotonic() -> timespec {
-    var ts = timespec()
-    clock_gettime(CLOCK_MONOTONIC, &ts)
-    return ts
+  public extension timespec {
+    
+    static func monotonic() -> timespec {
+      var ts = timespec()
+      clock_gettime(CLOCK_MONOTONIC, &ts)
+      return ts
+    }
+    
   }
-  
-}
-
 #else // Darwin
-import Darwin
+  import Darwin
 
-public typealias timespec = Darwin.timespec
-public typealias timeval  = Darwin.timeval
+  public typealias timespec = Darwin.timespec
+  public typealias timeval  = Darwin.timeval
 
-public extension timespec {
-  
-  init(_ mts: mach_timespec_t) {
-    #if swift(>=4.1)
-      self.init()
-    #endif
-    tv_sec  = __darwin_time_t(mts.tv_sec)
-    tv_nsec = Int(mts.tv_nsec)
-  }
-  
-  static func monotonic() -> timespec {
-    var cclock = clock_serv_t()
-    var mts    = mach_timespec_t()
+  public extension timespec {
     
-    host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self_, cclock);
+    init(_ mts: mach_timespec_t) {
+      #if swift(>=4.1)
+        self.init()
+      #endif
+      tv_sec  = __darwin_time_t(mts.tv_sec)
+      tv_nsec = Int(mts.tv_nsec)
+    }
     
-    return timespec(mts)
+    static func monotonic() -> timespec {
+      var cclock = clock_serv_t()
+      var mts    = mach_timespec_t()
+      
+      host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
+      clock_get_time(cclock, &mts);
+      mach_port_deallocate(mach_task_self_, cclock);
+      
+      return timespec(mts)
+    }
   }
-}
-  
 #endif // Darwin
 
+#if !os(Windows)
 
 public func -(left: timespec, right: timespec) -> timespec {
   var result = timespec()
@@ -104,3 +105,5 @@ extension timeval: CustomStringConvertible {
     }
   }
 }
+
+#endif // !os(Windows)

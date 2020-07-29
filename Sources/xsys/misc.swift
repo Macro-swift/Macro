@@ -1,16 +1,23 @@
 //
 //  misc.swift
-//  Noze.io
+//  Noze.io / Macro
 //
 //  Created by Helge Heß on 4/27/16.
-//  Copyright © 2016 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
 //
 
 // TODO: This file triggers a weird warning on Swift 3 2016-05-09:
 //    <unknown>:0: warning: will never be executed
 //    <unknown>:0: note: a call to a noreturn function
 
-#if os(Linux)
+#if os(Windows)
+  import WinSDK
+
+  public typealias size_t  = WinSDK.size_t // TBD
+  public let memcpy        = WinSDK.memcpy
+  public let strlen        = WinSDK.strlen
+  public let strchr        = WinSDK.strchr
+#elseif os(Linux)
   import Glibc
   
   public typealias size_t  = Glibc.size_t
@@ -21,6 +28,7 @@
   // Looks like todays Linux Swift doesn't have arc4random either.
   // Emulate it (badly).
   public func arc4random_uniform(_ v : UInt32) -> UInt32 { // sigh
+    // FIXME: use new Swift Random stuff!
     return UInt32(rand() % Int32(v))
   }
   
@@ -114,7 +122,9 @@
 // nothing is executed ;-)
 //   public let abort         = Darwin.abort
 //   public let exit          = Darwin.exit
-#if os(Linux)
+#if os(Windows)
+  public func exit(_ code: Int32) -> Never { WinSDK.exit(code) }
+#elseif os(Linux)
   public func abort()             -> Never { Glibc.abort()    }
   public func exit(_ code: Int32) -> Never { Glibc.exit(code) }
 #else // Darwin
@@ -122,6 +132,8 @@
   public func exit(_ code: Int32) -> Never { Darwin.exit(code) }
 #endif // Darwin
 
+
+#if !os(Windows)
 
 // MARK: - process status macros
 
@@ -139,3 +151,5 @@ public func WIFSIGNALED (_ x: CInt) -> Bool {
 
 public func WEXITSTATUS(_ x: CInt) -> CInt { return (x >> 8) & 0xFF }
 public func WTERMSIG   (_ x: CInt) -> CInt { return _WSTATUS(x) }
+
+#endif // !os(Windows)

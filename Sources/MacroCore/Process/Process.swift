@@ -9,7 +9,9 @@
 import class Foundation.ProcessInfo
 import xsys
 
-#if os(Linux)
+#if os(Windows)
+  import WinSDK
+#elseif os(Linux)
   import Glibc
 #else
   import Darwin

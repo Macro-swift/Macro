@@ -1,12 +1,16 @@
 //
 //  sockaddr_any.swift
-//  Noze.io
+//  Noze.io / Macro
 //
 //  Created by Helge Hess on 12/04/16.
-//  Copyright © 2016 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
 //
 
-#if os(Linux)
+#if os(Windows)
+  import WinSDK
+
+  // TODO: port via WinSock2
+#elseif os(Linux)
   import Glibc
 #else
   import Darwin
@@ -16,6 +20,7 @@
 //       domain.
 public enum sockaddr_any {
   
+#if !os(Windows) // TODO: port me using WinSock2
   case AF_INET (sockaddr_in)
   case AF_INET6(sockaddr_in6)
   case AF_LOCAL(sockaddr_un)
@@ -104,8 +109,10 @@ public enum sockaddr_any {
   // TODO: how to implement this? Is it even possible? (is the associated value
   //       memory-stable, or do we get a local copy?)
   // public var genericPointer : UnsafePointer<sockaddr> { .. }
+#endif // !os(Windows)
 }
 
+#if !os(Windows) // TODO: port me using WinSock2
 extension sockaddr_any: CustomStringConvertible {
   
   public var description: String {
@@ -116,5 +123,5 @@ extension sockaddr_any: CustomStringConvertible {
       case .AF_LOCAL(let addr): return "\(addr)"
     }
   }
-  
 }
+#endif // !os(Windows)

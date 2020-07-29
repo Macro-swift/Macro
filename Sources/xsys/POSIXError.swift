@@ -1,15 +1,19 @@
 //
 //  POSIXError.swift
-//  Noze.io
+//  Noze.io / Macro
 //
 //  Created by Helge Hess on 11/04/16.
-//  Copyright © 2016 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
 //
 
 // TBD: This is a bit weird. Now even more due to POSIXErrorCode vs POSIXError.
 //      But well :-)
 
-#if os(Linux)
+#if os(Windows)
+  import WinSDK
+
+  // TODO: port me
+#elseif os(Linux)
   import Glibc
 
   public let EWOULDBLOCK = Glibc.EWOULDBLOCK

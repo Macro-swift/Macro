@@ -1,19 +1,23 @@
 //
 //  ioctl.swift
-//  Noze.io
+//  Noze.io / Macro
 //
 //  Created by Helge Hess on 11/04/16.
-//  Copyright © 2016 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
 //
 
-#if os(Linux)
+#if os(Windows)
+  import WinSDK
+#elseif os(Linux)
   import Glibc
 #else
   import Darwin
 #endif
 // MARK: - ioctl / ioccom stuff
 
-#if os(Linux)
+#if os(Windows)
+  // port me, WinSock2
+#elseif os(Linux)
 
   public let FIONREAD : CUnsignedLong = CUnsignedLong(Glibc.FIONREAD)
   
@@ -35,6 +39,8 @@
 
 #endif /* os(Darwin) */
 
+
+#if !os(Windows)
 
 // MARK: - Replicate C shims - BAD HACK
 // TODO: not required anymore? varargs work on Linux?
@@ -63,3 +69,5 @@ public func ioctlVip(_ fildes: Int32, _ cmd: CUnsignedLong,
   let fp = unsafeBitCast(fnIoctl, to: ioctlVipType.self)
   return fp(fildes, cmd, val)
 }
+
+#endif // !os(Windows)

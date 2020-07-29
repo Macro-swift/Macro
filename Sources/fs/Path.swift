@@ -6,7 +6,9 @@
 //  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
 //
 
-#if os(Linux)
+#if os(Windows)
+  import WinSDK
+#elseif os(Linux)
   import Glibc
 #else
   import Darwin

@@ -7,7 +7,10 @@
 //
 
 import xsys
-#if os(Linux)
+
+#if os(Windows)
+  // TODO: port me
+#elseif os(Linux)
   import let Glibc.S_IFMT
   import let Glibc.S_IFREG
   import let Glibc.S_IFDIR
@@ -29,6 +32,7 @@ import xsys
 import struct Foundation.Date
 import struct Foundation.TimeInterval
 
+#if !os(Windows)
 /**
  * Node like accessors to the Unix `stat` structure.
  */
@@ -108,3 +112,4 @@ extension time_t {
   @usableFromInline
   var timeInterval : TimeInterval { return TimeInterval(self) }
 }
+#endif // !os(Windows)

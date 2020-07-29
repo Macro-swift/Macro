@@ -6,7 +6,9 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
-#if os(Linux)
+#if os(Windows)
+  import WinSDK
+#elseif os(Linux)
   import func Glibc.atexit
   import func Glibc.signal
   import var  Glibc.SIG_IGN
@@ -59,7 +61,7 @@ public final class MacroCore {
        eventLoopGroup : EventLoopGroup
          = MultiThreadedEventLoopGroup(numberOfThreads: _defaultThreadCount))
   {
-    #if true
+    #if true && !os(Windows)
       // We never really want SIGPIPE's?
       signal(SIGPIPE, SIG_IGN)
       //signal(SIGCHLD, SIG_IGN)
