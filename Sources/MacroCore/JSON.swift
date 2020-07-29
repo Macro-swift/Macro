@@ -140,10 +140,16 @@ public extension JSONModule {
   }
 }
 
-public let _defaultJSONOptions        : JSONSerialization.WritingOptions
-                                      = [ .sortedKeys ]
-public let _defaultJSONEncoderOptions : JSONEncoder.OutputFormatting
-                                      = [ .sortedKeys ]
+// Public because those are used as default arguments:
+
+public let _defaultJSONOptions : JSONSerialization.WritingOptions = {
+  if #available(macOS 10.13, iOS 11, *) { return .sortedKeys }
+  else                                  { return []          }
+}()
+public let _defaultJSONEncoderOptions : JSONEncoder.OutputFormatting = {
+  if #available(macOS 10.13, iOS 11, *) { return .sortedKeys }
+  else                                  { return []          }
+}()
 
 
 // MARK: - JSON Streams
