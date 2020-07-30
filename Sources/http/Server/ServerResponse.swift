@@ -67,7 +67,10 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
   }
   open func uncork() {
     corkCount -= 1
-    guard !writableCorked else { return }
+    if !writableCorked { flush() }
+  }
+  
+  private func flush() {
     let wasEnding = state == .isEnding
     if let buffer = writableBuffer {
       writableBuffer = nil
@@ -134,14 +137,12 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
     if !headersSent { primaryWriteHead() }
     
     if writableCorked {
-      // This is different to Node, in Node `end` flushes the cork buffer and
-      // ends.
-      state = .isEnding
-      return
+      corkCount = 0
     }
 
     if let channel = socket {
       state = .isEnding
+      flush()
       channel.writeAndFlush(HTTPServerResponsePart.end(nil))
              .whenComplete { result in
                if case .failure(let error) = result {

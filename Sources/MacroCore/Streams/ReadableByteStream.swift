@@ -8,6 +8,13 @@
 
 /**
  * A `Buffer` based stream. This buffers the data until it is read.
+ *
+ * Hierarchy:
+ *
+ * - ErrorEmitter
+ *   - ReadableStreamBase
+ *     * ReadableByteStream
+ *       - IncomingMessage
  */
 open class ReadableByteStream: ReadableStreamBase<Buffer>,
                                ReadableStreamType,
@@ -23,14 +30,24 @@ open class ReadableByteStream: ReadableStreamBase<Buffer>,
   /// sent readable already, but the client didn't call `read()` yet.
   @usableFromInline internal var readPending = false
   
-  public func push(_ bytes: Buffer) {
+  open func push(_ bytes: Buffer?) {
     guard !readableEnded else {
       assert(!readableEnded, "trying to push to a readable which ended!")
       emit(error: ReadableError.readableEnded)
       return
     }
     
-    // TBD: was push <empty> the same like EOF/end?
+    guard let bytes = bytes else { // nil push means EOF (aka finish)
+      // TBD: This logic needs to be brought in line w/ Noze.io. That
+      //      we pushed EOF, doesn't mean there is nothing left to read.
+      readableEnded = true // TBD
+      if readableBuffer?.isEmpty ?? true {
+        endListeners.emit()
+        endListeners.removeAll()
+      }
+      return
+    }
+    
     guard bytes.count > 0 else { return }
     
     // when in reading mode, `data` is only emitted when `read` is called

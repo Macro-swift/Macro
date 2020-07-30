@@ -29,8 +29,14 @@ import func     MacroCore.nextTick
  *       req.log.info("got message:", req.method)
  *     }
  *
+ * Hierarchy:
+ *
+ * - ErrorEmitter
+ *   - ReadableStreamBase
+ *     - ReadableByteStream
+ *       * IncomingMessage
  */
-open class IncomingMessage: ReadableByteStream {
+open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
   
   public enum IncomingType {
     case request (HTTPRequestHead)
@@ -198,18 +204,28 @@ open class IncomingMessage: ReadableByteStream {
     guard case .response(let request) = head else { return nil }
     return request.status.reasonPhrase
   }
-}
-
-extension IncomingMessage: HTTPHeadersHolder {}
-
-extension IncomingMessage: CustomStringConvertible {
-
-  public var description: String {
-    var ms = "<IncomingMessage[\(ObjectIdentifier(self))]:"
+  
+  
+  // MARK: - Description
+  
+  open var description: String {
+    let id : String = {
+      let oids = ObjectIdentifier(self).debugDescription
+      // ObjectIdentifier(0x000000010388a610)
+      let dropPrefix = "ObjectIdentifier(0x000000"
+      guard oids.hasPrefix(dropPrefix) else { return oids }
+      return "0x" + oids.dropFirst(dropPrefix.count).dropLast()
+    }()
+    
+    var ms = "<IncomingMessage[\(id)]:"
     defer { ms += ">" }
     
     if      socket         == nil { ms += " no-socket"       }
     else if flowingToggler == nil { ms += " no-flow-toggler" }
+    
+    if let buffered = readableBuffer, !buffered.isEmpty {
+      ms += " buffered=\(buffered.count)"
+    }
     
     switch head {
       case .request  : ms += " \(method) \(url)"
@@ -217,9 +233,14 @@ extension IncomingMessage: CustomStringConvertible {
     }
 
     if readableEnded { ms += " ended" }
+    
+    if !readableListeners.isEmpty { ms += " has-readable-listeners" }
+    if !dataListeners    .isEmpty { ms += " has-data-listeners"     }
 
     for ( key, value ) in extra { ms += " \(key)=\(value)" }
     
     return ms
   }
 }
+
+extension IncomingMessage: HTTPHeadersHolder {}

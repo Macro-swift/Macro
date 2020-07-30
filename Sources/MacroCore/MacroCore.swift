@@ -138,10 +138,10 @@ public final class MacroCore {
       print("RELEASE[\(workCount.load())/\(old)]: \(hash)")
     }
     
-    let new = workCount.sub(1)
-    if new == 0 {
+    let old = workCount.sub(1) // returns the _previous_ value
+    if old == 1 { // it is the old, before the sub ...
       if debugRetain {
-        print("TERMINATE[\(new): \(filename as Optional):\(line as Optional) " +
+        print("TERMINATE[\(old): \(filename as Optional):\(line as Optional) " +
               "\(function as Optional)")
       }
       maybeTerminate()
@@ -206,6 +206,22 @@ public final class MacroCore {
         MacroCore.shared.run()
       }
     }
+  }
+}
+
+extension MacroCore: CustomStringConvertible {
+  
+  public var description: String {
+    var ms = "<CORE:"
+    defer { ms += ">" }
+    
+    if wasInExit { ms += " was-in-exit" }
+    if didRegisterAtExit.load() { ms += " did-reg-@exit" }
+    else                        { ms += " no-@exit"      }
+
+    let wc = workCount.load()
+    if wc != 0 { ms += " work-count=\(wc)" }
+    return ms
   }
 }
 
