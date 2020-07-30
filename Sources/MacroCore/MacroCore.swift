@@ -50,7 +50,7 @@ public final class MacroCore {
   @inlinable
   public var eventLoopGroup : EventLoopGroup {
     set { _eventLoopGroup = newValue }
-    get { _eventLoopGroup ?? _globalDefaultEventLoopGroup }
+    get { return _eventLoopGroup ?? _globalDefaultEventLoopGroup }
   }
   @usableFromInline
   internal var _eventLoopGroup : EventLoopGroup?
