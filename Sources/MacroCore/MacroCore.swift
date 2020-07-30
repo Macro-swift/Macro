@@ -34,13 +34,6 @@ public final class MacroCore {
   
   public static let shared = MacroCore()
   
-  /**
-   * Usually the main queue. Can be set to a different, serial queue for
-   * testing purposes (set it early).
-   *
-   * Unlike in Noze.io, this is not used often in Macro. Primarily as a fallback
-   * if no event loop could not be determined.
-   */
   public var allocator : ByteBufferAllocator
   
   @usableFromInline
@@ -48,6 +41,10 @@ public final class MacroCore {
   @usableFromInline
   internal let emptyBuffer : Buffer
 
+  /**
+   * Unlike in Noze.io, this is not used often in Macro. Primarily as a fallback
+   * if no event loop could not be determined.
+   */
   public var eventLoopGroup : EventLoopGroup
   
   @inlinable
