@@ -32,11 +32,23 @@ import struct   MacroCore.Buffer
  *     }
  * 
  * Make sure to call `end` to close the connection properly.
+ *
+ * Hierarchy:
+ *
+ *   WritableStreamBase
+ *     WritableByteStreamBase
+ *       OutgoingMessage
+ *       * ServerResponse
+ *         ClientRequest
  */
 open class ServerResponse: OutgoingMessage, CustomStringConvertible {
 
   public var version = HTTPVersion(major: 1, minor: 1)
   public var status  = HTTPResponseStatus.ok
+
+  override open var writableCorked : Bool { return corkCount > 0 }
+  private var corkCount      = 0
+  open    var writableBuffer : Buffer?
 
   public convenience init(channel: Channel,
                           log: Logger = .init(label: "μ.http"))
@@ -45,6 +57,26 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
   }
   override public init(unsafeChannel channel: Channel?, log: Logger) {
     super.init(unsafeChannel: channel, log: log)
+  }
+  
+  
+  // MARK: - Corking
+  
+  open func cork() {
+    corkCount += 1
+  }
+  open func uncork() {
+    corkCount -= 1
+    guard !writableCorked else { return }
+    let wasEnding = state == .isEnding
+    if let buffer = writableBuffer {
+      writableBuffer = nil
+      write(buffer)
+    }
+    if wasEnding {
+      state = .ready // otherwise 'end' won't run
+      end()
+    }
   }
 
   
@@ -55,8 +87,16 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
     assert(!headersSent)
     guard !headersSent else { return }
     headersSent = true
-    socket?.writeAndFlush(HTTPServerResponsePart.head(part))
-           .whenFailure(handleError)
+    
+    if let channel = socket {
+      channel.writeAndFlush(HTTPServerResponsePart.head(part))
+             .whenFailure(handleError)
+    }
+    else {
+      version = part.version
+      status  = part.status
+      headers = part.headers
+    }
   }
   @usableFromInline
   internal func primaryWriteHead() {
@@ -92,6 +132,13 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
   override open func end() {
     guard !writableEnded else { return }
     if !headersSent { primaryWriteHead() }
+    
+    if writableCorked {
+      // This is different to Node, in Node `end` flushes the cork buffer and
+      // ends.
+      state = .isEnding
+      return
+    }
 
     if let channel = socket {
       state = .isEnding
@@ -169,8 +216,13 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
       handleError(WritableError.writableEnded)
       return
     }
+    
+    // TODO: what about corking here? We should probably remember that
+    
     guard let channel = socket else {
-      handleError(WritableError.writableEnded)
+      if !writableCorked { // allow this in cork mode
+        handleError(WritableError.writableEnded)
+      }
       return
     }
     
@@ -192,6 +244,15 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
     }
     
     if !headersSent { primaryWriteHead() }
+    
+    if writableCorked {
+      // TBD: would probably better to couple the whenDone with the buffers?
+      if writableBuffer != nil { writableBuffer?.append(bytes) }
+      else                     { writableBuffer = bytes        }
+      whenDone(nil)
+      return (writableBuffer?.count ?? 0) < writableHighWaterMark
+    }
+    
     guard let channel = socket else {
       handleError(WritableError.writableEnded)
       whenDone(WritableError.writableEnded)
@@ -224,12 +285,21 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
   open var description: String {
     var ms = "<ServerResponse[\(ObjectIdentifier(self))]:"
     defer { ms += ">" }
-    
-    if socket == nil { ms += " no-socket" }
+
+    if writableCorked {
+      if let count = writableBuffer?.count, count > 0 {
+        ms += " corked=#\(count)"
+      }
+      else {
+        ms += " corked(empty)"
+      }
+    }
+    else if socket == nil {
+      ms += " no-socket"
+    }
     
     ms += " \(statusCode)"
     if writableEnded  { ms += " ended"  }
-    if writableCorked { ms += " corked" }
     
     for ( key, value ) in extra { ms += " \(key)=\(value)" }
     
