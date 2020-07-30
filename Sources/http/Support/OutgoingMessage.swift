@@ -20,6 +20,14 @@ import struct   MacroCore.Buffer
 
 /**
  * Baseclass for `ServerResponse` and `ClientRequest`.
+ *
+ * Hierarchy:
+ *
+ *   WritableStreamBase
+ *     WritableByteStreamBase
+ *     * OutgoingMessage
+ *         ServerResponse
+ *         ClientRequest
  */
 open class OutgoingMessage: WritableByteStream,
                             WritableStreamType, WritableByteStreamType
@@ -84,7 +92,7 @@ open class OutgoingMessage: WritableByteStream,
   @discardableResult @inlinable
   open func write(_ string: String, whenDone: @escaping () -> Void = {}) -> Bool
   {
-    guard socket != nil else { whenDone(); return false }
+    guard writableCorked || socket != nil else { whenDone(); return false }
     return write(Buffer(string), whenDone: whenDone)
   }
   

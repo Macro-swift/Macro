@@ -34,13 +34,6 @@ public final class MacroCore {
   
   public static let shared = MacroCore()
   
-  /**
-   * Usually the main queue. Can be set to a different, serial queue for
-   * testing purposes (set it early).
-   *
-   * Unlike in Noze.io, this is not used often in Macro. Primarily as a fallback
-   * if no event loop could not be determined.
-   */
   public var allocator : ByteBufferAllocator
   
   @usableFromInline
@@ -48,8 +41,26 @@ public final class MacroCore {
   @usableFromInline
   internal let emptyBuffer : Buffer
 
-  public var eventLoopGroup : EventLoopGroup
-  
+  /**
+   * Unlike in Noze.io, this is not used often in Macro. Primarily as a fallback
+   * if no event loop could not be determined.
+   *
+   * Note: Not threadsafe.
+   */
+  @inlinable
+  public var eventLoopGroup : EventLoopGroup {
+    set { _eventLoopGroup = newValue }
+    get { return _eventLoopGroup ?? _globalDefaultEventLoopGroup }
+  }
+  @usableFromInline
+  internal var _eventLoopGroup : EventLoopGroup?
+
+  /**
+   * Lookup the best possible `EventLoop`. If the user passes one into the
+   * function, and it's not nil, return that.
+   * Otherwise check `MultiThreadedEventLoopGroup.currentEventLoop`,
+   * and if there is none either, use `eventLoopGroup.next`.
+   */
   @inlinable
   public func fallbackEventLoop(_ eventLoop: EventLoop? = nil) -> EventLoop {
     return eventLoop
@@ -58,20 +69,22 @@ public final class MacroCore {
   }
 
   init(allocator      : ByteBufferAllocator = .init(),
-       eventLoopGroup : EventLoopGroup
-         = MultiThreadedEventLoopGroup(numberOfThreads: _defaultThreadCount))
+       eventLoopGroup : EventLoopGroup?     = nil)
   {
+    let bb = allocator.buffer(capacity: 0)
+    self.allocator       = allocator
+    self.emptyByteBuffer = bb
+    self.emptyBuffer     = Buffer(bb)
+    self._eventLoopGroup = eventLoopGroup
+    disableUndesirableSignals()
+  }
+  
+  private func disableUndesirableSignals() {
     #if true && !os(Windows)
       // We never really want SIGPIPE's?
       signal(SIGPIPE, SIG_IGN)
       //signal(SIGCHLD, SIG_IGN)
     #endif
-    
-    let bb = allocator.buffer(capacity: 0)
-    self.allocator       = allocator
-    self.emptyByteBuffer = bb
-    self.emptyBuffer     = Buffer(bb)
-    self.eventLoopGroup  = eventLoopGroup
   }
 
   // MARK: - Track Work
@@ -206,7 +219,12 @@ public func disableAtExitHandler() {
 
 fileprivate let sysExit = exit
 
-public let _defaultThreadCount =
+@usableFromInline
+internal let _globalDefaultEventLoopGroup : EventLoopGroup = {
+  return MultiThreadedEventLoopGroup(numberOfThreads: _defaultThreadCount)
+}()
+
+internal let _defaultThreadCount =
   process.getenv("macro.core.numthreads",
                  defaultValue      : System.coreCount, // vs 1 for beginners?
                  upperWarningBound : 64)

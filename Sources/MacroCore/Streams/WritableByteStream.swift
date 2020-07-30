@@ -11,6 +11,11 @@
  *
  * Note: `WritableStreamType` and `WritableByteStreamType` are not implemented
  *       here. It is just a base class.
+ *
+ * Hierarchy:
+ * 
+ *   WritableStreamBase
+ *     WritableByteStreamBase
  */
 open class WritableByteStream: WritableStreamBase<Buffer> {
 
