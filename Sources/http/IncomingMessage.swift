@@ -29,6 +29,12 @@ import func     MacroCore.nextTick
  *       req.log.info("got message:", req.method)
  *     }
  *
+ * Hierarchy:
+ *
+ * - ErrorEmitter
+ *   - ReadableStreamBase
+ *     - ReadableByteStream
+ *       * IncomingMessage
  */
 open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
   

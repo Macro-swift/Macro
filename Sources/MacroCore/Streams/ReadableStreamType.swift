@@ -15,7 +15,7 @@ public protocol ReadableStreamType: ErrorEmitterType {
   var  readableEnded         : Bool { get }
   var  readableFlowing       : Bool { get }
 
-  func push(_ bytes: ReadablePayload)
+  func push(_ bytes: ReadablePayload?)
 
   func read(_ count: Int?) -> ReadablePayload
   func read()              -> ReadablePayload

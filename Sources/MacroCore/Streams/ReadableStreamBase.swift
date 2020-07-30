@@ -20,6 +20,13 @@
  * - `readableLength` MUST be overridden
  * - the subclass should to conform to `ReadableStreamType`
  * - the `onData` setup functions need to be implemented
+ *
+ * Hierarchy:
+ *
+ * - ErrorEmitter
+ *   * ReadableStreamBase
+ *     - ReadableByteStream
+ *       - IncomingMessage
  */
 open class ReadableStreamBase<ReadablePayload>: ErrorEmitter {
 
