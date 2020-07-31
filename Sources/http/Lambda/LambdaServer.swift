@@ -6,7 +6,7 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
-#if canImport(AWSLambdaEvents)
+#if canImport(AWSLambdaEvents) && canImport(AWSLambdaRuntime)
 
 import func     Foundation.setenv
 import func     Foundation.exit
@@ -261,4 +261,4 @@ extension lambda {
   }
 }
 
-#endif // canImport(AWSLambdaEvents)
+#endif // canImport(AWSLambdaEvents) && canImport(AWSLambdaRuntime)
