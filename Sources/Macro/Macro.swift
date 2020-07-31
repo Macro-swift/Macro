@@ -34,6 +34,9 @@ public typealias jsonfile = JSONFileModule
 
 // MARK: - Submodules in `http` Target
 
+@_exported import class http.IncomingMessage
+@_exported import class http.ServerResponse
+
 import enum      http.HTTPModule
 import enum      http.BasicAuthModule
 import enum      http.QueryStringModule
@@ -45,3 +48,10 @@ public typealias querystring = QueryStringModule
 
 public var argv : [ String ]          { return process.argv }
 public var env  : [ String : String ] { return process.env  }
+
+#if canImport(AWSLambdaRuntime)
+
+import enum http.lambda
+public typealias lambda = http.lambda
+
+#endif
