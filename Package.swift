@@ -28,13 +28,13 @@ let package = Package(
   ],
   
   targets: [
+    .target(name: "xsys", dependencies: []),
     .target(name: "MacroCore",
             dependencies: [ 
               "NIO", "NIOConcurrencyHelpers", "NIOFoundationCompat", 
               "Logging",
               "xsys"
             ]),
-    .target(name: "xsys", dependencies: []),
     .target(name: "http",
             dependencies: [ 
               "NIO", "NIOConcurrencyHelpers", "NIOHTTP1",

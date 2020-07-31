@@ -17,6 +17,7 @@
   public let memcpy        = WinSDK.memcpy
   public let strlen        = WinSDK.strlen
   public let strchr        = WinSDK.strchr
+  public let setenv        = WinSDK.setenv
 #elseif os(Linux)
   import Glibc
   
@@ -24,6 +25,7 @@
   public let memcpy        = Glibc.memcpy
   public let strlen        = Glibc.strlen
   public let strchr        = Glibc.strchr
+  public let setenv        = Glibc.setenv
 
   // Looks like todays Linux Swift doesn't have arc4random either.
   // Emulate it (badly).
@@ -75,6 +77,7 @@
   public let memcpy        = Darwin.memcpy
   public let strlen        = Darwin.strlen
   public let strchr        = Darwin.strchr
+  public let setenv        = Darwin.setenv
   public let arc4random_uniform = Darwin.arc4random_uniform
   
   public let kill          = Darwin.kill
