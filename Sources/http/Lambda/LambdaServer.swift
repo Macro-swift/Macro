@@ -15,8 +15,6 @@ import class    NIO.EventLoopFuture
 import class    MacroCore.ErrorEmitter
 import enum     MacroCore.EventListenerSet
 import struct   MacroCore.Buffer
-import class    http.IncomingMessage
-import class    http.ServerResponse
 import protocol AWSLambdaRuntime.EventLoopLambdaHandler
 import enum     AWSLambdaRuntime.Lambda
 import enum     AWSLambdaEvents.APIGateway

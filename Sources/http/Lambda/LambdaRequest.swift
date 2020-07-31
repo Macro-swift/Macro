@@ -12,7 +12,6 @@ import struct Logging.Logger
 import struct NIOHTTP1.HTTPRequestHead
 import enum   AWSLambdaEvents.APIGateway
 import struct MacroCore.Buffer
-import class  http.IncomingMessage
 
 public extension IncomingMessage {
   
