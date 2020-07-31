@@ -2,7 +2,7 @@
 //  IncomingMessage.swift
 //  Macro
 //
-//  Created by Helge Hess.
+//  Created by Helge Heß.
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
@@ -10,9 +10,11 @@ import struct   Logging.Logger
 import protocol NIO.Channel
 import struct   NIOHTTP1.HTTPRequestHead
 import struct   NIOHTTP1.HTTPResponseHead
+import enum     NIOHTTP1.HTTPMethod
 import struct   NIOHTTP1.HTTPVersion
 import struct   NIOHTTP1.HTTPHeaders
 import enum     NIOHTTP1.HTTPResponseStatus
+import struct   MacroCore.Buffer
 import class    MacroCore.ErrorEmitter
 import class    MacroCore.ReadableByteStream
 import enum     MacroCore.EventListenerSet
@@ -90,7 +92,8 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
   /// Store extra information alongside the request. Try to use unique keys,
   /// e.g. via reverse-DNS to avoid middleware conflicts.
   public var extra = [ String : Any ]()
-
+    // TBD: we could use OIDs here? Similar to EnvironmentKey's
+  
   @inlinable
   override open var errorLog : Logger { return log }
 
@@ -116,6 +119,9 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
   }
   
   internal var flowingToggler : (( Bool ) -> Void)?
+  
+  
+  // MARK: - Initialization
 
   public init(_ head : HTTPRequestHead,
               socket : NIO.Channel? = nil,
@@ -244,3 +250,63 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
 }
 
 extension IncomingMessage: HTTPHeadersHolder {}
+
+public extension IncomingMessage {
+  
+  /**
+   * Convenience method to quickly create an IncomingMessage for a synthesized
+   * request.
+   *
+   * - Parameters:
+   *   - method  : The HTTP method, defaults to `.GET`
+   *   - url     : The path (or URL in case of proxies), e.g. `/hello`
+   *   - version : The HTTP version to use, defaults to 1.1
+   *   - headers : An optional set of headers to use
+   *   - body    : The request body, if set the data is pushed and the finished
+   *               (i.e. the stream is marked `readableEnded`).
+   */
+  @inlinable
+  convenience init(method  : HTTPMethod  = .GET,
+                   url     : String,
+                   version : HTTPVersion = .init(major: 1, minor: 1),
+                   headers : HTTPHeaders = [:],
+                   body    : Buffer?     = nil)
+  {
+    let head = HTTPRequestHead(version: version, method: method, uri: url,
+                               headers: headers)
+    self.init(head)
+    
+    if let body = body {
+      push(body)
+      push(nil)
+    }
+  }
+
+  
+  /**
+   * Convenience method to quickly create an IncomingMessage for a synthesized
+   * response.
+   *
+   * - Parameters:
+   *   - status  : The HTTP response status
+   *   - version : The HTTP version to use, defaults to 1.1
+   *   - headers : An optional set of headers to use
+   *   - body    : The request body, if set the data is pushed and the finished
+   *               (i.e. the stream is marked `readableEnded`).
+   */
+  @inlinable
+  convenience init(status  : HTTPResponseStatus,
+                   version : HTTPVersion = .init(major: 1, minor: 1),
+                   headers : HTTPHeaders = [:],
+                   body    : Buffer?     = nil)
+  {
+    let head = HTTPResponseHead(version: version, status: status,
+                                headers: headers)
+    self.init(head)
+    
+    if let body = body {
+      push(body)
+      push(nil)
+    }
+  }
+}
