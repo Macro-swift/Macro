@@ -142,7 +142,9 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
 
     if let channel = socket {
       state = .isEnding
-      flush()
+      if writableBuffer != nil {
+        return flush() // this will recurse
+      }
       channel.writeAndFlush(HTTPServerResponsePart.end(nil))
              .whenComplete { result in
                if case .failure(let error) = result {
