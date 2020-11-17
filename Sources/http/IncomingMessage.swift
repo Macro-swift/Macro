@@ -21,6 +21,8 @@ import enum     MacroCore.EventListenerSet
 import func     MacroCore.nextTick
 
 /**
+ * Represents an incoming HTTP message.
+ * 
  * This can be both, a Request or a Response - it is a Response when it got
  * created by a client and it is a Request if it is coming from the Server.
  *
