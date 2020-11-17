@@ -21,6 +21,13 @@ public typealias querystring = QueryStringModule
 
 public extension QueryStringModule {
   
+  /**
+   * Does URL percent decoding on the given string.
+   *
+   * Consider using `querystring.parse` instead.
+   *
+   * For example: `hello%20world` => `hello world`
+   */
   @inlinable
   static func unescape<S: StringProtocol>(_ string: S) -> String {
     guard !string.isEmpty else { return "" }
@@ -31,6 +38,14 @@ public extension QueryStringModule {
     }
     return s
   }
+  
+  /**
+   * Does URL percent encoding on the given string.
+   *
+   * Consider using `querystring.stringify` instead.
+   *
+   * For example: `hello world` => `hello%20world`
+   */
   @inlinable
   static func escape<S: StringProtocol>(_ string: S,
                                         allowedCharacters: CharacterSet)
@@ -45,10 +60,24 @@ public extension QueryStringModule {
     }
     return s
   }
+  /**
+   * Does URL percent encoding on the given string.
+   *
+   * Consider using `querystring.stringify` instead.
+   *
+   * For example: `hello world` => `hello%20world`
+   */
   @inlinable
   static func escape(_ string: String) -> String {
     return escape(string, allowedCharacters: .urlQueryAllowed)
   }
+  /**
+   * Does URL percent encoding on the given string.
+   *
+   * Consider using `querystring.stringify` instead.
+   *
+   * For example: `hello world` => `hello%20world`
+   */
   @inlinable
   static func escape<S: StringProtocol>(_ string: S) -> String {
     return escape(string, allowedCharacters: .urlQueryAllowed)
@@ -68,6 +97,15 @@ public extension QueryStringModule {
                  decodeURIComponent: decodeURIComponent)
   }
   
+  /**
+   * Produces a URL query strings for the given dictionary.
+   *
+   * For example:
+   *
+   *     let s = querystring.stringify([ "a": 5, "b": 42 ])
+   *     assert(s == "a=5&b=42")
+   *
+   */
   @inlinable
   static func stringify(_ object           : [ String : Any ]?,
                         separator          : Character = "&",
@@ -140,6 +178,20 @@ public extension QueryStringModule {
     }
   }
 
+  /**
+   * Produces a URL query strings for the given `Encodable` object.
+   *
+   * For example:
+   *
+   *     struct Query: Encodable {
+   *       let a = 5
+   *       let b = 42
+   *     }
+   *     let s = querystring.stringify(Query())
+   *     assert(s == "a=5&b=42")
+   *
+   * Throws an Error if the object encoding failed.
+   */
   @inlinable
   static func _stringify<T: Encodable>(_ object: T) throws -> String {
     // expensive, but useful :-)
@@ -147,6 +199,19 @@ public extension QueryStringModule {
     let json     = try JSONSerialization.jsonObject(with: jsonData)
     return stringify(json)
   }
+  /**
+   * Produces a URL query strings for the given `Encodable` object.
+   *
+   * For example:
+   *
+   *     struct Query: Encodable {
+   *       let a = 5
+   *       let b = 42
+   *     }
+   *     let s = querystring.stringify(Query())
+   *     assert(s == "a=5&b=42")
+   *
+   */
   @inlinable
   static func stringify<T: Encodable>(_ object: T) -> String {
     do {
@@ -161,6 +226,19 @@ public extension QueryStringModule {
   
   // MARK: - Parsing
 
+  /**
+   * Parses a URL query string, like "a=5&b=10" into a dictionary,
+   * unescaping the components first.
+   *
+   * Example:
+   *
+   *     let values = querystring.parse("a=5&b=10")
+   *     assert(values["a"] as? String == "5")
+   *     assert(values["b"] as? String == "10")
+   *
+   * This supports a set of "Zope" style extras, which can be disabled by the
+   * `zopeFormats` parameter. Checkout `parseZopeQueryParameter` for details.
+   */
   @inlinable
   static func parse(_ string           : String,
                     separator          : Character = "&",
