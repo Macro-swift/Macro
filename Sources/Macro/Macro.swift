@@ -18,6 +18,7 @@
 @_exported import func     MacroCore.leftpad
 @_exported import protocol NIO.EventLoop
 @_exported import protocol NIO.EventLoopGroup
+@_exported import struct   Logging.Logger
 @_exported import func     MacroCore.__dirname
 
 // To support the pipe (`|`) operators. Swift can't re-export operators?

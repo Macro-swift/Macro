@@ -17,10 +17,37 @@ modules and concepts.
 Eventually it might evolve into Noze.io v2 (once backpressure enabled streams
 are fully working).
 
+The companion [MacroExpress](https://github.com/Macro-swift/MacroExpress)
+package adds Express.js-like middleware processing and functions, as well
+as templates.
+[MacroLambda](https://github.com/Macro-swift/MacroLambda) has the bits to
+directly deploy Macro applications on AWS Lambda.
+
 ## Streams
 
 Checkout [Noze.io for people who don't know Node](http://noze.io/noze4nonnode/),
 most things apply to Macro as well.
+
+## What does it look like?
+
+The Macro [Examples](https://github.com/Macro-swift/Examples) package 
+contains a few examples which all can run straight from the source as
+swift-sh scripts.
+
+The most basic HTTP server:
+```swift
+#!/usr/bin/swift sh
+import Macro // @Macro-swift ~> 0.5.4
+
+http
+  .createServer { req, res in
+    res.writeHead(200, [ "Content-Type": "text/html" ])
+    res.write("<h1>Hello Client: \(req.url)</h1>")
+    res.end()
+  }
+  .listen(1337)
+```
+
 
 ## Environment Variables
 

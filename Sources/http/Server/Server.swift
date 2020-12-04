@@ -114,6 +114,7 @@ open class Server: ErrorEmitter {
   {
     let bootstrap = createServerBootstrap(backlog)
     
+    didRetain = true
     core.retain()
 
     bind(bootstrap)
@@ -124,7 +125,7 @@ open class Server: ErrorEmitter {
 
           case .failure(let error):
             self.emit(error: error)
-            self.core.release()
+            self.core.release(); self.didRetain = false
         }
       }
   }

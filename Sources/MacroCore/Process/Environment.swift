@@ -17,7 +17,7 @@ public extension process { // Environment
    * cache.
    */
   @inlinable
-  static var env  : [ String : String ] {
+  static var env : [ String : String ] {
     return ProcessInfo.processInfo.environment
   }
 }
@@ -77,6 +77,13 @@ public extension process {
     guard let s = process.env[environmentVariableName], !s.isEmpty else {
       return false
     }
-    return s == "1" || s == "true" || s == "YES" || s == "enabled"
+    switch s.lowercased() {
+      case "1", "true",  "yes", "enabled"  : return true
+      case "0", "false", "no",  "disabled" : return false
+      default:
+        console.warn("unexpected value for bool environment variable:",
+                     environmentVariableName)
+        return false
+    }
   }
 }
