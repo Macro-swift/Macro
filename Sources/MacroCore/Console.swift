@@ -8,18 +8,18 @@
 
 import struct Logging.Logger
 
+public let console = Logger(label: "μ.console")
+
 /**
- * Just a small JavaScript like `console` shin around the Swift Logging API.
+ * Just a small JavaScript like `console` shim around the Swift Logging API.
  */
-public enum console {
+public extension Logger {
   
-  public static let logger = Logger(label: "μ.console")
+  @available(*, deprecated, message: "please use `console` directly")
+  var logger : Logger { return self }
   
   @usableFromInline
-  @inline(__always)
-  internal static func string(for msg: String, _ values: [ Any? ])
-                       -> Logger.Message
-  {
+  internal func string(for msg: String, _ values: [ Any? ]) -> Logger.Message {
     var message = msg
     for value in values {
       if let value = value {
@@ -41,36 +41,34 @@ public enum console {
     return Logger.Message(stringLiteral: message)
   }
   
-  @inlinable
-  public static func error(_ msg: @autoclosure () -> String, _ values : Any?...)
-  {
-    logger.error(string(for: msg(), values))
+  @inlinable func error(_ msg: @autoclosure () -> String, _ values : Any?...) {
+    error(string(for: msg(), values))
   }
-  @inlinable
-  public static func warn (_ msg: @autoclosure () -> String, _ values : Any?...) {
-    logger.warning(string(for: msg(), values))
+  @inlinable func warn (_ msg: @autoclosure () -> String, _ values : Any?...) {
+    warning(string(for: msg(), values))
   }
-  @inlinable
-  public static func log  (_ msg: @autoclosure () -> String, _ values : Any?...) {
-    logger.notice(string(for: msg(), values))
+  @inlinable func log  (_ msg: @autoclosure () -> String, _ values : Any?...) {
+    notice(string(for: msg(), values))
   }
-  @inlinable
-  public static func info (_ msg: @autoclosure () -> String, _ values : Any?...) {
-    logger.info(string(for: msg(), values))
+  @inlinable func info (_ msg: @autoclosure () -> String, _ values : Any?...) {
+    info(string(for: msg(), values))
   }
-  @inlinable
-  public static func trace(_ msg: @autoclosure () -> String, _ values : Any?...) {
-    logger.trace(string(for: msg(), values))
+  @inlinable func trace(_ msg: @autoclosure () -> String, _ values : Any?...) {
+    trace(string(for: msg(), values))
   }
 
-  @inlinable
-  public static func dir(_ obj: Any?) {
-    // TBD: rather dump to a String, and then send to the log?
-    if let obj = obj {
-      dump(obj)
+  func dir(_ obj: Any?) {
+    guard let obj = obj else {
+      return notice("<nil>")
     }
-    else {
-      print("<nil>")
+
+    struct StringOutputStream: TextOutputStream {
+      var value = ""
+      mutating func write(_ string: String) { value += string }
     }
+    var out = StringOutputStream()
+    
+    dump(obj, to: &out)
+    return notice(Logger.Message(stringLiteral: out.value))
   }
 }

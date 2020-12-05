@@ -31,7 +31,7 @@ open class ErrorEmitter : ErrorEmitterType, ErrorEmitterTarget {
   public var core : MacroCore { return MacroCore.shared }
   
   @inlinable
-  open var errorLog : Logger { return console.logger }
+  open var errorLog : Logger { return console }
 
   public init() {}
   
