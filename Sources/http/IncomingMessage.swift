@@ -17,7 +17,6 @@ import enum     NIOHTTP1.HTTPResponseStatus
 import struct   MacroCore.Buffer
 import class    MacroCore.ErrorEmitter
 import class    MacroCore.ReadableByteStream
-import enum     MacroCore.EventListenerSet
 import func     MacroCore.nextTick
 
 /**
