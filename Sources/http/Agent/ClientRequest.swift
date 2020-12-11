@@ -141,9 +141,27 @@ public extension HTTPModule {
     }
 
     @inlinable
-    public init(agent: AgentType = .global)
+    public init(agent      : AgentType  = .global,
+                auth       : String?    = nil,
+                headers    : [ String : String ] = [:],
+                `protocol` : String     = "http:",
+                host       : String     = "localhost",
+                port       : Int?       = nil,
+                method     : String     = "GET",
+                path       : String     = "/",
+                setHost    : Bool       = true,
+                timeout    : Int?       = nil)
     {
-      self.agent = agent
+      self.agent    = agent
+      self.auth     = auth
+      self.headers  = headers
+      self.protocol = `protocol`
+      self.host     = host
+      self.port     = port
+      self.method   = method
+      self.path     = path
+      self.setHost  = setHost
+      self.timeout  = timeout
     }
     
   }

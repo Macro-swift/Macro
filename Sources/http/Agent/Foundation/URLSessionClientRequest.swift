@@ -7,6 +7,7 @@
 //
 
 import struct   MacroCore.Buffer
+import enum     MacroCore.WritableError
 import struct   Foundation.URL
 import class    Foundation.NSObject
 import struct   Logging.Logger
@@ -36,7 +37,8 @@ public final class URLSessionClientRequest: ClientRequest {
   let eventLoop       : EventLoop
   var task            : URLSessionDataTask?
   var isWaitingForEnd = false
-  
+  var writtenContent  = Buffer()
+
   var response        : IncomingMessage?
   
   init(agent: URLSessionAgent, request: URLRequest, eventLoop: EventLoop) {
@@ -47,22 +49,6 @@ public final class URLSessionClientRequest: ClientRequest {
     super.init(unsafeChannel: nil, log: agent.options.logger)
   }
   
-  override public func end() {
-    guard !writableEnded else { return }
-
-    finishListeners.emit()
-    _clearListenersOnFinish()
-    
-    if isWaitingForEnd {
-      isWaitingForEnd = false
-      startRequest()
-    }
-  }
-  private func _clearListenersOnFinish() {
-    finishListeners.removeAll()
-    errorListeners .removeAll()
-  }
-
   private var selfRef : AnyObject?
   
   private func setupResponse(with httpResponse: HTTPURLResponse?)
@@ -92,6 +78,11 @@ public final class URLSessionClientRequest: ClientRequest {
     
     let eventLoop = self.eventLoop
     
+    var request = self.request
+    if !writtenContent.isEmpty {
+      request.httpBody = writtenContent.data
+    }
+        
     // FIXME: the agent should be the session delegate and do the receiving
     task = agent.options.session.dataTask(with: request) {
       data, urlResponse, error in
@@ -122,5 +113,38 @@ public final class URLSessionClientRequest: ClientRequest {
     
     selfRef = self
     task.resume()
+  }
+  
+  
+  // MARK: - Writable stream ...
+
+  override public func end() {
+    guard !writableEnded else { return }
+
+    finishListeners.emit()
+    _clearListenersOnFinish()
+    
+    if isWaitingForEnd {
+      isWaitingForEnd = false
+      startRequest()
+    }
+  }
+  private func _clearListenersOnFinish() {
+    finishListeners.removeAll()
+    errorListeners .removeAll()
+  }
+
+  @discardableResult
+  public override func write(_ bytes: Buffer,
+                             whenDone: @escaping () -> Void) -> Bool {
+    writtenContent.append(bytes)
+    whenDone()
+    return true
+  }
+  @discardableResult @inlinable
+  override public func write(_ string: String,
+                             whenDone: @escaping () -> Void = {}) -> Bool
+  {
+    return write(Buffer(string), whenDone: whenDone)
   }
 }
