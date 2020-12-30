@@ -20,8 +20,34 @@ public func concat(maximumSize: Int = _defaultConcatMaximumSize,
 {
   let stream = ConcatByteStream(maximumSize: maximumSize)
   return stream.onceFinish {
-    yield(stream.writableBuffer)
+    let result = stream.writableBuffer
     stream.writableBuffer = MacroCore.shared.emptyBuffer
+    yield(result)
+  }
+}
+
+/**
+ * Returns a stream in the spirit of the Node `concat-stream` module:
+ *
+ *   https://github.com/maxogden/concat-stream
+ *
+ * Be careful w/ using that. You don't want to baloon payloads in memory!
+ *
+ */
+@inlinable
+public func concat(maximumSize: Int = _defaultConcatMaximumSize,
+                   yield: @escaping ( Buffer ) throws -> Void)
+            -> ConcatByteStream
+{
+  let stream = ConcatByteStream(maximumSize: maximumSize)
+  return stream.onceFinish {
+    defer { stream.writableBuffer = MacroCore.shared.emptyBuffer }
+    do {
+      try yield(stream.writableBuffer)
+    }
+    catch {
+      stream.emit(error: error)
+    }
   }
 }
 
