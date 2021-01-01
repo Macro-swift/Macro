@@ -86,7 +86,7 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
   }
   
   public var head : IncomingType
-  public let log  : Logger
+  public var log  : Logger
   
   public private(set) var socket : NIO.Channel?
 
