@@ -304,8 +304,11 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
     ms += " \(statusCode)"
     if writableEnded  { ms += " ended"  }
     
-    for ( key, value ) in extra { ms += " \(key)=\(value)" }
-    
+    for ( key, value ) in _extra { ms += " \(key)=\(value)" }
+    for ( key, value ) in environment.loggingDictionary {
+      ms += " \(key)=\(value)"
+    }
+
     return ms
   }
 }

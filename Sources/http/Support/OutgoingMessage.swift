@@ -17,6 +17,8 @@ import class    MacroCore.ErrorEmitter
 import enum     MacroCore.EventListenerSet
 import func     MacroCore.nextTick
 import struct   MacroCore.Buffer
+import struct   MacroCore.EnvironmentValues
+import protocol MacroCore.EnvironmentValuesHolder
 
 /**
  * Baseclass for `ServerResponse` and `ClientRequest`.
@@ -43,8 +45,18 @@ open class OutgoingMessage: WritableByteStream,
   public var headers     = HTTPHeaders()
   public var headersSent = false
   public var sendDate    = true
-  public var extra       = [ String : Any ]()
-  
+
+  /// Store extra information alongside the request. Try to use unique keys,
+  /// e.g. via reverse-DNS to avoid middleware conflicts.
+  @available(*, deprecated, message: "Please use typed environment keys")
+  public var extra : [ String : Any ] {
+    set { _extra = newValue }
+    get { return _extra}
+  }
+  public lazy var _extra = [ String : Any ]()
+
+  public lazy var environment = MacroCore.EnvironmentValues.empty
+
   public internal(set) var socket : Channel?
 
   @inlinable
@@ -98,4 +110,5 @@ open class OutgoingMessage: WritableByteStream,
   
 }
 
+extension OutgoingMessage: EnvironmentValuesHolder  {}
 extension OutgoingMessage: HTTPMutableHeadersHolder {}
