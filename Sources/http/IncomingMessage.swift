@@ -92,19 +92,37 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
   
   public private(set) var socket : NIO.Channel?
 
-  /// Store extra information alongside the request. Try to use unique keys,
-  /// e.g. via reverse-DNS to avoid middleware conflicts.
-  @available(*, deprecated, message: "Please use typed environment keys")
-  public var extra : [ String : Any ] {
-    set { _extra = newValue }
-    get { return _extra}
-  }
-  public lazy var _extra = [ String : Any ]()
-
-  public lazy var environment = MacroCore.EnvironmentValues.empty
+  /**
+   * Use `EnvironmentKey`s to store extra information alongside requests.
+   * This is similar to using a Node/Express `locals` dictionary (or attaching
+   * directly properties to a request), but typesafe.
+   *
+   * For example a database connection associated with the request,
+   * or some extra data a custom bodyParser parsed.
+   *
+   * Example:
+   *
+   *     enum LoginUserEnvironmentKey: EnvironmentKey {
+   *       static let defaultValue = ""
+   *     }
+   *
+   * In addition to the key definition, one usually declares an accessor to the
+   * respective environment holder, for example the `IncomingMessage`:
+   *
+   *     extension IncomingMessage {
+   *
+   *       var loginUser : String {
+   *         set { self[LoginUserEnvironmentKey.self] = newValue }
+   *         get { self[LoginUserEnvironmentKey.self] }
+   *       }
+   *     }
+   *
+   */
+  public var environment = MacroCore.EnvironmentValues.empty
   
+  @available(*, deprecated, message: "Please use the regular `log` w/ `.error`")
   @inlinable
-  override open var errorLog : Logger { return log }
+  override open var errorLog : Logger { return log } // this was a mistake
 
   public internal(set) var complete : Bool = false {
     didSet {
@@ -255,7 +273,6 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     for ( key, value ) in environment.loggingDictionary {
       ms += " \(key)=\(value)"
     }
-    for ( key, value ) in _extra { ms += " \(key)=\(value)" }
     
     return ms
   }
