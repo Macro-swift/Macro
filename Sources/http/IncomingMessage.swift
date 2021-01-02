@@ -18,6 +18,8 @@ import struct   MacroCore.Buffer
 import class    MacroCore.ErrorEmitter
 import class    MacroCore.ReadableByteStream
 import func     MacroCore.nextTick
+import struct   MacroCore.EnvironmentValues
+import protocol MacroCore.EnvironmentValuesHolder
 
 /**
  * Represents an incoming HTTP message.
@@ -92,8 +94,14 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
 
   /// Store extra information alongside the request. Try to use unique keys,
   /// e.g. via reverse-DNS to avoid middleware conflicts.
-  public var extra = [ String : Any ]()
-    // TBD: we could use OIDs here? Similar to EnvironmentKey's
+  @available(*, deprecated, message: "Please use typed environment keys")
+  public var extra : [ String : Any ] {
+    set { _extra = newValue }
+    get { return _extra}
+  }
+  public lazy var _extra = [ String : Any ]()
+
+  public lazy var environment = MacroCore.EnvironmentValues.empty
   
   @inlinable
   override open var errorLog : Logger { return log }
@@ -244,13 +252,17 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     if !readableListeners.isEmpty { ms += " has-readable-listeners" }
     if !dataListeners    .isEmpty { ms += " has-data-listeners"     }
 
-    for ( key, value ) in extra { ms += " \(key)=\(value)" }
+    for ( key, value ) in environment.loggingDictionary {
+      ms += " \(key)=\(value)"
+    }
+    for ( key, value ) in _extra { ms += " \(key)=\(value)" }
     
     return ms
   }
 }
 
-extension IncomingMessage: HTTPHeadersHolder {}
+extension IncomingMessage: EnvironmentValuesHolder {}
+extension IncomingMessage: HTTPHeadersHolder       {}
 
 public extension IncomingMessage {
   
