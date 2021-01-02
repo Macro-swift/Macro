@@ -76,6 +76,7 @@ public extension EnvironmentKey {
   }
 }
 
+#if swift(>=5.1)
 /**
  * A dictionary which can hold values assigned to `EnvironmentKey`s.
  *
@@ -93,15 +94,25 @@ public extension EnvironmentKey {
  * That's not necessarily the case in Macro, though Macro application can also
  * use it like that.
  */
-@frozen public struct EnvironmentValues {
-  
-  public static let empty = EnvironmentValues()
+@frozen
+public struct EnvironmentValues {
   
   @usableFromInline
   var values = [ ObjectIdentifier : ( loggingKey: String, value: Any ) ]()
+}
+#else
+public struct EnvironmentValues { // 5.0 compat, no @frozen
+  @usableFromInline
+  var values = [ ObjectIdentifier : ( loggingKey: String, value: Any ) ]()
+}
+#endif
+
+public extension EnvironmentValues {
+
+  static let empty = EnvironmentValues()
   
   @inlinable
-  public subscript<K: EnvironmentKey>(key: K.Type) -> K.Value {
+  subscript<K: EnvironmentKey>(key: K.Type) -> K.Value {
     set {
       values[ObjectIdentifier(key)] = ( K.loggingKey, newValue )
     }
@@ -117,7 +128,8 @@ public extension EnvironmentKey {
     }
   }
   
-  public var loggingDictionary : [ String : Any ] {
+  @inlinable
+  var loggingDictionary : [ String : Any ] {
     var dict = [ String : Any ]()
     dict.reserveCapacity(values.count)
     for ( key, value ) in values.values {

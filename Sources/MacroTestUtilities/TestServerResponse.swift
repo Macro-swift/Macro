@@ -162,7 +162,9 @@ open class TestServerResponse: ServerResponse {
     if writableEnded  { ms += " ended"  }
     if writableCorked { ms += " corked" }
     
-    for ( key, value ) in extra { ms += " \(key)=\(value)" }
+    for ( key, value ) in environment.loggingDictionary {
+      ms += " \(key)=\(value)"
+    }
     
     if !writtenContent.isEmpty {
       ms += " #written=\(writtenContent.count)"
