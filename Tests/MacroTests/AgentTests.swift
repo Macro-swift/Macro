@@ -31,7 +31,7 @@ final class AgentTests: XCTestCase {
       }
     }
     
-    waitForExpectations(timeout: 5, handler: nil)
+    waitForExpectations(timeout: 20, handler: nil)
   }
 
   func testSimplePost() throws {
@@ -77,11 +77,11 @@ final class AgentTests: XCTestCase {
     XCTAssertTrue(didWrite)
     req.end()
     
-    waitForExpectations(timeout: 5, handler: nil)
+    waitForExpectations(timeout: 20, handler: nil)
   }
   
   static var allTests = [
     ( "testSimpleGet"  , testSimpleGet  ),
-    ( "testSimplePost" , testSimplePost ),
+    ( "testSimplePost" , testSimplePost )
   ]
 }

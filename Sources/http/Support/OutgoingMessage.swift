@@ -41,7 +41,7 @@ open class OutgoingMessage: WritableByteStream,
     case finished
   }
 
-  public let log         : Logger
+  public var log         : Logger
   public var headers     = HTTPHeaders()
   public var headersSent = false
   public var sendDate    = true
@@ -76,8 +76,9 @@ open class OutgoingMessage: WritableByteStream,
 
   public internal(set) var socket : Channel?
 
+  @available(*, deprecated, message: "Please use the regular `log` w/ `.error`")
   @inlinable
-  override open var errorLog : Logger { return log }
+  override open var errorLog : Logger { return log } // this was a mistake
 
   public var state = StreamState.ready
 
