@@ -36,7 +36,7 @@ public enum FileSystemModule {
 
 public let _defaultIOThreadCount =
   process.getenv("macro.core.iothreads",
-                 defaultValue      : System.coreCount / 2,
+                 defaultValue      : max(1, System.coreCount / 2),
                  upperWarningBound : 64)
 
 
