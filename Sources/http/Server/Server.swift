@@ -6,26 +6,27 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
-import class    MacroCore.ErrorEmitter
-import enum     MacroCore.EventListenerSet
-import class    MacroCore.MacroCore
-import struct   MacroCore.Buffer
-import struct   Logging.Logger
-import struct   NIO.NIOAny
-import class    NIO.EventLoopFuture
-import class    NIO.ServerBootstrap
-import protocol NIO.Channel
-import struct   NIO.ChannelOptions
-import protocol NIO.ChannelInboundHandler
-import class    NIO.ChannelHandlerContext
-import struct   NIO.SocketOptionLevel
-import let      NIO.SOL_SOCKET
-import let      NIO.SO_REUSEADDR
-import let      NIO.IPPROTO_TCP
-import let      NIO.TCP_NODELAY
-import enum     NIOHTTP1.HTTPServerRequestPart
-import class    NIOConcurrencyHelpers.Lock
-import class    NIOConcurrencyHelpers.NIOAtomic
+import class     MacroCore.ErrorEmitter
+import enum      MacroCore.EventListenerSet
+import class     MacroCore.MacroCore
+import struct    MacroCore.Buffer
+import struct    Logging.Logger
+import struct    NIO.NIOAny
+import class     NIO.EventLoopFuture
+import class     NIO.ServerBootstrap
+import protocol  NIO.Channel
+import struct    NIO.ChannelOptions
+import protocol  NIO.ChannelInboundHandler
+import class     NIO.ChannelHandlerContext
+import struct    NIO.SocketOptionLevel
+import let       NIO.SOL_SOCKET
+import let       NIO.SO_REUSEADDR
+import let       NIO.IPPROTO_TCP
+import let       NIO.TCP_NODELAY
+import enum      NIOHTTP1.HTTPServerRequestPart
+import typealias NIOHTTP1.NIOHTTPServerUpgradeConfiguration
+import class     NIOConcurrencyHelpers.Lock
+import class     NIOConcurrencyHelpers.NIOAtomic
 
 /**
  * http.Server
@@ -50,13 +51,14 @@ import class    NIOConcurrencyHelpers.NIOAtomic
  */
 open class Server: ErrorEmitter {
   
+  public  static let defaultBacklog = 512
   private static let serverID = NIOAtomic.makeAtomic(value: 0)
 
   public  let id        : Int
-  public  let log       : Logger
+  public  var log       : Logger
   private var didRetain = false
   private let txID      = NIOAtomic.makeAtomic(value: 0)
-  private let lock      = Lock()
+  public  let lock      = Lock()
 
   @usableFromInline
   init(log: Logger = .init(label: "μ.http")) {
@@ -74,23 +76,23 @@ open class Server: ErrorEmitter {
   @discardableResult
   open func listen(_ port      : Int?   = nil,
                    _ host      : String = "localhost",
-                   backlog     : Int  = 512,
+                   backlog     : Int    = Server.defaultBacklog,
                    onListening : ( ( Server ) -> Void)? = nil) -> Self
   {
     addDefaultListener(onListening)
-    listen(backlog: backlog) { bootstrap in
+    listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
       // TBD: does 0 trigger the wildcard port?
       return bootstrap.bind(host: host, port: port ?? 0)
     }
     return self
   }
   @discardableResult
-  open func listen(unixSocket : String = "express.socket",
-                   backlog    : Int    = 256,
+  open func listen(unixSocket  : String = "express.socket",
+                   backlog     : Int    = Server.defaultBacklog,
                    onListening : ( ( Server ) -> Void)? = nil) -> Self
   {
     addDefaultListener(onListening)
-    listen(backlog: backlog) { bootstrap in
+    listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
       return bootstrap.bind(unixDomainSocketPath: unixSocket)
     }
     return self
@@ -108,12 +110,16 @@ open class Server: ErrorEmitter {
       listener(server)
     }
   }
-
-  private func listen(backlog: Int,
-                      bind: ( ServerBootstrap ) -> EventLoopFuture<Channel>)
+  
+  /**
+   * Listen with a specific SwiftNIO `ServerBootstrap` setup,
+   * provided by the user.
+   *
+   * This is a low level method, intended for internal use primarily.
+   */
+  open func listen(bootstrap: ServerBootstrap,
+                   bind: ( ServerBootstrap ) -> EventLoopFuture<Channel>)
   {
-    let bootstrap = createServerBootstrap(backlog)
-    
     didRetain = true
     core.retain()
 
@@ -289,6 +295,14 @@ open class Server: ErrorEmitter {
   
   // MARK: - NIO Boilerplate
   
+  open var upgradeConfiguration : NIOHTTPServerUpgradeConfiguration? {
+    willSet {
+      if listening {
+        log.warn("Setting new upgrade config, but server is already listening!")
+      }
+    }
+  }
+  
   private func createServerBootstrap(_ backlog : Int) -> ServerBootstrap {
     let reuseAddrOpt = ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET),
                                              SO_REUSEADDR)
@@ -299,10 +313,11 @@ open class Server: ErrorEmitter {
       .serverChannelOption(reuseAddrOpt, value: 1)
       
       .childChannelInitializer { channel in
-        return channel.pipeline.configureHTTPServerPipeline().flatMap {
-          _ in
-          channel.pipeline.addHandler(HTTPHandler(server: self))
-        }
+        return channel.pipeline.configureHTTPServerPipeline()
+          .flatMap {
+            channel.pipeline.addHandler(HTTPHandler(server: self),
+                                        name: Server.httpHandlerName)
+          }
       }
       
       .childChannelOption(noDelayOp,    value: 1)
@@ -311,6 +326,13 @@ open class Server: ErrorEmitter {
                           value: 1)
     return bootstrap
   }
+  
+  /**
+   * This is the name of the HTTP handler in the SwiftNIO pipeline.
+   *
+   * It is a low-level internal a user doesn't usually have to touch.
+   */
+  public static let httpHandlerName: String = "μ.http.server.handler"
   
   private final class HTTPHandler : ChannelInboundHandler {
 
