@@ -269,3 +269,38 @@ public extension FileSystemModule {
 }
 
 #endif /* !Linux */
+
+
+// MARK: - Exists
+
+public extension FileSystemModule {
+  
+  /**
+   * Check whether the path exists.
+   *
+   * Use `fs.access()` instead.
+   */
+  @available(*, deprecated, message: "Using `access` is recommended.")
+  @inlinable
+  static func exists(_ path: String, yield: @escaping ( Bool ) -> Void) {
+    fs.access(path) { error in
+      yield(error == nil)
+    }    
+  }
+
+  /**
+   * Check whether the given path exists.
+   *
+   * As in Node: `exists` is deprecated, but `existsSync` is not :-)
+   */
+  @inlinable
+  static func existsSync(_ path: String) -> Bool {
+    do {
+      try fs.accessSync(path)
+      return true
+    }
+    catch {
+      return false
+    }
+  }
+}
