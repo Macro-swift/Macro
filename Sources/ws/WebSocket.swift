@@ -39,10 +39,17 @@ open class WebSocket: ErrorEmitter {
   
   // MARK: - Event Handlers
 
-  private var _closeListeners   = EventListenerSet<()>()
+  private var _closeListeners   = EventListenerSet<Void>()
   private var _messageListeners = EventListenerSet<( Any )>()
   private var _dataListeners    = EventListenerSet<Data>()
+  private var _pongListeners    = EventListenerSet<Void>()
 
+  @discardableResult
+  public func onPong(execute: @escaping () -> Void) -> Self {
+    _pongListeners.add(execute)
+    return self
+  }
+  
   @discardableResult
   public func onMessage(execute: @escaping ( Any ) -> Void) -> Self {
     _messageListeners.add(execute)
@@ -74,7 +81,10 @@ open class WebSocket: ErrorEmitter {
   func emitMessage(_ message: Any) {
     _messageListeners.emit(message)
   }
-  
+  func emitPong() {
+    _pongListeners.emit()
+  }
+
   func close() {
     _closeListeners.emit( () )
     guard channel != nil else { return }

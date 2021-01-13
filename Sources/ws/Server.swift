@@ -132,10 +132,9 @@ extension WebSocket {
           
           case .binary:
             handleInput(frame.unmaskedData, in: context)
-
+            
           case .pong:
-            ws.log.error("unexpected pong?")
-            self.closeOnError(in: context)
+            ws.emitPong()
           
           default:
             self.closeOnError(in: context)
