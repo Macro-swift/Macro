@@ -29,7 +29,7 @@ module.
 import fs // Macro-swift/Macro
 
 if fs.existsSync("/etc/passwd") {
-  let passwd = try fs.readFileSync("/etc/passwd", encoding: .utf8)
+  let passwd = try fs.readFileSync("/etc/passwd", .utf8)
   print("Passwd:")
   print(passwd)
 }
