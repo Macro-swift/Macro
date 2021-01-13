@@ -33,7 +33,8 @@ public extension JSONFileModule {
               -> Void
   {
     let module = MacroCore.shared.retain()
-
+    let loop   = module.fallbackEventLoop(eventLoop)
+    
     FileSystemModule.threadPool.submit { shouldRun in
       let result      : Any
       let resultError : Swift.Error?
@@ -56,7 +57,7 @@ public extension JSONFileModule {
         resultError = ChannelError.ioOnClosedChannel
       }
       
-      module.fallbackEventLoop(eventLoop).execute {
+      loop.execute {
         yield(resultError, result)
         module.release()
       }
@@ -70,6 +71,7 @@ public extension JSONFileModule {
               -> Void
   {
     let module = MacroCore.shared.retain()
+    let loop   = module.fallbackEventLoop(eventLoop)
 
     FileSystemModule.threadPool.submit { shouldRun in
       let resultError : Swift.Error?
@@ -89,7 +91,7 @@ public extension JSONFileModule {
         resultError = ChannelError.ioOnClosedChannel
       }
       
-      module.fallbackEventLoop(eventLoop).execute {
+      loop.execute {
         yield(resultError)
         module.release()
       }
@@ -104,6 +106,7 @@ public extension JSONFileModule {
               where T: Encodable
   {
     let module = MacroCore.shared.retain()
+    let loop   = module.fallbackEventLoop(eventLoop)
 
     FileSystemModule.threadPool.submit { shouldRun in
       let resultError : Swift.Error?
@@ -122,7 +125,7 @@ public extension JSONFileModule {
         resultError = ChannelError.ioOnClosedChannel
       }
       
-      module.fallbackEventLoop(eventLoop).execute {
+      loop.execute {
         yield(resultError)
         module.release()
       }
