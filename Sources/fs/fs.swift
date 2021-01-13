@@ -22,7 +22,11 @@ import xsys
 public enum FileSystemModule {
   
   /**
-   * The worker queue for FS functions.
+   * The worker queue for asynchronous file system functions.
+   *
+   * The number of threads is set using the `macro.core.iothreads` environment
+   * variable and defaults to half the number of machine cores (e.g. a machine
+   * w/ 8 CPU cores will be assigned 4 I/O threads).
    */
   public static let threadPool : NIOThreadPool = {
     let tp = NIOThreadPool(numberOfThreads: _defaultIOThreadCount)
@@ -30,10 +34,18 @@ public enum FileSystemModule {
     return tp
   }()
 
+  /**
+   * A NIO `NonBlockingFileIO` object for the `fs.threadPool`.
+   */
   public static let fileIO = NonBlockingFileIO(threadPool: threadPool)
 
 }
 
+/**
+ * The number of I/O threads is set using the `macro.core.iothreads` environment
+ * variable and defaults to half the number of machine cores (e.g. a machine
+ * w/ 8 CPU cores will be assigned 4 I/O threads).
+ */
 public let _defaultIOThreadCount =
   process.getenv("macro.core.iothreads",
                  defaultValue      : max(1, System.coreCount / 2),

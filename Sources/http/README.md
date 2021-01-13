@@ -1,4 +1,7 @@
-#  Macro `http` Module
+<h2>Macro `http` Module
+  <img src="http://zeezide.com/img/macro/MacroExpressIcon128.png"
+       align="right" width="100" height="100" />
+</h2>
 
 An HTTP module modelled after the builtin Node
 [http module](https://nodejs.org/dist/latest-v7.x/docs/api/http.html).
