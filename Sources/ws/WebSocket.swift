@@ -228,8 +228,13 @@ open class WebSocket: ErrorEmitter {
   @inlinable
   public func send(_ message: Any) {
     do {
+      #if os(Linux)
+        let opts : JSONSerialization.WritingOptions = []
+      #else
+        let opts : JSONSerialization.WritingOptions = [ .fragmentsAllowed ]
+      #endif
       let data = try JSONSerialization.data(withJSONObject: message,
-                                            options: [ .fragmentsAllowed ])
+                                            options: opts)
       send(data)
     }
     catch {
@@ -259,8 +264,12 @@ open class WebSocket: ErrorEmitter {
     
     if !_messageListeners.isEmpty {
       do {
-        let json = try JSONSerialization
-                        .jsonObject(with: data, options: .fragmentsAllowed)
+        #if os(Linux)
+          let opts : JSONSerialization.ReadingOptions = []
+        #else
+          let opts : JSONSerialization.ReadingOptions = [ .fragmentsAllowed ]
+        #endif
+        let json = try JSONSerialization.jsonObject(with: data, options: opts)
         _messageListeners.emit(json)
       }
       catch {
