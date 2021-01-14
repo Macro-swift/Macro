@@ -12,3 +12,19 @@ de facto WebSocket library for Node.
 [SwiftNIO](https://github.com/apple/swift-nio)
 already carries the protocol implementation.
 This is just a thin wrapper around it.
+
+### Server Example
+
+```swift
+#!/usr/bin/swift sh
+import Macro // @Macro-swift
+import ws    // Macro-swift/Macro
+
+let wss = WebSocket.Server(port: 8080)
+wss.onConnection { ws in
+  ws.onMessage { message in
+    console.log("Received:", message)
+  }
+  ws.send("Hello!")
+}
+```

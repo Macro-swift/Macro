@@ -6,7 +6,9 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
+import struct    Logging.Logger
 import enum      MacroCore.EventListenerSet
+import func      MacroCore.nextTick
 import class     http.Server
 import typealias NIOHTTP1.NIOHTTPServerUpgradeConfiguration
 import protocol  NIOHTTP1.HTTPServerProtocolUpgrader
@@ -39,11 +41,33 @@ extension WebSocket {
     // with NIO.
     // In Node the server also has 'upgrade' things, which we do not yet support
     // in Macro.
-    
-    // TODO: implement me
-    // TODO: `ws` supports creation w/ an `http.Server` object
-    // - presumably this works w/ the `upgrade` functionality?
-    
+
+    /**
+     * Initialize _and_ start a WebSocket server.
+     *
+     * The server is started in the next tick, listeners can still be setup
+     * after calling this initializer.
+     *
+     * Example:
+     *
+     *     let wss = WebSocket.Server(port: 8080)
+     *
+     * The server rejects all HTTP requests.
+     */
+    public init(port: Int, log: Logger = .init(label: "μ.ws")) {
+      super.init(log: log)
+      
+      onRequest { req, res in
+        log.error("WebSocket server got HTTP request:", req)
+        res.writeHead(403)
+        res.end()
+      }
+      
+      nextTick {
+        self.listen(port)
+      }
+    }
+
     private var _connectionListeners = EventListenerSet<( WebSocket )>()
     
     @discardableResult
@@ -54,7 +78,7 @@ extension WebSocket {
       return self
     }
 
-    lazy var upgrader : HTTPServerProtocolUpgrader = {
+    private lazy var upgrader : HTTPServerProtocolUpgrader = {
       func shouldUpgrade(channel: Channel, head: HTTPRequestHead)
            -> EventLoopFuture<HTTPHeaders?>
       {
@@ -66,33 +90,74 @@ extension WebSocket {
       func upgradeHandler(channel: Channel, head: HTTPRequestHead)
            -> EventLoopFuture<Void>
       {
+        let log     = self.log
+        let ws      = WebSocket(channel)
+        let handler = WebSocketConnection(ws)
+        
+        log.log("upgrading:", self)
+
         return channel.pipeline
           .removeHandler(name: http.Server.httpHandlerName)
+          .always { future in
+            print("FUTURE:", future)
+            print("REMOVE:", http.Server.httpHandlerName)
+            print("PIPELINE:", channel.pipeline)
+          }
           .flatMap { ( _ ) -> EventLoopFuture<Void> in
-            let ws      = WebSocket(channel)
-            let handler = WebSocketConnection(ws)
+            log.log("adding own handler:", self, channel.pipeline)
             return channel.pipeline
-              .addHandler(handler, name: Server.webSocketHandlerName)
+                     .addHandler(handler, name: Server.webSocketHandlerName)
+          }
+          .map {
+            if self._connectionListeners.isEmpty {
+              log.error("no WebSocket connection listeners:", self)
+              channel.close(mode: .all, promise: nil)
+            }
+            else {
+              log.log("emit success.")
+              self._connectionListeners.emit(ws)
+            }
           }
       }
     
       return NIOWebSocketServerUpgrader(shouldUpgrade: shouldUpgrade,
                                         upgradePipelineHandler: upgradeHandler)
     }()
-
+    
     private var combinedUpgradeConfiguration :
                   NIOHTTPServerUpgradeConfiguration?
-
-    #if false // TODO
-    override open var upgradeConfiguration : NIOHTTPServerUpgradeConfiguration?{
+    
+    override open var upgradeConfiguration : NIOHTTPServerUpgradeConfiguration?
+    {
       set {
+        if listening {
+          log.warn("Setting new upgrade config,",
+                   "but server is already listening!")
+        }
         
+        guard let newValue = newValue else {
+          combinedUpgradeConfiguration = nil
+          return
+        }
+        if newValue.upgraders
+            .contains(where: { $0 is NIOWebSocketServerUpgrader })
+        {
+          combinedUpgradeConfiguration = newValue
+        }
+        else {
+          combinedUpgradeConfiguration = (
+            upgraders: newValue.upgraders + [ upgrader ],
+            completionHandler: newValue.completionHandler
+          )
+        }
       }
       get {
-        
+        return combinedUpgradeConfiguration ?? (
+          upgraders: [ upgrader ],
+          completionHandler: { _ in }
+        )
       }
     }
-    #endif
     
     private static let webSocketHandlerName = "μ.ws.server.handler"
     
@@ -108,10 +173,6 @@ extension WebSocket {
         self.ws = ws
       }
       
-      open func handlerRemoved(context: ChannelHandlerContext) {
-        // tell `WebSocket` to shut down?
-      }
-
       /// Process WebSocket frames.
       open func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let frame = self.unwrapInboundIn(data)

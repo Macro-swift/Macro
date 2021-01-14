@@ -101,7 +101,7 @@ open class WebSocket: ErrorEmitter {
   // MARK: - Sending Data
 
   @inlinable
-  func send<T: Encodable>(_ message: T) {
+  public func send<T: Encodable>(_ message: T) {
     do {
       let data = try JSONEncoder().encode(message)
       send(data)
@@ -112,7 +112,7 @@ open class WebSocket: ErrorEmitter {
   }
 
   @inlinable
-  func send(_ message: Any) {
+  public func send(_ message: Any) {
     do {
       let data = try JSONSerialization.data(withJSONObject: message,
                                             options: [ .fragmentsAllowed ])
@@ -142,6 +142,7 @@ open class WebSocket: ErrorEmitter {
   
   func processIncomingData(_ data: Data) {
     _dataListeners.emit(data)
+    
     if !_messageListeners.isEmpty {
       do {
         let json = try JSONSerialization
