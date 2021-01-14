@@ -12,11 +12,16 @@ import func      MacroCore.nextTick
 import class     http.Server
 import typealias NIOHTTP1.NIOHTTPServerUpgradeConfiguration
 import protocol  NIOHTTP1.HTTPServerProtocolUpgrader
-
-// during development:
-import NIO
-import NIOHTTP1
-import NIOWebSocket
+import struct    NIOHTTP1.HTTPHeaders
+import struct    NIOHTTP1.HTTPRequestHead
+import struct    NIO.ByteBuffer
+import struct    NIO.NIOAny
+import protocol  NIO.Channel
+import protocol  NIO.ChannelInboundHandler
+import class     NIO.ChannelHandlerContext
+import class     NIO.EventLoopFuture
+import struct    NIOWebSocket.WebSocketFrame
+import class     NIOWebSocket.NIOWebSocketServerUpgrader
 
 extension WebSocket {
   
