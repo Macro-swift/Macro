@@ -314,7 +314,15 @@ open class Server: ErrorEmitter, CustomStringConvertible {
 
   
   // MARK: - NIO Boilerplate
-  
+
+  open var upgradeConfiguration : NIOHTTPServerUpgradeConfiguration? {
+    willSet {
+      if listening {
+        log.warn("Setting new upgrade config, but server is already listening!")
+      }
+    }
+  }
+
   private func createServerBootstrap(_ backlog : Int) -> ServerBootstrap {
     let reuseAddrOpt = ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET),
                                              SO_REUSEADDR)
@@ -341,6 +349,13 @@ open class Server: ErrorEmitter, CustomStringConvertible {
                           value: 1)
     return bootstrap
   }
+  
+  /**
+   * This is the name of the HTTP handler in the SwiftNIO pipeline.
+   *
+   * It is a low-level internal a user doesn't usually have to touch.
+   */
+  public static let httpHandlerName: String = "μ.http.server.handler"
   
   private final class HTTPHandler : ChannelInboundHandler {
 
