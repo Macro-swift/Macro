@@ -93,18 +93,10 @@ extension WebSocket {
         let log     = self.log
         let ws      = WebSocket(channel)
         let handler = WebSocketConnection(ws)
-        
-        log.log("upgrading:", self)
 
         return channel.pipeline
           .removeHandler(name: http.Server.httpHandlerName)
-          .always { future in
-            print("FUTURE:", future)
-            print("REMOVE:", http.Server.httpHandlerName)
-            print("PIPELINE:", channel.pipeline)
-          }
           .flatMap { ( _ ) -> EventLoopFuture<Void> in
-            log.log("adding own handler:", self, channel.pipeline)
             return channel.pipeline
                      .addHandler(handler, name: Server.webSocketHandlerName)
           }
@@ -114,7 +106,6 @@ extension WebSocket {
               channel.close(mode: .all, promise: nil)
             }
             else {
-              log.log("emit success.")
               self._connectionListeners.emit(ws)
             }
           }
