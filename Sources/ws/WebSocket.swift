@@ -18,17 +18,54 @@ import enum   MacroCore.EventListenerSet
 import NIO
 import NIOWebSocket
 
+/**
+ * A WebSocket connection.
+ *
+ * This is used for both, client initiated sockets and server initiated ones.
+ *
+ * It also acts as a namespace for the `WebSocket.Server` class.
+ *
+ * Client Example:
+ *
+ *     import ws
+ *
+ *     let ws = WebSocket("ws://echo.websocket.org/")
+ *     ws.onOpen { ws in
+ *       console.log("Connection available ...")
+ *       ws.send("Hello!")
+ *     }
+ *     ws.onMessage { message in
+ *       console.log("Received:", message)
+ *     }
+ *
+ * Server Example:
+ *
+ *     import ws
+ *
+ *     let wss = WebSocket.Server(port: 8080)
+ *     wss.onConnection { ws in
+ *       ws.onMessage { message in
+ *         console.log("Received:", message)
+ *       }
+ *
+ *       ws.send("Hello!")
+ *     }
+ *
+ */
 open class WebSocket: ErrorEmitter {
-  
-  // TODO: implement me
   
   enum WebSocketError: Swift.Error {
     case connectionNotOpen
   }
   
-  var log     : Logger
-  var channel : Channel?
+  open                var log     : Logger
+  public private(set) var channel : Channel?
   
+  /**
+   * Initialize the WebSocket with a fully setup and configured NIO `Channel`.
+   *
+   * Used by the server.
+   */
   @usableFromInline
   init(_ channel: Channel, log: Logger = .init(label: "μ.ws")) {
     self.channel = channel
@@ -43,6 +80,13 @@ open class WebSocket: ErrorEmitter {
   private var _messageListeners = EventListenerSet<( Any )>()
   private var _dataListeners    = EventListenerSet<Data>()
   private var _pongListeners    = EventListenerSet<Void>()
+  private var _openListeners    = EventListenerSet<WebSocket>()
+
+  @discardableResult
+  public func onOpen(execute: @escaping ( WebSocket ) -> Void) -> Self {
+    _openListeners.add(execute)
+    return self
+  }
 
   @discardableResult
   public func onPong(execute: @escaping () -> Void) -> Self {
@@ -83,6 +127,9 @@ open class WebSocket: ErrorEmitter {
   }
   func emitPong() {
     _pongListeners.emit()
+  }
+  func emitOpen() {
+    _openListeners.emit(self)
   }
 
   func close() {

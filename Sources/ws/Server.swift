@@ -98,7 +98,14 @@ extension WebSocket {
         let log     = self.log
         let ws      = WebSocket(channel)
         let handler = WebSocketConnection(ws)
-
+        
+        guard !_connectionListeners.isEmpty else {
+          struct NoListenersError: Swift.Error {}
+          let promise = channel.eventLoop.makePromise(of: Void.self)
+          promise.fail(NoListenersError())
+          return promise.futureResult
+        }
+        
         return channel.pipeline
           .removeHandler(name: http.Server.httpHandlerName)
           .flatMap { ( _ ) -> EventLoopFuture<Void> in
@@ -108,10 +115,12 @@ extension WebSocket {
           .map {
             if self._connectionListeners.isEmpty {
               log.error("no WebSocket connection listeners:", self)
+              assertionFailure("connection listeners modified during upgrade")
               channel.close(mode: .all, promise: nil)
             }
             else {
               self._connectionListeners.emit(ws)
+              ws.emitOpen()
             }
           }
       }
