@@ -6,26 +6,28 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
-import class    MacroCore.ErrorEmitter
-import enum     MacroCore.EventListenerSet
-import class    MacroCore.MacroCore
-import struct   MacroCore.Buffer
-import struct   Logging.Logger
-import struct   NIO.NIOAny
-import class    NIO.EventLoopFuture
-import class    NIO.ServerBootstrap
-import protocol NIO.Channel
-import struct   NIO.ChannelOptions
-import protocol NIO.ChannelInboundHandler
-import class    NIO.ChannelHandlerContext
-import struct   NIO.SocketOptionLevel
-import let      NIO.SOL_SOCKET
-import let      NIO.SO_REUSEADDR
-import let      NIO.IPPROTO_TCP
-import let      NIO.TCP_NODELAY
-import enum     NIOHTTP1.HTTPServerRequestPart
-import class    NIOConcurrencyHelpers.Lock
-import class    NIOConcurrencyHelpers.NIOAtomic
+import class     MacroCore.ErrorEmitter
+import enum      MacroCore.EventListenerSet
+import class     MacroCore.MacroCore
+import struct    MacroCore.Buffer
+import struct    Logging.Logger
+import struct    NIO.NIOAny
+import class     NIO.EventLoopFuture
+import class     NIO.ServerBootstrap
+import protocol  NIO.Channel
+import struct    NIO.ChannelOptions
+import protocol  NIO.ChannelInboundHandler
+import class     NIO.ChannelHandlerContext
+import struct    NIO.SocketOptionLevel
+import enum      NIO.SocketAddress
+import let       NIO.SOL_SOCKET
+import let       NIO.SO_REUSEADDR
+import let       NIO.IPPROTO_TCP
+import let       NIO.TCP_NODELAY
+import enum      NIOHTTP1.HTTPServerRequestPart
+import typealias NIOHTTP1.NIOHTTPServerUpgradeConfiguration
+import class     NIOConcurrencyHelpers.Lock
+import class     NIOConcurrencyHelpers.NIOAtomic
 
 /**
  * http.Server
@@ -48,7 +50,7 @@ import class    NIOConcurrencyHelpers.NIOAtomic
  *   - req: `http.IncomingMessage`
  *   - res: `http.ServerResponse`
  */
-open class Server: ErrorEmitter {
+open class Server: ErrorEmitter, CustomStringConvertible {
   
   private static let serverID = NIOAtomic.makeAtomic(value: 0)
 
@@ -58,8 +60,17 @@ open class Server: ErrorEmitter {
   private let txID      = NIOAtomic.makeAtomic(value: 0)
   private let lock      = Lock()
 
-  @usableFromInline
-  init(log: Logger = .init(label: "μ.http")) {
+  /**
+   * The initializer for `Server`. This is intended for subclasses. Framework
+   * users should use
+   *
+   *     http.createServer { req, res in
+   *       ...
+   *     }
+   *
+   * instead.
+   */
+  public init(log: Logger = .init(label: "μ.http")) {
     self.id  = Server.serverID.add(1) + 1
     self.log = log
     super.init()
@@ -129,7 +140,10 @@ open class Server: ErrorEmitter {
         }
       }
   }
-  
+
+  /**
+   * Returns true if the server is listening on some socket/channel.
+   */
   public var listening : Bool {
     lock.lock()
     let flag = !_channels.isEmpty
@@ -137,6 +151,17 @@ open class Server: ErrorEmitter {
     return flag
   }
   
+  /**
+   * Returns the socket addresses the server is listening on. Empty when the
+   * server is not yet listening on anything.
+   */
+  public var listenAddresses : [ SocketAddress ] {
+    lock.lock()
+    let addresses = _channels.compactMap { $0.localAddress }
+    lock.unlock()
+    return addresses
+  }
+
   private var _channels = [ Channel ]()
   private func registerChannel(_ channel: Channel) {
     lock.lock()
@@ -272,6 +297,7 @@ open class Server: ErrorEmitter {
   
   private func cancel(request: IncomingMessage, response: ServerResponse) {
     // TODO
+    log.error("cancel is not implemented.")
   }
   
   private func emitError(_ error: Swift.Error,
@@ -294,15 +320,19 @@ open class Server: ErrorEmitter {
                                              SO_REUSEADDR)
     let noDelayOp    = ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY)
     
+    let upgrade      = upgradeConfiguration
+    
     let bootstrap = ServerBootstrap(group: core.eventLoopGroup)
       .serverChannelOption(ChannelOptions.backlog, value: Int32(backlog))
       .serverChannelOption(reuseAddrOpt, value: 1)
       
       .childChannelInitializer { channel in
-        return channel.pipeline.configureHTTPServerPipeline().flatMap {
-          _ in
-          channel.pipeline.addHandler(HTTPHandler(server: self))
-        }
+        return channel.pipeline
+          .configureHTTPServerPipeline(withServerUpgrade: upgrade)
+          .flatMap {
+            return channel.pipeline.addHandler(HTTPHandler(server: self),
+                                               name: Server.httpHandlerName)
+          }
       }
       
       .childChannelOption(noDelayOp,    value: 1)
@@ -498,5 +528,25 @@ open class Server: ErrorEmitter {
       self.transaction = nil
       context.close(promise: nil)
     }
+  }
+  
+  
+  // MARK: - Description
+  
+  public var description: String {
+    var ms = "<http.Server[\(id)]: #tx=\(txID.load())"
+    
+    let addrs = listenAddresses
+    if addrs.isEmpty {
+      ms += " not-listening"
+    }
+    else {
+      ms += " "
+      ms += addrs.map { String(describing: $0) }.joined(separator: ",")
+    }
+    
+    if !didRetain { ms += " not-retaining" }
+    ms += ">"
+    return ms
   }
 }
