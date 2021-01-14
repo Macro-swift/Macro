@@ -18,6 +18,7 @@ import protocol  NIO.Channel
 import struct    NIO.ChannelOptions
 import protocol  NIO.ChannelInboundHandler
 import class     NIO.ChannelHandlerContext
+import protocol  NIO.RemovableChannelHandler
 import struct    NIO.SocketOptionLevel
 import enum      NIO.SocketAddress
 import let       NIO.SOL_SOCKET
@@ -357,7 +358,9 @@ open class Server: ErrorEmitter, CustomStringConvertible {
    */
   public static let httpHandlerName: String = "μ.http.server.handler"
   
-  private final class HTTPHandler : ChannelInboundHandler {
+  private final class HTTPHandler : ChannelInboundHandler,
+                                    RemovableChannelHandler
+  {
 
     typealias InboundIn = HTTPServerRequestPart
     
