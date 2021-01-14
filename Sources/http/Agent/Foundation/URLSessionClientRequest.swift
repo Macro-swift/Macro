@@ -40,7 +40,9 @@ public final class URLSessionClientRequest: ClientRequest {
   var writtenContent  = Buffer()
 
   var response        : IncomingMessage?
-  
+
+  private var didRetain = false
+
   init(agent: URLSessionAgent, request: URLRequest, eventLoop: EventLoop) {
     self.agent     = agent
     self.request   = request
@@ -48,7 +50,10 @@ public final class URLSessionClientRequest: ClientRequest {
 
     super.init(unsafeChannel: nil, log: agent.options.logger)
   }
-  
+  deinit {
+    if didRetain { core.release(); didRetain = false }
+  }
+
   private var selfRef : AnyObject?
   
   private func setupResponse(with httpResponse: HTTPURLResponse?)
@@ -101,7 +106,9 @@ public final class URLSessionClientRequest: ClientRequest {
           response.push(Buffer(data))
         }
         response.push(nil) // EOF
+        
         self.selfRef = nil
+        if self.didRetain { self.didRetain = false; self.core.release() }
       }
     }
 
@@ -111,6 +118,7 @@ public final class URLSessionClientRequest: ClientRequest {
       return
     }
     
+    if !didRetain { didRetain = true; core.retain() }
     selfRef = self
     task.resume()
   }
