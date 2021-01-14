@@ -13,6 +13,8 @@ import xsys
   import WinSDK
 #elseif os(Linux)
   import Glibc
+#elseif os(WASI)
+  import WASILibc
 #else
   import Darwin
   // importing this from xsys doesn't seem to work
@@ -52,6 +54,8 @@ public extension process { // Process Info
     static let platform = "win32"
   #elseif os(Linux)
     static let platform = "linux"
+  #elseif os(WASI)
+    static let platform = "wasi"
   #else
     static let platform = "darwin"
   #endif

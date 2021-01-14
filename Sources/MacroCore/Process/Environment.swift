@@ -16,11 +16,38 @@ public extension process { // Environment
    * This hooks into `Foundation.processInfo`, it doesn't maintain an own
    * cache.
    */
-  @inlinable
-  static var env : [ String : String ] {
-    return ProcessInfo.processInfo.environment
+  static var env = Environment()
+  
+  @dynamicMemberLookup
+  struct Environment {
+    
+    public var values : [ String : String ] {
+      return ProcessInfo.processInfo.environment
+    }
+    
+    @inlinable
+    public subscript(_ key: String) -> String? {
+      return values[key]
+    }
+    @inlinable
+    public subscript(dynamicMember key: String) -> String? {
+      return values[key]
+    }
   }
 }
+
+extension process.Environment : Collection {
+  public typealias Element = Dictionary<String, String>.Element
+  public typealias Index   = Dictionary<String, String>.Index
+  
+  @inlinable public func index(after i: Index) -> Index {
+    return values.index(after: i)
+  }
+  
+  @inlinable public var startIndex : Index { return values.startIndex }
+  @inlinable public var endIndex   : Index { return values.endIndex   }
+}
+
 
 // MARK: - Helpers
 

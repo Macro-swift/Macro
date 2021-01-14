@@ -45,4 +45,4 @@ public typealias querystring = QueryStringModule
 // MARK: - Process stuff
 
 public var argv : [ String ]          { return process.argv }
-public var env  : [ String : String ] { return process.env  }
+public var env  : process.Environment { return process.env  }
