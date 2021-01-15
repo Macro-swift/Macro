@@ -304,8 +304,11 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
         ms += " corked(empty)"
       }
     }
-    else if socket == nil {
-      ms += " no-socket"
+    else {
+      if socket == nil { ms += " no-socket" }
+      if let count = writableBuffer?.count, count > 0 {
+        ms += " buffer=#\(count)"
+      }
     }
     
     ms += " \(statusCode)"
