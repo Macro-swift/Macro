@@ -61,7 +61,8 @@ public func concat(maximumSize: Int = _defaultConcatMaximumSize,
  * Create those objects using the `concat` function.
  */
 public class ConcatByteStream: WritableByteStream,
-                               WritableByteStreamType, WritableStreamType
+                               WritableByteStreamType, WritableStreamType,
+                               CustomStringConvertible
 {
   // TBD: This should be duplex? Or is the duplex a "compacting stream"?
   
@@ -117,6 +118,31 @@ public class ConcatByteStream: WritableByteStream,
     finishListeners.emit()
     finishListeners.removeAll()
     errorListeners .removeAll()
+  }
+
+
+  // MARK: - CustomStringConvertible
+
+  open var description: String {
+    var ms = "<Concat[\(ObjectIdentifier(self))]:"
+    defer { ms += ">" }
+
+    let count = writableBuffer.count
+    if writableCorked {
+      if count > 0 {
+        ms += " corked=#\(count)"
+      }
+      else {
+        ms += " corked(empty)"
+      }
+    }
+    else {
+      ms += " buffered=#\(count)"
+    }
+    
+    if writableEnded  { ms += " ended"  }
+
+    return ms
   }
 }
 
