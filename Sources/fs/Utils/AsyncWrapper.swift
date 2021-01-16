@@ -30,6 +30,7 @@ extension FileSystemModule {
                         _ yield : @escaping ( Error? ) -> Void)
   {
     let module = MacroCore.shared.retain()
+    let loop   = module.fallbackEventLoop(eventLoop)
     FileSystemModule.threadPool.submit { shouldRun in
       let returnError : Error?
       
@@ -46,7 +47,7 @@ extension FileSystemModule {
         returnError = ChannelError.ioOnClosedChannel
       }
       
-      module.fallbackEventLoop(eventLoop).execute {
+      loop.execute {
         yield(returnError)
         module.release()
       }
@@ -60,6 +61,7 @@ extension FileSystemModule {
                             _ yield : @escaping ( Error?, RT? ) -> Void)
   {
     let module = MacroCore.shared.retain()
+    let loop   = module.fallbackEventLoop(eventLoop)
     FileSystemModule.threadPool.submit { shouldRun in
       let returnError : Error?
       let result      : RT?
@@ -79,7 +81,7 @@ extension FileSystemModule {
         result = nil
       }
       
-      module.fallbackEventLoop(eventLoop).execute {
+      loop.execute {
         yield(returnError, result)
         module.release()
       }

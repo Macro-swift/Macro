@@ -286,7 +286,14 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
   // MARK: - CustomStringConvertible
 
   open var description: String {
-    var ms = "<ServerResponse[\(ObjectIdentifier(self))]:"
+    let id : String = {
+      let oids = ObjectIdentifier(self).debugDescription
+      let dropPrefix = "ObjectIdentifier(0x000000"
+      guard oids.hasPrefix(dropPrefix) else { return oids }
+      return "0x" + oids.dropFirst(dropPrefix.count).dropLast()
+    }()
+    
+    var ms = "<ServerResponse[\(id)]:"
     defer { ms += ">" }
 
     if writableCorked {
@@ -297,15 +304,21 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
         ms += " corked(empty)"
       }
     }
-    else if socket == nil {
-      ms += " no-socket"
+    else {
+      if socket == nil { ms += " no-socket" }
+      if let count = writableBuffer?.count, count > 0 {
+        ms += " buffer=#\(count)"
+      }
     }
     
     ms += " \(statusCode)"
     if writableEnded  { ms += " ended"  }
     
-    for ( key, value ) in environment.loggingDictionary {
-      ms += " \(key)=\(value)"
+    if !environment.isEmpty {
+      ms += "\n"
+      for ( key, value ) in environment.loggingDictionary {
+        ms += "  \(key)=\(value)\n"
+      }
     }
 
     return ms

@@ -60,7 +60,8 @@ public extension promise {
 
   static func readFile(on eventLoop : EventLoop? = nil,
                        _       path : String,
-                       _   encoding : String.Encoding) -> EventLoopFuture<String>
+                       _   encoding : String.Encoding)
+              -> EventLoopFuture<String>
   {
     let module    = MacroCore.shared.retain()
     let eventLoop = module.fallbackEventLoop(eventLoop)

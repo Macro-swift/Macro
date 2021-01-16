@@ -23,6 +23,7 @@ public func readFile(on eventLoop : EventLoop? = nil,
                      yield        : @escaping ( Error?, Buffer? ) -> Void)
 {
   let module = MacroCore.shared.retain()
+  let loop   = module.fallbackEventLoop(eventLoop)
 
   FileSystemModule.threadPool.submit { shouldRun in
     let result : Result<Buffer, Error>
@@ -40,7 +41,7 @@ public func readFile(on eventLoop : EventLoop? = nil,
       result = .failure(ChannelError.ioOnClosedChannel)
     }
     
-    module.fallbackEventLoop(eventLoop).execute {
+    loop.execute {
       yield(result.jsError, result.jsValue)
       module.release()
     }
@@ -53,7 +54,8 @@ public func readFile(on eventLoop : EventLoop? = nil,
                      yield        : @escaping ( Error?, String? ) -> Void)
 {
   let module = MacroCore.shared.retain()
-  
+  let loop   = module.fallbackEventLoop(eventLoop)
+
   FileSystemModule.threadPool.submit { shouldRun in
     let result : Result<String, Error>
 
@@ -73,7 +75,7 @@ public func readFile(on eventLoop : EventLoop? = nil,
       result = .failure(ChannelError.ioOnClosedChannel)
     }
     
-    module.fallbackEventLoop(eventLoop).execute {
+    loop.execute {
       yield(result.jsError, result.jsValue)
       module.release()
     }
@@ -101,7 +103,8 @@ public func writeFile(on eventLoop : EventLoop? = nil,
                       whenDone: @escaping ( Error? ) -> Void)
 {
   let module = MacroCore.shared.retain()
-  
+  let loop   = module.fallbackEventLoop(eventLoop)
+
   FileSystemModule.threadPool.submit { shouldRun in
     let yieldError : Swift.Error?
 
@@ -118,7 +121,7 @@ public func writeFile(on eventLoop : EventLoop? = nil,
       yieldError = ChannelError.ioOnClosedChannel
     }
     
-    module.fallbackEventLoop(eventLoop).execute {
+    loop.execute {
       whenDone(yieldError)
       module.release()
     }

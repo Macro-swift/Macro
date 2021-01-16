@@ -48,6 +48,14 @@ http
   .listen(1337)
 ```
 
+Macro also provides additional Node-like modules, such as:
+- `fs`
+- `path`
+- `jsonfile`
+- `JSON`
+- `basicAuth`
+- `querystring`
+
 
 ## Environment Variables
 

@@ -270,10 +270,13 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     if !readableListeners.isEmpty { ms += " has-readable-listeners" }
     if !dataListeners    .isEmpty { ms += " has-data-listeners"     }
 
-    for ( key, value ) in environment.loggingDictionary {
-      ms += " \(key)=\(value)"
+    if !environment.isEmpty {
+      ms += "\n"
+      for ( key, value ) in environment.loggingDictionary {
+        ms += "  \(key)=\(value)\n"
+      }
     }
-    
+
     return ms
   }
 }

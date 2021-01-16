@@ -22,7 +22,11 @@ import xsys
 public enum FileSystemModule {
   
   /**
-   * The worker queue for FS functions.
+   * The worker queue for asynchronous file system functions.
+   *
+   * The number of threads is set using the `macro.core.iothreads` environment
+   * variable and defaults to half the number of machine cores (e.g. a machine
+   * w/ 8 CPU cores will be assigned 4 I/O threads).
    */
   public static let threadPool : NIOThreadPool = {
     let tp = NIOThreadPool(numberOfThreads: _defaultIOThreadCount)
@@ -30,13 +34,21 @@ public enum FileSystemModule {
     return tp
   }()
 
+  /**
+   * A NIO `NonBlockingFileIO` object for the `fs.threadPool`.
+   */
   public static let fileIO = NonBlockingFileIO(threadPool: threadPool)
 
 }
 
+/**
+ * The number of I/O threads is set using the `macro.core.iothreads` environment
+ * variable and defaults to half the number of machine cores (e.g. a machine
+ * w/ 8 CPU cores will be assigned 4 I/O threads).
+ */
 public let _defaultIOThreadCount =
   process.getenv("macro.core.iothreads",
-                 defaultValue      : System.coreCount / 2,
+                 defaultValue      : max(1, System.coreCount / 2),
                  upperWarningBound : 64)
 
 
@@ -257,3 +269,38 @@ public extension FileSystemModule {
 }
 
 #endif /* !Linux */
+
+
+// MARK: - Exists
+
+public extension FileSystemModule {
+  
+  /**
+   * Check whether the path exists.
+   *
+   * Use `fs.access()` instead.
+   */
+  @available(*, deprecated, message: "Using `access` is recommended.")
+  @inlinable
+  static func exists(_ path: String, yield: @escaping ( Bool ) -> Void) {
+    fs.access(path) { error in
+      yield(error == nil)
+    }    
+  }
+
+  /**
+   * Check whether the given path exists.
+   *
+   * As in Node: `exists` is deprecated, but `existsSync` is not :-)
+   */
+  @inlinable
+  static func existsSync(_ path: String) -> Bool {
+    do {
+      try fs.accessSync(path)
+      return true
+    }
+    catch {
+      return false
+    }
+  }
+}
