@@ -13,9 +13,34 @@ import struct NIO.ByteBufferAllocator
 
 /**
  * A lightweight wrapper around the NIO ByteBuffer.
+ * 
+ * Node Buffer API: https://nodejs.org/api/buffer.html
  *
- * Node Buffer API:
- * https://nodejs.org/api/buffer.html
+ * Creating buffers:
+ *
+ *     Buffer.from("Hello") // UTF-8 data
+ *     Buffer()             // empty
+ *     Buffer([ 42, 13, 10 ])
+ *
+ * Reading:
+ *
+ *     buffer.count
+ *     buffer.isEmpty
+ *
+ *     let slice = buffer.consumeFirst(10)
+ *
+ * Writing:
+ *
+ *     buffer.append(otherBuffer)
+ *     buffer.append([ 42, 10 ])
+ *
+ * Converting to strings:
+ *
+ *     try buffer.toString()
+ *     try buffer.toString("hex")
+ *     try buffer.toString("base64")
+ *     buffer.hexEncodedString()
+ *
  */
 public struct Buffer {
   
@@ -28,7 +53,7 @@ public struct Buffer {
   @inlinable public init(_ buffer: Buffer) {
     byteBuffer = buffer.byteBuffer
   }
-  
+
   @inlinable
   public init(capacity  : Int = 1024,
               allocator : ByteBufferAllocator = MacroCore.shared.allocator)
@@ -42,7 +67,23 @@ public struct Buffer {
   @inlinable public mutating func append(_ buffer: Buffer) {
     byteBuffer.writeBytes(buffer.byteBuffer.readableBytesView)
   }
+  @inlinable public mutating func append(_ buffer: ByteBuffer) {
+    byteBuffer.writeBytes(byteBuffer.readableBytesView)
+  }
   
+  @inlinable
+  public mutating func append<S>(contentsOf sequence: S)
+                         where S : Sequence, S.Element == UInt8
+  {
+    byteBuffer.writeBytes(sequence)
+  }
+
+  /**
+   * Grabs the first `k` bytes from the Buffer and returns it as a new Buffer.
+   *
+   * If `k` is bigger than the bytes available, this returns all available bytes
+   * (and empties the buffer this is called upon).
+   */
   @inlinable public mutating func consumeFirst(_ k: Int) -> Buffer {
     guard k > 0 else { return MacroCore.shared.emptyBuffer }
     if k >= count {
@@ -57,21 +98,37 @@ public struct Buffer {
 
 public extension Buffer {
   
+  @inlinable init<S>(_ bytes: S) where S: Collection, S.Element == UInt8 {
+    self.init(capacity: bytes.count)
+    append(contentsOf: bytes)
+  }
+  
+  @inlinable init<S>(_ bytes: S) where S: Sequence, S.Element == UInt8 {
+    self.init()
+    append(contentsOf: bytes)
+  }
+  
+  /**
+   * Initialize the Buffer with the contents of the given `Data`. Copies the
+   * bytes.
+   */
   @inlinable init(_ data: Data) {
     self.init(capacity: data.count)
     byteBuffer.writeBytes(data)
   }
+  
+  /**
+   * Initialize the Buffer with the UTF-8 data in the String.
+   */
   @inlinable init(_ string: String) {
-    guard let data = string.data(using: .utf8) else {
-      fatalError("failed to encode string in UTF-8")
-    }
-    self.init(data)
+    self.init(string.utf8)
   }
+  
+  /**
+   * Initialize the Buffer with the UTF-8 data in the String.
+   */
   @inlinable init<S: StringProtocol>(_ string: S) {
-    guard let data = string.data(using: .utf8) else {
-      fatalError("failed to encode string in UTF-8")
-    }
-    self.init(data)
+    self.init(string.utf8)
   }
 
   @inlinable var data : Data {
@@ -82,6 +139,19 @@ public extension Buffer {
 
 public extension Buffer {
   
+  /**
+   * Creates a Buffer from the given string, in the given encoding (defaults to
+   * UTF-8).
+   * If the string cannot be represented in the encoding, it throws a
+   * `CharsetConversionError`.
+   *
+   * - Parameters:
+   *   - string:   The string to convert to a Buffer.
+   *   - encoding: The requested encoding, defaults to `.utf8`.
+   * - Returns: A Buffer representing the string in the given encoding.
+   * - Throws: CharsetConversionError if the data could not be converted to
+   *           a string.
+   */
   @inlinable
   static func from(_ string: String, encoding: String.Encoding = .utf8)
                 throws -> Buffer
@@ -91,6 +161,20 @@ public extension Buffer {
     }
     return Buffer(data)
   }
+
+  /**
+   * Creates a Buffer from the given string, in the given encoding (defaults to
+   * UTF-8).
+   * If the string cannot be represented in the encoding, it throws a
+   * `CharsetConversionError`.
+   *
+   * - Parameters:
+   *   - string:   The string to convert to a Buffer.
+   *   - encoding: The requested encoding, defaults to `.utf8`.
+   * - Returns: A Buffer representing the string in the given encoding.
+   * - Throws: CharsetConversionError if the data could not be converted to
+   *           a string.
+   */
   @inlinable
   static func from<S: StringProtocol>(_ string: S,
                                       encoding: String.Encoding = .utf8)
@@ -102,6 +186,19 @@ public extension Buffer {
     return Buffer(data)
   }
 
+  /**
+   * Creates a Buffer from the given string, in the given encoding (e.g.
+   * "hex" or "utf-8").
+   * If the string cannot be represented in the encoding, it throws a
+   * `CharsetConversionError`.
+   *
+   * - Parameters:
+   *   - string:   The string to convert to a Buffer.
+   *   - encoding: The requested encoding, e.g. 'utf8' or 'hex'.
+   * - Returns: A Buffer representing the string in the given encoding.
+   * - Throws: CharsetConversionError if the data could not be converted to
+   *           a string.
+   */
   @inlinable
   static func from<S: StringProtocol>(_ string: S, encoding: String) throws
               -> Buffer
@@ -125,6 +222,20 @@ public extension Buffer {
     }
   }
 
+  /**
+   * Returns true if the string argument represents a valid encoding, i.e.
+   * if it can be used in the `Buffer.toString` method.
+   *
+   * Example:
+   *
+   *     Buffer.isEncoding("utf8")        // true
+   *     Buffer.isEncoding("hex")         // true
+   *     Buffer.isEncoding("base64")      // true
+   *     Buffer.isEncoding("alwaysright") // false
+   *
+   * - Parameter encoding: The name of an encoding, e.g. 'utf8' or 'hex'
+   * - Returns: true if the name is a known encoding, false otherwise.
+   */
   @inlinable
   static func isEncoding(_ encoding: String) -> Bool {
     switch encoding {
@@ -133,6 +244,17 @@ public extension Buffer {
     }
   }
   
+  /**
+   * If the Buffer contains a valid string in the given encoding (defaults to
+   * UTF-8), this method returns that data as a String.
+   * If the data is invalid for the encoding, it throws a
+   * `CharsetConversionError`.
+   *
+   * - Parameter encoding: The requested encoding, defaults to `.utf8`
+   * - Returns: A string representing the Buffer in the given encoding.
+   * - Throws: CharsetConversionError if the data could not be converted to
+   *           a string.
+   */
   @inlinable
   func toString(_ encoding: String.Encoding = .utf8) throws -> String {
     guard let string = String(data: data, encoding: encoding) else {
@@ -141,6 +263,17 @@ public extension Buffer {
     return string
   }
   
+  /**
+   * If the Buffer contains a valid string in the encoding with the given
+   * name (e.g. "hex" or "utf-8"), this method returns that data as a String.
+   * If the data is invalid for the encoding, it throws a
+   * `CharsetConversionError`.
+   *
+   * - Parameter encoding: The requested encoding, e.g. 'hex' or 'base64'
+   * - Returns: A string representing the Buffer in the given encoding.
+   * - Throws: CharsetConversionError if the data could not be converted to
+   *           a string.
+   */
   @inlinable
   func toString(_ encoding: String) throws -> String {
     switch encoding {
@@ -148,6 +281,14 @@ public extension Buffer {
       case "base64" : return data.base64EncodedString()
       default: return try toString(.encodingWithName(encoding))
     }
+  }
+}
+
+extension Buffer: CustomStringConvertible {
+  
+  @inlinable
+  public var description: String {
+    return "<Buffer: #\(byteBuffer.readableBytes)>"
   }
 }
 
@@ -161,18 +302,53 @@ public enum DataEncodingError: Swift.Error {
 
 @usableFromInline
 internal let hexAlphabet = "0123456789abcdef".unicodeScalars.map { $0 }
+@usableFromInline
+internal let upperHexAlphabet = "0123456789ABCDEF".unicodeScalars.map { $0 }
 
 extension Buffer {
 
-  public func hexEncodedString() -> String {
+  /**
+   * Returns the data in the buffer as a hex encoded string.
+   *
+   * Example:
+   *
+   *   let buffer = Buffer("Hello!".utf8)
+   *   let string = buffer.hexEncodedString()
+   *   "48656c6c6f0a"
+   * 
+   * Each byte is represented by two hex digits, e.g. `2d` in the example.
+   *
+   * - Parameter uppercase: If true, the a-f hexdigits are generated in
+   *                        uppercase (ABCDEF). Defaults to false.
+   */
+  @inlinable
+  public func hexEncodedString(uppercase: Bool = false) -> String {
       // https://stackoverflow.com/questions/39075043/how-to-convert-data-to-hex
     return String(byteBuffer.readableBytesView.reduce(into: "".unicodeScalars, {
       ( result, value ) in
-      result.append(hexAlphabet[Int(value / 16)])
-      result.append(hexAlphabet[Int(value % 16)])
+      if uppercase {
+        result.append(upperHexAlphabet[Int(value / 16)])
+        result.append(upperHexAlphabet[Int(value % 16)])
+      }
+      else {
+        result.append(hexAlphabet[Int(value / 16)])
+        result.append(hexAlphabet[Int(value % 16)])
+      }
     }))
   }
-
+  
+  /**
+   * Appends a hex encoded string to the Buffer.
+   *
+   * Example:
+   *
+   *   let buffer = Buffer()
+   *   buffer.writeHexString("48656c6c6f0a")
+   *   buffer.re
+   *   let buffer = Buffer("Hello!".utf8)
+   *   let string = buffer.hexEncodedString()
+   *   "48656c6c6f0a"
+   */
   @inlinable
   mutating func writeHexString<S: StringProtocol>(_ hexString: S) -> Bool {
     // https://stackoverflow.com/questions/41485494/convert-hex-encoded-string
