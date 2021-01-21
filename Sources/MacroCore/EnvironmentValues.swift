@@ -112,6 +112,11 @@ public extension EnvironmentValues {
   static let empty = EnvironmentValues()
   
   @inlinable
+  var isEmpty : Bool { return values.isEmpty }
+  @inlinable
+  var count   : Int  { return values.count   }
+
+  @inlinable
   subscript<K: EnvironmentKey>(key: K.Type) -> K.Value {
     set {
       values[ObjectIdentifier(key)] = ( K.loggingKey, newValue )

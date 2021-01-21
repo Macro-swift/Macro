@@ -20,3 +20,61 @@ http.createServer { req, res in
 }
 .listen(1337)
 ```
+
+### HTTP Client
+
+A simple GET request, collecting the full response in memory:
+
+```swift
+#!/usr/bin/swift sh
+import http // Macro-swift/Macro
+
+http.get("https://zeezide.de") { res in
+  console.log("got response:", res)
+  
+  res.onError { error in
+    console.error("error:", error)
+  }
+  
+  res | concat { buffer in
+    let s = try? buffer.toString()
+    console.log("Response:\n\(s ?? "-")")
+  }
+}
+```
+
+A simple POST request:
+
+```swift
+#!/usr/bin/swift sh
+import http // Macro-swift/Macro
+
+let options = http.ClientRequestOptions(
+  protocol : "https:",
+  host     : "jsonplaceholder.typicode.com",
+  method   : "POST",
+  path     : "/posts"
+)
+
+let req = http.request(options) { res in
+  console.log("got response:", res)
+  
+  res.onError { error in
+    console.error("error:", error)
+  }
+  
+  res | concat { buffer in
+    let s = try? buffer.toString()
+    console.log("Response:\n\(s ?? "-")")
+  }
+}
+
+req.write(
+  """
+  { "userId": 1,
+    "title": "Blubs",
+    "body": "Rummss" }
+  """
+)
+req.end()
+```
