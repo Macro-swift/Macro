@@ -28,15 +28,23 @@ extension Buffer {
    *                        uppercase (ABCDEF). Defaults to false.
    */
   @inlinable
-  public func hexEncodedString(uppercase: Bool = false) -> String {
+  public func hexEncodedString(uppercase: Bool = false,
+                               separator: String? = nil) -> String
+  {
       // https://stackoverflow.com/questions/39075043/how-to-convert-data-to-hex
     return String(byteBuffer.readableBytesView.reduce(into: "".unicodeScalars, {
       ( result, value ) in
       if uppercase {
+        if let separator = separator, !result.isEmpty {
+          result.append(contentsOf: separator.unicodeScalars)
+        }
         result.append(upperHexAlphabet[Int(value / 16)])
         result.append(upperHexAlphabet[Int(value % 16)])
       }
       else {
+        if let separator = separator, !result.isEmpty {
+          result.append(contentsOf: separator.unicodeScalars)
+        }
         result.append(hexAlphabet[Int(value / 16)])
         result.append(hexAlphabet[Int(value % 16)])
       }

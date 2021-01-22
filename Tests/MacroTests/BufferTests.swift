@@ -66,14 +66,29 @@ final class BufferTests: XCTestCase {
     
     XCTAssertEqual(jsonType, "Buffer")
     XCTAssertEqual(jsonData, [ 0x1, 0x2, 0x3, 0x4, 0x5 ])
+  }
+  
+  func testDescription() throws {
+    do {
+      let buf = Buffer.from([ 0x1, 0x2, 0x3, 0x4, 0x5 ])
+      let s   = buf.description
+      XCTAssertEqual(s, "<Buffer 01 02 03 04 05>")
+    }
     
-    print("S:", string)
+    do {
+      let buf = Buffer.from([ UInt8 ](repeating: 0x42, count: 100))
+      let s   = buf.description
+      XCTAssert(s.hasPrefix("<Buffer: #100 42 42 42 "))
+      XCTAssert(s.hasSuffix("…>"))
+      XCTAssert(s.count < 200)
+    }
   }
 
   static var allTests = [
     ( "testIndexOf"     , testIndexOf     ),
     ( "testLastIndexOf" , testLastIndexOf ),
     ( "testSlice"       , testSlice       ),
-    ( "testJSON"        , testJSON        )
+    ( "testJSON"        , testJSON        ),
+    ( "testDescription" , testDescription )
   ]
 }

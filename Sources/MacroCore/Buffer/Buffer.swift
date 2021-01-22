@@ -235,6 +235,12 @@ extension Buffer: CustomStringConvertible {
   
   @inlinable
   public var description: String {
-    return "<Buffer: #\(byteBuffer.readableBytes)>"
+    if count < 40 {
+      return "<Buffer \(hexEncodedString(separator: " "))>"
+    }
+    else {
+      let slice = self.slice(0, 40)
+      return "<Buffer: #\(count) \(slice.hexEncodedString(separator: " "))…>"
+    }
   }
 }
