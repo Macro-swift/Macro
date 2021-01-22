@@ -81,6 +81,29 @@ final class CollectionTests: XCTestCase {
     XCTAssertEqual(idx, 5)
   }
 
+  func testByteBufferRemainingMatch() {
+    do {
+      var bb = ByteBuffer()
+      bb.writeBytes([ 10, 20, 30, 50, 60, 30, 40 ])
+      
+      let idxMaybe = bb.readableBytesView
+            .firstIndex(of: [ 30, 40, 50, 50 ], options: .partialSuffixMatch)
+      XCTAssertNotNil(idxMaybe)
+      guard let idx = idxMaybe else { return }
+      XCTAssertEqual(idx, 5)
+    }
+    do {
+      var bb = ByteBuffer()
+      bb.writeBytes([ 30, 40, 50, 40, 60, 30, 40 ])
+      
+      let idxMaybe = bb.readableBytesView
+            .firstIndex(of: [ 30, 40, 50, 50 ], options: .partialSuffixMatch)
+      XCTAssertNotNil(idxMaybe)
+      guard let idx = idxMaybe else { return }
+      XCTAssertEqual(idx, 5)
+    }
+  }
+
   static var allTests = [
     ( "testByteBufferSearch"              , testByteBufferSearch              ),
     ( "testByteBufferSearchNoMatch"       , testByteBufferSearchNoMatch       ),
@@ -89,6 +112,7 @@ final class CollectionTests: XCTestCase {
     ( "testByteBufferSearchLongerMatch"   , testByteBufferSearchLongerMatch   ),
     ( "testByteBufferSearchStableIndices" , testByteBufferSearchStableIndices ),
     ( "testByteBufferSearchLeftEdge"      , testByteBufferSearchLeftEdge      ),
-    ( "testByteBufferSearchRightEdge"     , testByteBufferSearchRightEdge     )
+    ( "testByteBufferSearchRightEdge"     , testByteBufferSearchRightEdge     ),
+    ( "testByteBufferRemainingMatch"      , testByteBufferRemainingMatch      )
   ]
 }

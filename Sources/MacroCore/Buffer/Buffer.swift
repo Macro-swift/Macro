@@ -181,26 +181,31 @@ public extension Buffer { // MARK: - Searching
   }
   
   @inlinable
-  func indexOf<C>(_ string: C, _ byteOffset: Int = 0) -> Int
+  func indexOf<C>(_ string: C, _ byteOffset: Int = 0,
+                  options: StringMatchOptions = [])
+         -> Int
          where C: Collection, C.Element == UInt8
   {
     let view   = byteBuffer.readableBytesView
     let offset = byteOffset >= 0 ? byteOffset : (count + byteOffset)
     let start  = view.index(view.startIndex, offsetBy: offset)
-    guard let idx = view.firstIndex(of: string, startingAt: start) else {
+    guard let idx = view.firstIndex(of: string, startingAt: start,
+                                    options: options) else {
       return -1
     }
     return idx - view.startIndex
   }
 
   @inlinable
-  func indexOf(_ buffer: ByteBuffer, _ byteOffset: Int = 0) -> Int {
-    return indexOf(buffer.readableBytesView, byteOffset)
+  func indexOf(_ buffer: ByteBuffer, _ byteOffset: Int = 0,
+               options: StringMatchOptions = []) -> Int {
+    return indexOf(buffer.readableBytesView, byteOffset, options: options)
   }
   
   @inlinable
-  func indexOf(_ buffer: Buffer, _ byteOffset: Int = 0) -> Int {
-    return indexOf(buffer.byteBuffer.readableBytesView, byteOffset)
+  func indexOf(_ buffer: Buffer, _ byteOffset: Int = 0,
+               options: StringMatchOptions = []) -> Int {
+    return indexOf(buffer.byteBuffer, byteOffset, options: options)
   }
 }
 

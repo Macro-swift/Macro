@@ -12,7 +12,23 @@ public struct StringMatchOptions: OptionSet {
   @inlinable
   public init(rawValue: UInt8) { self.rawValue = rawValue }
   
-  @available(*, unavailable, message: "Not yet implemented")
+  /**
+   * Continue matching if the Buffer has less content left than the needle
+   * we are searching for.
+   *
+   * For example:
+   *
+   *     let buf    = try Buffer.from("this is a buf")
+   *     let needle = try Buffer.from("buffer")
+   *     XCTAssertEqual(-1, buf.indexOf(needle))
+   *     XCTAssertEqual(10, buf.indexOf(needle, options: .partialSuffixMatch))
+   *
+   * Without the option, `indexOf` will stop searching after the "is", because
+   * the buffer can't possibly contain the needle anymore.
+   * 
+   * With the option is set, `indexOf` will continue searching for the longest
+   * possible prefix of the needle. In the example that is `buf`.
+   */
   public static let partialSuffixMatch = StringMatchOptions(rawValue: 1 << 0)
 }
 
@@ -45,19 +61,27 @@ extension Collection where Element : Equatable {
       cursor = self.index(after: cursor)
     }
     
-    #if false // TODO
     if options.contains(.partialSuffixMatch) {
-      fatalError("partial suffixes not yet supported")
+      while remaining > 0 {
+        if self[cursor] == c0 { // first element matches
+          let view       = self[cursor...]
+          let partialEnd = string.index(string.startIndex, offsetBy: remaining)
+          let partial    = string[..<partialEnd]
+          if view.elementsEqual(partial) { return cursor }
+        }
+        
+        remaining -= 1
+        cursor = self.index(after: cursor)
+      }
     }
-    #endif
     
     return nil
   }
   
   @usableFromInline
-  func firstIndex<C>(of string: C) -> Index?
+  func firstIndex<C>(of string: C, options: StringMatchOptions = []) -> Index?
          where C: Collection, C.Element == Self.Element
   {
-    return firstIndex(of: string, startingAt: startIndex)
+    return firstIndex(of: string, startingAt: startIndex, options: options)
   }
 }

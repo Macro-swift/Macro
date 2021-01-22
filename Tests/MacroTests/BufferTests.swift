@@ -21,8 +21,15 @@ final class BufferTests: XCTestCase {
 
     XCTAssertEqual(4, utf16Buffer.indexOf("\u{03a3}",  0, "utf16le"))
     XCTAssertEqual(6, utf16Buffer.indexOf("\u{03a3}", -4, "utf16le"))
- }
+  }
   
+  func testIndexOfPartialSuffix() throws {
+    let buf    = try Buffer.from("this is a buf")
+    let needle = try Buffer.from("buffer")
+    XCTAssertEqual(-1, buf.indexOf(needle))
+    XCTAssertEqual(10, buf.indexOf(needle, options: .partialSuffixMatch))
+  }
+
   func testLastIndexOf() throws {
     // We don't support many operations yet :-)
     let buf = try Buffer.from("this buffer is a buffer")
