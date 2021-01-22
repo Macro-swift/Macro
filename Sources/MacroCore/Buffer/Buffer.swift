@@ -6,8 +6,6 @@
 //  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
 //
 
-import Foundation
-import NIOFoundationCompat
 import struct NIO.ByteBuffer
 import struct NIO.ByteBufferView
 import struct NIO.ByteBufferAllocator
@@ -230,20 +228,6 @@ public extension Buffer {
   init<S>(_ bytes: S) where S: Sequence, S.Element == UInt8 {
     self.init()
     append(contentsOf: bytes)
-  }
-  
-  /**
-   * Initialize the Buffer with the contents of the given `Data`. Copies the
-   * bytes.
-   */
-  @inlinable init(_ data: Data) {
-    self.init(capacity: data.count)
-    byteBuffer.writeBytes(data)
-  }
-  
-  @inlinable var data : Data {
-    return byteBuffer.getData(at     : byteBuffer.readerIndex,
-                              length : byteBuffer.readableBytes) ?? Data()
   }
 }
 
