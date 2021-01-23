@@ -25,8 +25,14 @@ import struct NIO.ByteBufferAllocator
  *
  *     buffer.count
  *     buffer.isEmpty
+ *     let byte = buffer[10]
  *
  *     let slice = buffer.consumeFirst(10)
+ *     let slice = buffer.slice(5)
+ *     let slice = buffer.slice(5, 7)
+ *
+ *     let idx   = buffer.indexOf(42) // -1 on not found
+ *     let idx   = buffer.indexOf([ 13, 10 ])
  *
  * Writing:
  *
@@ -86,6 +92,9 @@ public struct Buffer: Codable {
    *
    * If `k` is bigger than the bytes available, this returns all available bytes
    * (and empties the buffer this is called upon).
+   *
+   * - Parameter k: Number of bytes to grab from the beginning of the Buffer
+   * - Returns: A buffer containing the first `k` bytes
    */
   @inlinable
   public mutating func consumeFirst(_ k: Int) -> Buffer {
@@ -95,12 +104,14 @@ public struct Buffer: Codable {
       byteBuffer = MacroCore.shared.emptyByteBuffer
       return Buffer(swap)
     }
-    let readBuffer = byteBuffer.readSlice(length: k)!
+    guard let readBuffer = byteBuffer.readSlice(length: k) else {
+      fatalError("Could not read slice from byte buffer (unexpectedly)")
+    }
     return Buffer(readBuffer)
   }
   
   @inlinable
-  subscript(position: Int) -> UInt8 {
+  public subscript(position: Int) -> UInt8 {
     // Note that this is based on the 'readable' index
     set {
       let offset = position >= 0 ? position : (count + position)
@@ -118,18 +129,21 @@ public struct Buffer: Codable {
    * Get a slice of the buffer.
    *
    * - Parameters:
-   *   - start: startIndex of the slice, defaults to 0
-   *   - end:   endIndex   of the slice, defaults to count
+   *   - startIndex: startIndex of the slice, defaults to 0
+   *   - endIndex:   endIndex   of the slice, defaults to count
    * - Returns: A Buffer sharing the storage (copy-on-write).
    */
   @inlinable
-  func slice(_ start: Int = 0, _ end: Int? = nil) -> Buffer {
+  public func slice(_ startIndex: Int = 0, _ endIndex: Int? = nil) -> Buffer {
     let count       = self.count
-    let end         = end ?? count
-    let startOffset = start >= 0 ? start : (count + start)
+    let end         = endIndex ?? count
+    let startOffset = startIndex >= 0 ? startIndex : (count + startIndex)
     let endOffset   = end   >= 0 ? end   : (count + end)
     let length      = max(0, endOffset - startOffset)
     let startIndex  = byteBuffer.readerIndex + startOffset
+    assert(length >= 0, "invalid index parameters to `slice`")
+    if length < 1 { return Buffer(MacroCore.shared.emptyByteBuffer) }
+    
     guard let slice = byteBuffer.getSlice(at: startIndex, length: length) else {
       // We only produce valid ranges?!
       fatalError("Unexpected failure to get slice")
@@ -168,11 +182,23 @@ public struct Buffer: Codable {
 public extension Buffer { // MARK: - Searching
   
   @inlinable
-  func indexOf(_ value: UInt8) -> Int {
-    let view = byteBuffer.readableBytesView
-    guard let idx = view.firstIndex(of: value) else { return -1 }
-    return idx - view.startIndex
+  func indexOf(_ value: UInt8, _ byteOffset: Int = 0) -> Int {
+    let offset = byteOffset >= 0 ? byteOffset : count + byteOffset
+    let view   = byteBuffer.readableBytesView
+    if offset == 0 {
+      guard let idx = view.firstIndex(of: value) else { return -1 }
+      return idx - view.startIndex
+    }
+    else {
+      var idx = view.startIndex + offset
+      while idx < view.endIndex {
+        if view[idx] == value { return idx - view.startIndex }
+        idx += 1
+      }
+      return -1
+    }
   }
+  
   @inlinable
   func lastIndexOf(_ value: UInt8) -> Int {
     let view = byteBuffer.readableBytesView
