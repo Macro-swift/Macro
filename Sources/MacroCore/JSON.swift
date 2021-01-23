@@ -3,8 +3,10 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
 //
+
+#if canImport(Foundation)
 
 import NIOFoundationCompat
 import struct Foundation.Data
@@ -205,3 +207,5 @@ public extension WritableStreamType where WritablePayload == Buffer,
     return write(string ?? "null", whenDone: whenDone)
   }
 }
+
+#endif // canImport(Foundation)
