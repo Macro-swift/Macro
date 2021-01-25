@@ -11,7 +11,7 @@ internal let hexAlphabet = "0123456789abcdef".unicodeScalars.map { $0 }
 @usableFromInline
 internal let upperHexAlphabet = "0123456789ABCDEF".unicodeScalars.map { $0 }
 
-extension Buffer {
+public extension Buffer {
 
   /**
    * Returns the data in the buffer as a hex encoded string.
@@ -28,8 +28,8 @@ extension Buffer {
    *                        uppercase (ABCDEF). Defaults to false.
    */
   @inlinable
-  public func hexEncodedString(uppercase: Bool = false,
-                               separator: String? = nil) -> String
+  func hexEncodedString(uppercase: Bool = false, separator: String? = nil)
+       -> String
   {
       // https://stackoverflow.com/questions/39075043/how-to-convert-data-to-hex
     return String(byteBuffer.readableBytesView.reduce(into: "".unicodeScalars, {
