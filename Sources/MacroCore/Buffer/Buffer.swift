@@ -47,7 +47,7 @@ import struct NIO.ByteBufferAllocator
  *     buffer.hexEncodedString()
  *
  */
-public struct Buffer: Codable {
+public struct Buffer: Codable, Hashable {
   
   public typealias Index = Int
   
