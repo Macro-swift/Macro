@@ -270,8 +270,12 @@ extension Buffer: CustomStringConvertible {
       return "<Buffer \(hexEncodedString(separator: " "))>"
     }
     else {
-      let slice = self.slice(0, 40)
-      return "<Buffer: #\(count) \(slice.hexEncodedString(separator: " "))…>"
+      var ms = "<Buffer: #\(count) "
+      ms += self.slice(0, 30).hexEncodedString(separator: " ")
+      ms += "…"
+      ms += self.slice(-8).hexEncodedString(separator: " ")
+      ms += ">"
+      return ms
     }
   }
 }
