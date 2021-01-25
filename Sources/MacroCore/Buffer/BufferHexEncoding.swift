@@ -11,25 +11,35 @@ internal let hexAlphabet = "0123456789abcdef".unicodeScalars.map { $0 }
 @usableFromInline
 internal let upperHexAlphabet = "0123456789ABCDEF".unicodeScalars.map { $0 }
 
-extension Buffer {
+public extension Buffer {
 
   /**
    * Returns the data in the buffer as a hex encoded string.
    *
    * Example:
    *
-   *   let buffer = Buffer("Hello!".utf8)
-   *   let string = buffer.hexEncodedString()
-   *   "48656c6c6f0a"
+   *     let buffer = Buffer("Hello".utf8)
+   *     let string = buffer.hexEncodedString()
+   *     // "48656c6c6f"
    *
-   * Each byte is represented by two hex digits, e.g. `2d` in the example.
+   * Each byte is represented by two hex digits, e.g. `6c` in the example.
    *
-   * - Parameter uppercase: If true, the a-f hexdigits are generated in
-   *                        uppercase (ABCDEF). Defaults to false.
+   * `hex` is also recognized as a string encoding, this works as well:
+   *
+   *     let buffer = Buffer("Hello".utf8)
+   *     let string = try buffer.toString("hex")
+   *     // "48656c6c6f"
+   * 
+   * - Parameters:
+   *   - uppercase: If true, the a-f hexdigits are generated in
+   *                uppercase (ABCDEF). Defaults to false.
+   *   - separator: A string to insert between the individual bytes, e.g. " "
+   *                or ":"
+   * - Returns:  The Buffer encoded as a hex string.
    */
   @inlinable
-  public func hexEncodedString(uppercase: Bool = false,
-                               separator: String? = nil) -> String
+  func hexEncodedString(uppercase: Bool = false, separator: String? = nil)
+       -> String
   {
       // https://stackoverflow.com/questions/39075043/how-to-convert-data-to-hex
     return String(byteBuffer.readableBytesView.reduce(into: "".unicodeScalars, {
@@ -52,19 +62,31 @@ extension Buffer {
   }
   
   /**
-   * Appends a hex encoded string to the Buffer.
+   * Appends the bytes represented by a hex encoded string to the Buffer.
    *
    * Example:
    *
-   *   let buffer = Buffer()
-   *   buffer.writeHexString("48656c6c6f0a")
-   *   buffer.re
-   *   let buffer = Buffer("Hello!".utf8)
-   *   let string = buffer.hexEncodedString()
-   *   "48656c6c6f0a"
+   *     let buffer = Buffer()
+   *     buffer.writeHexString("48656c6c6f")
+   *     let string = try buffer.toString()
+   *     // "Hello"
+   *
+   * `hex` is also recognized as a string encoding, this works as well:
+   *
+   *     let buffer = try Buffer.from("48656c6c6f", "hex")
+   *     let string = try buffer.toString()
+   *     // "Hello"
+   * 
+   * - Parameters:
+   *   - hexString: A hex encoded string, no spaces etc allowed between the
+   *                bytes.
+   * - Returns: true if successful, false if the input is invalid
    */
   @inlinable
+  @discardableResult
   mutating func writeHexString<S: StringProtocol>(_ hexString: S) -> Bool {
+    guard !hexString.isEmpty else { return true }
+    
     // https://stackoverflow.com/questions/41485494/convert-hex-encoded-string
     func decodeNibble(u: UInt16) -> UInt8? {
       switch(u) {

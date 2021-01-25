@@ -124,6 +124,12 @@ public extension Buffer {
    * If the string cannot be represented in the encoding, it throws a
    * `CharsetConversionError`.
    *
+   * Example:
+   *
+   *     let buffer = try Buffer.from("48656c6c6f", "hex")
+   *     let string = try buffer.toString()
+   *     // "Hello"
+   * 
    * - Parameters:
    *   - string:   The string to convert to a Buffer.
    *   - encoding: The requested encoding, e.g. 'utf8' or 'hex'.
@@ -201,6 +207,12 @@ public extension Buffer {
    * If the data is invalid for the encoding, it throws a
    * `CharsetConversionError`.
    *
+   * Example:
+   *
+   *     let buffer = Buffer("Hello".utf8)
+   *     let string = try buffer.toString("hex")
+   *     // "48656c6c6f"
+   * 
    * - Parameter encoding: The requested encoding, e.g. 'hex' or 'base64'
    * - Returns: A string representing the Buffer in the given encoding.
    * - Throws: CharsetConversionError if the data could not be converted to
