@@ -44,7 +44,9 @@ extension Collection where Element : Equatable {
     var remaining = distance(from: cursor, to: endIndex)
     let matchLen  = string.count
     
-    guard remaining >= matchLen else { return nil   }
+    guard remaining >= matchLen || options.contains(.partialSuffixMatch) else {
+      return nil
+    }
     guard matchLen > 0          else { return index }
     
     // TBD: Is this too naive? There is probably some better algorithm for this.

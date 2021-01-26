@@ -104,6 +104,17 @@ final class CollectionTests: XCTestCase {
     }
   }
 
+  func testByteBufferSingleItemRemainingMatch() {
+    var bb = ByteBuffer()
+    bb.writeBytes([ 45 ])
+    
+    let idxMaybe = bb.readableBytesView
+          .firstIndex(of: [ 45, 45, 50, 50 ], options: .partialSuffixMatch)
+    XCTAssertNotNil(idxMaybe)
+    guard let idx = idxMaybe else { return }
+    XCTAssertEqual(idx, 0)
+  }
+
   static var allTests = [
     ( "testByteBufferSearch"              , testByteBufferSearch              ),
     ( "testByteBufferSearchNoMatch"       , testByteBufferSearchNoMatch       ),
@@ -113,6 +124,8 @@ final class CollectionTests: XCTestCase {
     ( "testByteBufferSearchStableIndices" , testByteBufferSearchStableIndices ),
     ( "testByteBufferSearchLeftEdge"      , testByteBufferSearchLeftEdge      ),
     ( "testByteBufferSearchRightEdge"     , testByteBufferSearchRightEdge     ),
-    ( "testByteBufferRemainingMatch"      , testByteBufferRemainingMatch      )
+    ( "testByteBufferRemainingMatch"      , testByteBufferRemainingMatch      ),
+    ( "testByteBufferSingleItemRemainingMatch",
+      testByteBufferSingleItemRemainingMatch )
   ]
 }
