@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
 //
 
 @usableFromInline
@@ -27,12 +27,16 @@ internal let stringEncodingNames : Set<String> = [
 
 public extension String.Encoding {
   
-  @inlinable static func isEncoding(_ name: String) -> Bool {
+  @inlinable
+  static func isEncoding(_ name: String) -> Bool {
     return stringEncodingNames.contains(name)
   }
   
   @inlinable
-  static func encodingWithName(_ name: String) -> String.Encoding {
+  static func encodingWithName(_           name : String,
+                               fallbackEncoding : String.Encoding = .utf8)
+              -> String.Encoding
+  {
     let lc = name.lowercased()
     switch lc {
       case "utf8", "utf-8"                     : return .utf8
@@ -53,7 +57,7 @@ public extension String.Encoding {
       default:
         process.emitWarning("Unexpected String encoding: '\(name)'",
                             name: #function)
-        return .utf8
+        return fallbackEncoding
     }
   }
 }

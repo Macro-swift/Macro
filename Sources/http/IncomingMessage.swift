@@ -131,6 +131,18 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     }
   }
   
+  public var destroyed : Bool = false
+  
+  @discardableResult
+  open func destroy(_ error: Swift.Error? = nil) -> Self {
+    guard !destroyed else { return self }
+    destroyed = true
+    if let error = error { emit(error: error) }
+    _ = socket?.close(mode: .input)
+    didComplete()
+    return self
+  }
+  
   private func didComplete() {
     readableEnded  = true // TBD: just use `complete` for this?
     flowingToggler = nil
