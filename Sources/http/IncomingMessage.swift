@@ -131,6 +131,18 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     }
   }
   
+  public var destroyed : Bool = false
+  
+  @discardableResult
+  open func destroy(_ error: Swift.Error? = nil) -> Self {
+    guard !destroyed else { return self }
+    destroyed = true
+    if let error = error { emit(error: error) }
+    _ = socket?.close(mode: .input)
+    didComplete()
+    return self
+  }
+  
   private func didComplete() {
     readableEnded  = true // TBD: just use `complete` for this?
     flowingToggler = nil
@@ -270,10 +282,13 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     if !readableListeners.isEmpty { ms += " has-readable-listeners" }
     if !dataListeners    .isEmpty { ms += " has-data-listeners"     }
 
-    for ( key, value ) in environment.loggingDictionary {
-      ms += " \(key)=\(value)"
+    if !environment.isEmpty {
+      ms += "\n"
+      for ( key, value ) in environment.loggingDictionary {
+        ms += "  \(key)=\(value)\n"
+      }
     }
-    
+
     return ms
   }
 }

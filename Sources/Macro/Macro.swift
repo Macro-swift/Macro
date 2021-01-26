@@ -35,6 +35,8 @@ public typealias jsonfile = JSONFileModule
 
 // MARK: - Submodules in `http` Target
 
+@_exported import class http.IncomingMessage
+@_exported import class http.ServerResponse
 import enum      http.HTTPModule
 import enum      http.BasicAuthModule
 import enum      http.QueryStringModule
