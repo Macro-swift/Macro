@@ -163,7 +163,9 @@ public final class MacroCore {
       
       DispatchQueue.main.asyncAfter(deadline: to) {
         if self.workCount.load() == 0 { // work still zero, terminate
-          self.exit()
+          if !wasInExit || !self.didRegisterAtExit.load()  {
+            self.exit()
+          }
         }
       }
     #endif
