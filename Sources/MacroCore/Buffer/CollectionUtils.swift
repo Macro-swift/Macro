@@ -159,6 +159,8 @@ extension ByteBufferView {
           let partial    = string[..<partialEnd]
           if view.elementsEqual(partial) { return cursor }
         }
+        
+        cursor += 1
 
         let distanceFromCursor = find(c0, in: self[cursor...])
         guard distanceFromCursor >= 0 else { return nil }
