@@ -196,7 +196,8 @@ fileprivate func find(_ byte: UInt8, in bb: ByteBufferView) -> Int {
   // Perf: firstIndex(of:) is !2x slower than memchr (well, in Debug)
   assert(bb.count > 0)
   return bb.withUnsafeBytes { rbp in
-    let idx = memchr(rbp.baseAddress, Int32(byte), rbp.count)
+    guard let rb = rbp.baseAddress else { return -1 }
+    let idx = memchr(rb, Int32(byte), rbp.count)
     guard let ptr = idx else { return -1 }
     let a : UnsafeRawPointer = rbp.baseAddress!
     let b = UnsafeRawPointer(ptr)
@@ -209,8 +210,10 @@ fileprivate func find(_ string: [ UInt8 ], in bb: ByteBufferView) -> Int {
   assert(string.count <= bb.count)
   return bb.withUnsafeBytes { rbp in
     return string.withUnsafeBytes { needleRBP in
-      let idx = memmem(rbp      .baseAddress, rbp      .count,
-                       needleRBP.baseAddress, needleRBP.count)
+      guard let rb = rbp.baseAddress, let nb = needleRBP.baseAddress else {
+        return -1
+      }
+      let idx = memmem(rb, rbp.count, nb, needleRBP.count)
       guard let ptr = idx else { return -1 }
       let a : UnsafeRawPointer = rbp.baseAddress!
       let b = UnsafeRawPointer(ptr)
