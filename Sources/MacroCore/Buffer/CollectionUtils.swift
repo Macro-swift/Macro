@@ -207,18 +207,47 @@ fileprivate func find(_ byte: UInt8, in bb: ByteBufferView) -> Int {
 }
 
 fileprivate func find(_ string: [ UInt8 ], in bb: ByteBufferView) -> Int {
+  assert(!string.isEmpty) // could work, but not used like that in here
+  guard !string.isEmpty else { return 0 } // TBD
   assert(string.count <= bb.count)
   return bb.withUnsafeBytes { rbp in
     return string.withUnsafeBytes { needleRBP in
       guard let rb = rbp.baseAddress, let nb = needleRBP.baseAddress else {
         return -1
       }
-      let idx = memmem(rb, rbp.count, nb, needleRBP.count)
-      guard let ptr = idx else { return -1 }
-      let a : UnsafeRawPointer = rbp.baseAddress!
-      let b = UnsafeRawPointer(ptr)
-      assert(a <= b)
-      return b - a
+      #if true // && os(Linux) // Swift Glibc doesn't have/export memmem :-/
+        // Note: Sticking to a single version for all platforms.
+        let byte      = needleRBP[0]
+        let matchLen  = needleRBP.count
+        var remaining = rbp.count
+        var cursor    = rb
+      
+        while remaining >= matchLen {
+          guard let b = UnsafeRawPointer(memchr(cursor, Int32(byte), remaining))
+          else {
+            return -1
+          }
+          assert(cursor <= b)
+          remaining -= (b - cursor)
+          cursor     = b
+          
+          if memcmp(cursor, nb, matchLen) == 0 {
+            assert(rb <= b)
+            return b - rb
+          }
+          
+          remaining -= 1
+          cursor    += 1
+        }
+        return -1
+      #else
+        let idx = memmem(rb, rbp.count, nb, needleRBP.count)
+        guard let ptr = idx else { return -1 }
+        let a : UnsafeRawPointer = rb
+        let b = UnsafeRawPointer(ptr)
+        assert(a <= b)
+        return b - a
+      #endif
     }
   }
 }
