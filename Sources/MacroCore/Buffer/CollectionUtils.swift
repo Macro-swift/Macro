@@ -161,6 +161,8 @@ extension ByteBufferView {
         }
         
         cursor += 1
+        remaining -= 1
+        guard remaining > 0 else { break }
 
         let distanceFromCursor = find(c0, in: self[cursor...])
         guard distanceFromCursor >= 0 else { return nil }
