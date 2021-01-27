@@ -4,7 +4,12 @@ import XCTest
 @testable import MacroTestUtilities
 
 final class AgentTests: XCTestCase {
-  
+
+  override class func setUp() {
+    disableAtExitHandler()
+    super.setUp()
+  }
+
   func testSimpleGet() {
     let exp = expectation(description: "get result")
     

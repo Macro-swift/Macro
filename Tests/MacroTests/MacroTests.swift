@@ -2,7 +2,12 @@ import XCTest
 @testable import Macro
 @testable import MacroTestUtilities
 
-final class MacroTests: XCTestCase {
+final class MacroBaseTests: XCTestCase {
+  
+  override class func setUp() {
+    disableAtExitHandler()
+    super.setUp()
+  }
   
   func testDirname() throws {
     XCTAssertEqual(path.dirname("/usr/local/bin"), "/usr/local")    

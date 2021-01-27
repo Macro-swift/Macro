@@ -3,6 +3,11 @@ import XCTest
 import struct NIO.ByteBuffer
 
 final class CollectionTests: XCTestCase {
+  
+  override class func setUp() {
+    disableAtExitHandler()
+    super.setUp()
+  }
 
   func testByteBufferSearch() {
     var bb = ByteBuffer()

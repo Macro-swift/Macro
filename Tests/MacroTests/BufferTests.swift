@@ -3,6 +3,11 @@ import XCTest
 
 final class BufferTests: XCTestCase {
 
+  override class func setUp() {
+    disableAtExitHandler()
+    super.setUp()
+  }
+
   func testIndexOf() throws {
     // matching https://nodejs.org/api/buffer.html#buffer_buf_indexof_value_byteoffset_encoding
     let buf = try Buffer.from("this is a buffer")
