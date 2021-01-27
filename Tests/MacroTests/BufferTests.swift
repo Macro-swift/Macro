@@ -86,7 +86,8 @@ final class BufferTests: XCTestCase {
       let buf = Buffer.from([ UInt8 ](repeating: 0x42, count: 100))
       let s   = buf.description
       XCTAssert(s.hasPrefix("<Buffer: #100 42 42 42 "))
-      XCTAssert(s.hasSuffix("…>"))
+      XCTAssert(s.contains("…"))
+      XCTAssert(s.hasSuffix("42 42>"))
       XCTAssert(s.count < 200)
     }
   }
