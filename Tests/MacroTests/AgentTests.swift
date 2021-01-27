@@ -4,12 +4,17 @@ import XCTest
 @testable import MacroTestUtilities
 
 final class AgentTests: XCTestCase {
-  
+
+  override class func setUp() {
+    disableAtExitHandler()
+    super.setUp()
+  }
+
   func testSimpleGet() {
     let exp = expectation(description: "get result")
     
     http.get("https://zeezide.de") { res in
-      XCTAssertEqual(res.status, .ok)
+      XCTAssertEqual(res.statusCode, 200)
       
       res.onError { error in
         XCTAssert(false, "an error happened: \(error)")
@@ -45,7 +50,7 @@ final class AgentTests: XCTestCase {
     )
     
     let req = http.request(options) { res in
-      XCTAssertEqual(res.status, .created)
+      XCTAssertEqual(res.statusCode, 201)
       
       res.onError { error in
         XCTAssert(false, "an error happened: \(error)")
