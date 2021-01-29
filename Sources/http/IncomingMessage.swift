@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Heß.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
 //
 
 import struct   Logging.Logger
@@ -265,8 +265,12 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     var ms = "<IncomingMessage[\(id)]:"
     defer { ms += ">" }
     
-    if      socket         == nil { ms += " no-socket"       }
-    else if flowingToggler == nil { ms += " no-flow-toggler" }
+    if socket == nil {
+      if !readableEnded { ms += " no-socket" }
+    }
+    else if flowingToggler == nil {
+      ms += " no-flow-toggler"
+    }
     
     if let buffered = readableBuffer, !buffered.isEmpty {
       ms += " buffered=\(buffered.count)"
