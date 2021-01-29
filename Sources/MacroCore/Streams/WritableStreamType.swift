@@ -50,7 +50,7 @@ public extension WritableStreamType {
   
   @inlinable
   func end(_ payload: WritablePayload) {
-    write(payload) { end() }
+    write(payload) { self.end() }
   }
 }
 
