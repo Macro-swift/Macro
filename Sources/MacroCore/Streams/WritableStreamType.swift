@@ -6,7 +6,7 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
-public protocol WritableStreamType: ErrorEmitterType {
+public protocol WritableStreamType: ErrorEmitterType, ErrorEmitterTarget {
 
   associatedtype WritablePayload
 
