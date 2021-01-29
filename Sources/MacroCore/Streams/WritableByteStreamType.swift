@@ -40,6 +40,25 @@ public extension WritableStreamType where WritablePayload == Buffer {
   func write(_ string: String, whenDone: @escaping () -> Void = {}) -> Bool {
     return write(Buffer(string), whenDone: whenDone)
   }
+  
+  @inlinable
+  func end(_ string: String, _ encoding: String.Encoding = .utf8) {
+    do {
+      write(try Buffer.from(string, encoding)) { end() }
+    }
+    catch {
+      emit(error: error)
+    }
+  }
+  @inlinable
+  func end(_ string: String, _ encoding: String) {
+    do {
+      write(try Buffer.from(string, encoding)) { end() }
+    }
+    catch {
+      emit(error: error)
+    }
+  }
 }
 
 import struct Foundation.Data
@@ -50,5 +69,10 @@ public extension WritableStreamType where WritablePayload == Buffer {
   @discardableResult
   func write(_ data: Data, whenDone: @escaping () -> Void = {}) -> Bool {
     return write(Buffer(data), whenDone: whenDone)
+  }
+  
+  @inlinable
+  func end(_ data: Data) {
+    write(Buffer(data)) { end() }
   }
 }

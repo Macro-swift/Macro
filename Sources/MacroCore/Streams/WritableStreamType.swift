@@ -46,6 +46,13 @@ public extension WritableStreamType {
   }
 }
 
+public extension WritableStreamType {
+  
+  @inlinable
+  func end(_ payload: WritablePayload) {
+    write(payload) { end() }
+  }
+}
 
 // MARK: - Deprecated Properties
 
