@@ -6,7 +6,7 @@
 //  Copyright © 2020 ZeeZide GmbH. All rights reserved.
 //
 
-public protocol WritableStreamType: ErrorEmitterType {
+public protocol WritableStreamType: ErrorEmitterType, ErrorEmitterTarget {
 
   associatedtype WritablePayload
 
@@ -46,6 +46,13 @@ public extension WritableStreamType {
   }
 }
 
+public extension WritableStreamType {
+  
+  @inlinable
+  func end(_ payload: WritablePayload) {
+    write(payload) { self.end() }
+  }
+}
 
 // MARK: - Deprecated Properties
 
