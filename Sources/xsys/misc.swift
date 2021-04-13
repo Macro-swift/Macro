@@ -35,6 +35,7 @@
   public let kill          = Glibc.kill
   public let chdir         = Glibc.chdir
   public let rmdir         = Glibc.rmdir
+  public let unlink        = Glibc.unlink
   public let mkdir         = Glibc.mkdir
   public let getcwd        = Glibc.getcwd
   public let getegid       = Glibc.getegid
@@ -82,6 +83,7 @@
   public let kill          = Darwin.kill
   public let chdir         = Darwin.chdir
   public let rmdir         = Darwin.rmdir
+  public let unlink        = Darwin.unlink
   public let mkdir         = Darwin.mkdir
   public let getcwd        = Darwin.getcwd
   public let getegid       = Darwin.getegid

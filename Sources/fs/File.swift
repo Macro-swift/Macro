@@ -269,6 +269,16 @@ public func rmdirSync(_ path: String) throws {
   #endif
 }
 
+public func unlinkSync(_ path: String) throws {
+  #if canImport(Foundation)
+    let fm = FileManager.default
+    try fm.removeItem(atPath: path)
+  #else
+    let rc = xsys.unlink(path)
+    if rc != 0 { try throwErrno() }
+  #endif
+}
+
 fileprivate func throwErrno() throws {
   #if true // FIXME: Do this better
     struct PosixError: Swift.Error { let rawValue: Int32 }
