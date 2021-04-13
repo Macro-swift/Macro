@@ -17,6 +17,7 @@
 @_exported import struct   MacroCore.Buffer
 @_exported import func     MacroCore.leftpad
 @_exported import enum     MacroCore.Math
+@_exported import enum     MacroCore.Object
 @_exported import protocol NIO.EventLoop
 @_exported import protocol NIO.EventLoopGroup
 @_exported import struct   Logging.Logger
