@@ -11,7 +11,7 @@ import class  Foundation.NSRegularExpression
 import class  Foundation.NSString
 import struct Foundation.NSRange
 
-extension String {
+public extension String {
   
   /**
    * No Regex syntax in Swift. This is used to replicate those:
