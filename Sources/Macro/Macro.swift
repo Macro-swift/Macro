@@ -16,6 +16,7 @@
 @_exported import enum     MacroCore.WritableError
 @_exported import struct   MacroCore.Buffer
 @_exported import func     MacroCore.leftpad
+@_exported import enum     MacroCore.Math
 @_exported import protocol NIO.EventLoop
 @_exported import protocol NIO.EventLoopGroup
 @_exported import struct   Logging.Logger
