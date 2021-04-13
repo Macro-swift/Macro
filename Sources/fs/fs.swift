@@ -251,6 +251,11 @@ public extension FileSystemModule {
   {
     try fs.mkdirSync(path, options)
   }
+
+  @inlinable
+  static func rmdirSync(_ path: String) throws {
+    try fs.rmdirSync(path)
+  }
 }
 
 
