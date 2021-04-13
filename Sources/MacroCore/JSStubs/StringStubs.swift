@@ -31,3 +31,11 @@ public extension String {
     return trimmingCharacters(in: .whitespacesAndNewlines)
   }
 }
+
+public extension Sequence where Element: StringProtocol {
+  
+  @inlinable
+  func join(_ separator: String = ",") -> String {
+    return joined(separator: separator)
+  }
+}
