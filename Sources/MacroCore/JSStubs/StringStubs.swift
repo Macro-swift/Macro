@@ -25,4 +25,9 @@ public extension String {
   func split(_ separator: Character) -> [ String ] {
     return split(separator: separator).map { String($0) }
   }
+  
+  @inlinable
+  func trim() -> String {
+    return trimmingCharacters(in: .whitespacesAndNewlines)
+  }
 }

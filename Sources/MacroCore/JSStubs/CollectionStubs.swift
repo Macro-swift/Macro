@@ -6,8 +6,14 @@
 //  Copyright © 2021 ZeeZide GmbH. All rights reserved.
 //
 
-public extension Array {
+public extension Collection {
   
+  @inlinable
+  var length: Int { return count }
+}
+
+public extension Array {
+
   @inlinable
   mutating func push(_ element: Element) { append(element) }
 
