@@ -3,7 +3,7 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Heß on 4/27/16.
-//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2021 ZeeZide GmbH. All rights reserved.
 //
 
 // TODO: This file triggers a weird warning on Swift 3 2016-05-09:
@@ -34,6 +34,8 @@
   
   public let kill          = Glibc.kill
   public let chdir         = Glibc.chdir
+  public let rmdir         = Glibc.rmdir
+  public let mkdir         = Glibc.mkdir
   public let getcwd        = Glibc.getcwd
   public let getegid       = Glibc.getegid
   public let geteuid       = Glibc.geteuid
@@ -79,6 +81,8 @@
   
   public let kill          = Darwin.kill
   public let chdir         = Darwin.chdir
+  public let rmdir         = Darwin.rmdir
+  public let mkdir         = Darwin.mkdir
   public let getcwd        = Darwin.getcwd
   public let getegid       = Darwin.getegid
   public let geteuid       = Darwin.geteuid

@@ -21,6 +21,9 @@ import struct   MacroCore.Buffer
   import class  Foundation.FileManager
 #endif
 import struct   xsys.mode_t
+import let      xsys.mkdir
+import let      xsys.rmdir
+import var      xsys.errno
 
 public func readFile(on eventLoop : EventLoop? = nil,
                      _       path : String,
@@ -241,14 +244,26 @@ public func mkdirSync(_ path: String, _ options: MakeDirOptions = .init())
                            attributes : nil)
   #else
     assert(!options.recursive, "recursive mkdir is unsupported") // TODO
-    let rc = mkdir(path, options.mode)
-    guard rc == 0 else {
-      #if true // FIXME: Do this better
-        struct PosixError: Swift.Error { let rawValue: Int32 }
-        throw PosixError(rawValue: xsys.errno)
-      #else // cannot construct those?
-        throw POSIXError(POSIXErrorCode(rawValue: errno))
-      #endif
-    }
+    let rc = xsys.mkdir(path, options.mode)
+    if rc != 0 { try throwErrno() }
+  #endif
+}
+
+public func rmdirSync(_ path: String) throws {
+  #if canImport(Foundation)
+    let fm = FileManager.default
+    try fm.removeItem(atPath: path)
+  #else
+    let rc = xsys.rmdir(path)
+    if rc != 0 { try throwErrno() }
+  #endif
+}
+
+fileprivate func throwErrno() throws {
+  #if true // FIXME: Do this better
+    struct PosixError: Swift.Error { let rawValue: Int32 }
+    throw PosixError(rawValue: xsys.errno)
+  #else // cannot construct those?
+    throw POSIXError(POSIXErrorCode(rawValue: errno))
   #endif
 }
