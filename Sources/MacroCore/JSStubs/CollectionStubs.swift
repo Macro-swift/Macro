@@ -12,6 +12,14 @@ public extension Collection {
   var length: Int { return count }
 }
 
+public extension Collection where Index == Int, Element: Equatable {
+  
+  @inlinable
+  func indexOf(_ element: Element) -> Int {
+    return firstIndex(of: element) ?? -1
+  }
+}
+
 public extension RandomAccessCollection where Index == Int {
   
   @inlinable
@@ -29,17 +37,7 @@ public extension RandomAccessCollection where Index == Int {
   }
 }
 
-public extension Array {
-
-  @inlinable
-  mutating func push(_ element: Element) { append(element) }
-
-  @inlinable
-  @discardableResult
-  mutating func pop() -> Element? {
-    guard !isEmpty else { return nil }
-    return removeLast()
-  }
+public extension RangeReplaceableCollection {
 
   @inlinable
   @discardableResult
@@ -51,16 +49,52 @@ public extension Array {
   @inlinable
   @discardableResult
   mutating func unshift(_ element: Element) -> Int {
-    insert(element, at: 0)
+    insert(element, at: startIndex)
     return count
   }
 }
 
-public extension Array where Element: Equatable {
+public extension RangeReplaceableCollection {
   
   @inlinable
-  func indexOf(_ element: Element) -> Int {
-    return firstIndex(of: element) ?? -1
+  mutating func concat() -> Self { return self }
+
+  @inlinable
+  mutating func concat<S>(_ sequence1: S, sequences: S...) -> Self
+                  where S: Sequence, S.Element == Element
+  {
+    var copy = self
+    copy += sequence1
+    sequences.forEach { copy += $0 }
+    return copy
+  }
+
+  @inlinable
+  mutating func concat<C>(_ collection1: C, collections: C...) -> Self
+                  where C: Collection, C.Element == Element
+  {
+    let totalCount = self.count + collection1.count
+                   + collections.reduce(0, { $0 + $1.count })
+    var copy = self
+    copy.reserveCapacity(totalCount)
+    copy += collection1
+    collections.forEach { copy += $0 }
+    return copy
+  }
+}
+
+public extension RangeReplaceableCollection
+                   where Self: BidirectionalCollection
+{
+  
+  @inlinable
+  mutating func push(_ element: Element) { append(element) }
+
+  @inlinable
+  @discardableResult
+  mutating func pop() -> Element? {
+    guard !isEmpty else { return nil }
+    return removeLast()
   }
 }
 
