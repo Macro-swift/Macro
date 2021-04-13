@@ -251,6 +251,11 @@ public extension FileSystemModule {
   {
     try fs.mkdirSync(path, options)
   }
+  @inlinable
+  func mkdirSync(_ path: String, _ umask: String) throws {
+    // TODO: this should probably support rwx+ like strings?
+    try fs.mkdirSync(path, umask)
+  }
 
   @inlinable
   static func rmdirSync(_ path: String) throws {

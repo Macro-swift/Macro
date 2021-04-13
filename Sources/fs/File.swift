@@ -230,14 +230,19 @@ public func writeFileSync(_ path: String, _ string: String,
 public struct MakeDirOptions: Equatable {
   public var recursive = false
   public var mode      : mode_t = 0777
-  @inlinable public init() {}
+  
+  @inlinable
+  public init(recursive: Bool = false, mode: mode_t = 0o777) {
+    self.recursive = recursive
+    self.mode      = mode
+  }
 }
 
 public func mkdirSync(_ path: String, _ options: MakeDirOptions = .init())
               throws
 {
   #if canImport(Foundation)
-    assert(options.mode == 0777, "unsupported mode")
+    assert(options.mode == 0o777, "unsupported mode")
     let fm = FileManager.default
     try fm.createDirectory(atPath     : path,
                            withIntermediateDirectories: options.recursive,
@@ -247,6 +252,11 @@ public func mkdirSync(_ path: String, _ options: MakeDirOptions = .init())
     let rc = xsys.mkdir(path, options.mode)
     if rc != 0 { try throwErrno() }
   #endif
+}
+public func mkdirSync(_ path: String, _ umask: String) throws {
+  var opts = MakeDirOptions()
+  opts.mode = mode_t(umask, radix: 8) ?? 0o777
+  try mkdirSync(path, opts)
 }
 
 public func rmdirSync(_ path: String) throws {
