@@ -3,20 +3,24 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
 //
 
 import protocol NIO.EventLoop
 import class    NIO.MultiThreadedEventLoopGroup
 import class    NIO.NIOThreadPool
 import enum     NIO.ChannelError
-import struct   Foundation.Data
-import struct   Foundation.URL
 import class    MacroCore.MacroCore
 import enum     MacroCore.process
 import enum     MacroCore.CharsetConversionError
 import enum     MacroCore.MacroError
 import struct   MacroCore.Buffer
+#if canImport(Foundation)
+  import struct Foundation.Data
+  import struct Foundation.URL
+  import class  Foundation.FileManager
+#endif
+import struct   xsys.mode_t
 
 public func readFile(on eventLoop : EventLoop? = nil,
                      _       path : String,
@@ -97,6 +101,7 @@ public func writeFile(_ path: String, _ buffer: Buffer,
 {
   writeFile(path, buffer.data, whenDone: whenDone)
 }
+#if canImport(Foundation)
 @inlinable
 public func writeFile(on eventLoop : EventLoop? = nil,
                       _ path: String, _ data: Data,
@@ -127,6 +132,7 @@ public func writeFile(on eventLoop : EventLoop? = nil,
     }
   }
 }
+#endif
 @inlinable
 public func writeFile(_ path: String, _ string: String,
                       _ encoding: String.Encoding = .utf8,
@@ -151,6 +157,7 @@ public func writeFile(_ path: String, _ string: String,
 
 @inlinable
 public func readFileSync(_ path: String) -> Buffer? {
+  #if canImport(Foundation)
   do {
     let data = try Data(contentsOf: URL(fileURLWithPath: path))
     return Buffer(data)
@@ -159,11 +166,15 @@ public func readFileSync(_ path: String) -> Buffer? {
     process.emitWarning(error, name: #function)
     return nil
   }
+  #else
+    fatalError("Port `readFileSync` to non-Foundation systems")
+  #endif
 }
 
 @inlinable
 public func readFileSync(_ path: String, _ encoding: String.Encoding) -> String?
 {
+  #if canImport(Foundation)
   // TODO: support open-flags (r+, a, etc)
   do {
     let data = try Data(contentsOf: URL(fileURLWithPath: path))
@@ -178,6 +189,9 @@ public func readFileSync(_ path: String, _ encoding: String.Encoding) -> String?
     process.emitWarning(error, name: #function)
     return nil
   }
+  #else
+    fatalError("Port `readFileSync` to non-Foundation systems")
+  #endif
 }
 @inlinable
 public func readFileSync(_ path: String, _ encoding: String) -> String? {
@@ -188,10 +202,12 @@ public func readFileSync(_ path: String, _ encoding: String) -> String? {
 public func writeFileSync(_ path: String, _ buffer: Buffer) throws {
   try writeFileSync(path, buffer.data)
 }
+#if canImport(Foundation)
 @inlinable
 public func writeFileSync(_ path: String, _ data: Data) throws {
   try data.write(to: URL(fileURLWithPath: path), options: [.atomic])
 }
+#endif
 @inlinable
 public func writeFileSync(_ path: String, _ string: String,
                           _ encoding: String.Encoding = .utf8) throws
@@ -206,4 +222,33 @@ public func writeFileSync(_ path: String, _ string: String,
                           _ encoding: String) throws
 {
   try writeFileSync(path, string, .encodingWithName(encoding))
+}
+
+public struct MakeDirOptions: Equatable {
+  public var recursive = false
+  public var mode      : mode_t = 0777
+  @inlinable public init() {}
+}
+
+public func mkdirSync(_ path: String, _ options: MakeDirOptions = .init())
+              throws
+{
+  #if canImport(Foundation)
+    assert(options.mode == 0777, "unsupported mode")
+    let fm = FileManager.default
+    try fm.createDirectory(atPath     : path,
+                           withIntermediateDirectories: options.recursive,
+                           attributes : nil)
+  #else
+    assert(!options.recursive, "recursive mkdir is unsupported") // TODO
+    let rc = mkdir(path, options.mode)
+    guard rc == 0 else {
+      #if true // FIXME: Do this better
+        struct PosixError: Swift.Error { let rawValue: Int32 }
+        throw PosixError(rawValue: xsys.errno)
+      #else // cannot construct those?
+        throw POSIXError(POSIXErrorCode(rawValue: errno))
+      #endif
+    }
+  #endif
 }

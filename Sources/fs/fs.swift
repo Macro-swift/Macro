@@ -244,6 +244,13 @@ public extension FileSystemModule {
   {
     try fs.writeFileSync(path, string, encoding)
   }
+
+  @inlinable
+  static func mkdirSync(_ path: String, _ options: MakeDirOptions = .init())
+                throws
+  {
+    try fs.mkdirSync(path, options)
+  }
 }
 
 
