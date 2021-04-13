@@ -57,11 +57,11 @@ public extension RangeReplaceableCollection {
 public extension RangeReplaceableCollection {
   
   @inlinable
-  mutating func concat() -> Self { return self }
+  func concat() -> Self { return self }
 
   @inlinable
-  mutating func concat<S>(_ sequence1: S, sequences: S...) -> Self
-                  where S: Sequence, S.Element == Element
+  func concat<S>(_ sequence1: S, sequences: S...) -> Self
+          where S: Sequence, S.Element == Element
   {
     var copy = self
     copy += sequence1
@@ -70,8 +70,8 @@ public extension RangeReplaceableCollection {
   }
 
   @inlinable
-  mutating func concat<C>(_ collection1: C, collections: C...) -> Self
-                  where C: Collection, C.Element == Element
+  func concat<C>(_ collection1: C, collections: C...) -> Self
+         where C: Collection, C.Element == Element
   {
     let totalCount = self.count + collection1.count
                    + collections.reduce(0, { $0 + $1.count })
