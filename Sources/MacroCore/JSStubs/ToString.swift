@@ -16,6 +16,12 @@ public extension BinaryInteger {
   func toString() -> String { return toString(10) }
 }
 
+public extension JSError {
+  
+  @inlinable
+  func toString() -> String { return String(describing: self) }
+}
+
 #if canImport(Foundation)
   import struct Foundation.Date
   import class  Foundation.DateFormatter
