@@ -60,6 +60,14 @@ public extension RangeReplaceableCollection {
   func concat() -> Self { return self }
 
   @inlinable
+  func concat(_ element1: Element, elements: Element...) -> Self {
+    var copy = self
+    copy.append(element1)
+    copy += elements
+    return copy
+  }
+
+  @inlinable
   func concat<S>(_ sequence1: S, sequences: S...) -> Self
           where S: Sequence, S.Element == Element
   {
