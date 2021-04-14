@@ -16,7 +16,7 @@ public extension BinaryInteger {
   func toString() -> String { return toString(10) }
 }
 
-extension Swift.Error {
+public extension Swift.Error {
   
   @inlinable
   func toString() -> String { return String(describing: self) }
