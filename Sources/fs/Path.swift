@@ -16,6 +16,7 @@
 
 #if canImport(Foundation)
   import struct Foundation.URL
+  import class  Foundation.FileManager
 #endif
 
 public enum PathModule {}
@@ -65,6 +66,37 @@ public extension PathModule {
       #endif
     #endif
   }
+
+  #if canImport(Foundation)
+    // https://nodejs.org/api/path.html#path_path_resolve_paths
+    @inlinable
+    static func resolve(_ paths: String...) -> String {
+      guard !paths.isEmpty else { return "" }
+      
+      func buildPath(_ pathURL: URL, with components: [ String ]) -> String {
+        var pathURL = pathURL
+        components.forEach { pathURL.appendPathComponent($0) }
+        var path = pathURL.path
+        while path.hasSuffix("/") { path.removeLast() }
+        return path
+      }
+      
+      var components = [ String ]()
+      components.reserveCapacity(paths.count)
+      for path in paths.reversed() {
+        guard !path.isEmpty else { continue }
+        let pathURL = URL(fileURLWithPath: path).standardizedFileURL
+        if pathURL.path.hasPrefix("/") { // found absolute URL
+          return buildPath(pathURL, with: components)
+        }
+        else {
+          components.append(path)
+        }
+      }
+      let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+      return buildPath(cwd, with: components)
+  }
+  #endif
 }
 
 
