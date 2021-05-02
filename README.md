@@ -37,7 +37,7 @@ swift-sh scripts.
 The most basic HTTP server:
 ```swift
 #!/usr/bin/swift sh
-import Macro // @Macro-swift ~> 0.5.4
+import Macro // @Macro-swift ~> 0.8.0
 
 http
   .createServer { req, res in
