@@ -101,7 +101,22 @@ public extension process { // Run Control
     set { MacroCore.shared.exitCode = newValue }
     get { return MacroCore.shared.exitCode }
   }
-  static func exit(code: Int? = nil) { MacroCore.shared.exit(code) }
+  
+  /**
+   * Terminate the process with the given process exit code.
+   *
+   * It no code is passed in, the current value of the `process.exitCode`
+   * property is used (which itself defaults to 0).
+   *
+   * - Parameters:
+   *   - code: The optional exit code, defaults to `process.exitCode`.
+   */
+  @inlinable
+  static func exit(_ code: Int? = nil) -> Never { MacroCore.shared.exit(code) }
+
+  @inlinable
+  @available(*, deprecated, message: "Avoid argument label, just `exit(10)`.")
+  static func exit(code: Int?) { exit(code) }
 }
 
 #if !os(Windows)

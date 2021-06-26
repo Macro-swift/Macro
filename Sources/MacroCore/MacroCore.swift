@@ -176,12 +176,12 @@ public final class MacroCore {
     dispatchMain() // never returns
   }
   
-  public var exitFunction : ( Int ) -> Void = { code in
+  public var exitFunction : ( Int ) -> Never = { code in
     sysExit(Int32(code))
   }
   
   public var  exitCode : Int = 0
-  public func exit(_ code: Int? = nil) {
+  public func exit(_ code: Int? = nil) -> Never {
     exitFunction(code ?? exitCode)
   }
 
