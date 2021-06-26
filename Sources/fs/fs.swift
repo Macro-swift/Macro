@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
 //
 
 import class  NIO.NIOThreadPool
@@ -243,6 +243,27 @@ public extension FileSystemModule {
                             _ encoding: String) throws
   {
     try fs.writeFileSync(path, string, encoding)
+  }
+
+  @inlinable
+  static func mkdirSync(_ path: String, _ options: MakeDirOptions = .init())
+                throws
+  {
+    try fs.mkdirSync(path, options)
+  }
+  @inlinable
+  func mkdirSync(_ path: String, _ umask: String) throws {
+    // TODO: this should probably support rwx+ like strings?
+    try fs.mkdirSync(path, umask)
+  }
+
+  @inlinable
+  static func rmdirSync(_ path: String) throws {
+    try fs.rmdirSync(path)
+  }
+  @inlinable
+  static func unlinkSync(_ path: String) throws {
+    try fs.unlinkSync(path)
   }
 }
 

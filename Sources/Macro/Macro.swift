@@ -3,12 +3,13 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
 //
 
 @_exported import func     MacroCore.nextTick
 @_exported import func     MacroCore.setTimeout
 @_exported import let      MacroCore.console
+@_exported import func     MacroCore.parseInt
 @_exported import enum     MacroCore.process
 @_exported import func     MacroCore.concat
 @_exported import enum     MacroCore.JSONModule
@@ -16,6 +17,8 @@
 @_exported import enum     MacroCore.WritableError
 @_exported import struct   MacroCore.Buffer
 @_exported import func     MacroCore.leftpad
+@_exported import enum     MacroCore.Math
+@_exported import enum     MacroCore.Object
 @_exported import protocol NIO.EventLoop
 @_exported import protocol NIO.EventLoopGroup
 @_exported import struct   Logging.Logger
@@ -48,3 +51,13 @@ public typealias querystring = QueryStringModule
 
 public var argv : [ String ]          { return process.argv }
 public var env  : [ String : String ] { return process.env  }
+
+// MARK: - Foundation
+
+#if canImport(Foundation)
+  import struct Foundation.Data
+  import struct Foundation.Date
+  
+  public typealias Data = Foundation.Data
+  public typealias Date = Foundation.Date
+#endif

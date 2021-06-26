@@ -3,7 +3,7 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Heß on 6/8/16.
-//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2021 ZeeZide GmbH. All rights reserved.
 //
 
 #if os(Windows)
@@ -12,6 +12,11 @@
   import Glibc
 #else
   import Darwin
+#endif
+
+#if canImport(Foundation)
+  import struct Foundation.URL
+  import class  Foundation.FileManager
 #endif
 
 public enum PathModule {}
@@ -40,6 +45,58 @@ public extension PathModule {
       return String.fromCString(cs, length: len)!
     }
   }
+    
+  @inlinable
+  static func join(_ components: String...) -> String {
+    guard !components.isEmpty else { return "" }
+    if components.count == 1 { return components[0] }
+    
+    #if canImport(Foundation)
+      var base = URL(fileURLWithPath: components[0])
+      for component in components.dropFirst() {
+        guard !component.isEmpty else { continue }
+        base.appendPathComponent(component)
+      }
+      return base.path
+    #else
+      #if os(Windows)
+        return components.joined(separator: "\\")
+      #else
+        return components.joined(separator: "/")
+      #endif
+    #endif
+  }
+
+  #if canImport(Foundation)
+    // https://nodejs.org/api/path.html#path_path_resolve_paths
+    @inlinable
+    static func resolve(_ paths: String...) -> String {
+      guard !paths.isEmpty else { return "" }
+      
+      func buildPath(_ pathURL: URL, with components: [ String ]) -> String {
+        var pathURL = pathURL
+        components.forEach { pathURL.appendPathComponent($0) }
+        var path = pathURL.path
+        while path.hasSuffix("/") { path.removeLast() }
+        return path
+      }
+      
+      var components = [ String ]()
+      components.reserveCapacity(paths.count)
+      for path in paths.reversed() {
+        guard !path.isEmpty else { continue }
+        let pathURL = URL(fileURLWithPath: path).standardizedFileURL
+        if pathURL.path.hasPrefix("/") { // found absolute URL
+          return buildPath(pathURL, with: components)
+        }
+        else {
+          components.append(path)
+        }
+      }
+      let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+      return buildPath(cwd, with: components)
+  }
+  #endif
 }
 
 

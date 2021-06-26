@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
 //
 
 import class Foundation.ProcessInfo
@@ -81,11 +81,42 @@ public extension process { // Process Info
 
 public extension process { // Run Control
 
+  /**
+   * The exit code to use if `exit` is called without an explicit code,
+   * defaults to `0` (aka no error).
+   *
+   * This can be used to change the default to some error code, so all exits
+   * will error out, unless a success code is used. For example:
+   *
+   *     process.exitCode = 1
+   *
+   *     guard process.argv.count > 1 else { process.exit() } // will fail
+   *     if answer == 42                   { process.exit() } // will fail
+   *
+   *     print("OK, all good.")
+   *     process.exit(0) // explict successful exit
+   *
+   */
   static var exitCode : Int {
     set { MacroCore.shared.exitCode = newValue }
     get { return MacroCore.shared.exitCode }
   }
-  static func exit(code: Int? = nil) { MacroCore.shared.exit(code) }
+  
+  /**
+   * Terminate the process with the given process exit code.
+   *
+   * It no code is passed in, the current value of the `process.exitCode`
+   * property is used (which itself defaults to 0).
+   *
+   * - Parameters:
+   *   - code: The optional exit code, defaults to `process.exitCode`.
+   */
+  @inlinable
+  static func exit(_ code: Int? = nil) -> Never { MacroCore.shared.exit(code) }
+
+  @inlinable
+  @available(*, deprecated, message: "Avoid argument label, just `exit(10)`.")
+  static func exit(code: Int?) { exit(code) }
 }
 
 #if !os(Windows)
@@ -93,10 +124,12 @@ public extension process { // Run Control
 
   static let abort = xsys.abort
 
+  @inlinable
   static func kill(_ pid: Int, _ signal: Int32 = xsys.SIGTERM) throws {
     let rc = xsys.kill(pid_t(pid), signal)
     guard rc == 0 else { throw POSIXErrorCode(rawValue: xsys.errno)! }
   }
+  @inlinable
   static func kill(_ pid: Int, _ signal: String) throws {
     var sc : Int32 = xsys.SIGTERM
     switch signal.uppercased() {
