@@ -114,6 +114,27 @@ public extension process { // Run Control
   @inlinable
   static func exit(_ code: Int? = nil) -> Never { MacroCore.shared.exit(code) }
 
+  /**
+   * Terminate the process with the given exit code associated with the
+   * given value.
+   *
+   * This can be used with enums like so:
+   *
+   *     enum ExitCodes: Int {
+   *       case directoryMissing = 1
+   *       case outOfMemory      = 2
+   *     }
+   * 
+   * - Parameters:
+   *   - code: The optional exit code, defaults to `process.exitCode`.
+   */
+  @inlinable
+  static func exit<C>(_ code: C) -> Never
+                where C: RawRepresentable, C.RawValue == Int
+  {
+    exit(code.rawValue)
+  }
+
   @inlinable
   @available(*, deprecated, message: "Avoid argument label, just `exit(10)`.")
   static func exit(code: Int?) { exit(code) }
