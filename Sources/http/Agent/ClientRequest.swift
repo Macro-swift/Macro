@@ -14,6 +14,7 @@ import struct MacroCore.Buffer
 import class  MacroCore.ErrorEmitter
 import class  MacroCore.ReadableByteStream
 import enum   MacroCore.EventListenerSet
+import struct NIOHTTP1.HTTPHeaders
 
 public class ClientRequest: OutgoingMessage {
 
@@ -114,13 +115,33 @@ public extension HTTPModule {
       case custom(Agent)
     }
     
-    public var agent   : AgentType
+    public var agent      : AgentType
     
     /// Basic authentication String
-    public var auth    : String?
+    public var auth       : String?
     
     /// The HTTP headers to emit
-    public var headers = [ String : String ]()
+    @inlinable
+    public var headers    : [ String : String ] {
+      set {
+        _headers = .init(Array(newValue))
+      }
+      get {
+        var result = [ String : String ]()
+        result.reserveCapacity(_headers.count)
+        for ( name, value ) in _headers {
+          if let oldValue = result[name] {
+            result[name] = oldValue + ", " + value
+          }
+          else {
+            result[name] = value
+          }
+        }
+        return result
+      }
+    }
+    /// The HTTP headers to emit
+    public var _headers   = HTTPHeaders()
     
     /// The protocol to use. Note that this includes the trailing colon ...
     public var `protocol` = "http:"
@@ -133,8 +154,13 @@ public extension HTTPModule {
     /// The timeout in milliseconds.
     public var timeout    : Int? = nil
     
-    public var hostname : String { set { host = newValue}  get { return host } }
+    @inlinable
+    public var hostname : String {
+      set { host = newValue }
+      get { return host     }
+    }
     
+    @inlinable
     public var timeoutInterval : TimeInterval? {
       set { timeout = newValue.flatMap { Int($0 * 1000) } }
       get { return timeout.flatMap { TimeInterval($0) } }
@@ -143,7 +169,7 @@ public extension HTTPModule {
     @inlinable
     public init(agent      : AgentType  = .global,
                 auth       : String?    = nil,
-                headers    : [ String : String ] = [:],
+                headers    : [ String : String ],
                 `protocol` : String     = "http:",
                 host       : String     = "localhost",
                 port       : Int?       = nil,
@@ -164,6 +190,29 @@ public extension HTTPModule {
       self.timeout  = timeout
     }
     
+    @inlinable
+    public init(agent      : AgentType   = .global,
+                auth       : String?     = nil,
+                headers    : HTTPHeaders = [:],
+                `protocol` : String      = "http:",
+                host       : String      = "localhost",
+                port       : Int?        = nil,
+                method     : String      = "GET",
+                path       : String      = "/",
+                setHost    : Bool        = true,
+                timeout    : Int?        = nil)
+    {
+      self.agent    = agent
+      self.auth     = auth
+      self._headers = headers
+      self.protocol = `protocol`
+      self.host     = host
+      self.port     = port
+      self.method   = method
+      self.path     = path
+      self.setHost  = setHost
+      self.timeout  = timeout
+    }
   }
   
   static func request(_ options: ClientRequestOptions,
