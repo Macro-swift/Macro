@@ -183,7 +183,7 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
   // MARK: - HTTP Responses
 
   @inlinable
-  var status : HTTPResponseStatus {
+  public var status : HTTPResponseStatus {
     guard case .response(let request) = head else { return .notImplemented }
     return request.status
   }
