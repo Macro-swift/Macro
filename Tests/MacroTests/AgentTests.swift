@@ -14,7 +14,7 @@ final class AgentTests: XCTestCase {
     let exp = expectation(description: "get result")
     
     http.get("https://zeezide.de") { res in
-      XCTAssertEqual(res.statusCode, 200)
+      XCTAssertEqual(res.statusCode, 200, "Status code is not 200!")
       
       res.onError { error in
         XCTAssert(false, "an error happened: \(error)")
@@ -23,8 +23,10 @@ final class AgentTests: XCTestCase {
       res | concat { buffer in
         do {
           let s = try buffer.toString()
-          XCTAssert(s.contains("<html"))
-          XCTAssert(s.contains("ZeeZide"))
+          XCTAssert(s.contains("<html"),
+                    "buffer does not start w/ <html: \(s)")
+          XCTAssert(s.contains("ZeeZide"),
+                    "buffer does not contain ZeeZide: \(s)")
         }
         catch {
           XCTAssert(false, "failed to grab string: \(error)")
