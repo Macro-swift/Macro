@@ -24,7 +24,7 @@ let package = Package(
                .branch("feature/100-continue")),
     */
     .package(url: "https://github.com/apple/swift-log.git",
-             from: "1.4.0")
+             from: "1.4.2")
   ],
   
   targets: [
