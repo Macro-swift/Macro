@@ -156,9 +156,7 @@ public let _defaultJSONEncoderOptions : JSONEncoder.OutputFormatting = {
 
 // MARK: - JSON Streams
 
-public extension WritableStreamType where WritablePayload == Buffer,
-                                          Self : ErrorEmitterTarget
-{
+public extension WritableStreamType where WritablePayload == Buffer {
 
   @discardableResult
   @inlinable
