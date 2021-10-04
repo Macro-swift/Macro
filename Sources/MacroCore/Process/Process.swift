@@ -35,14 +35,14 @@ public extension process { // File System
 
   @inlinable
   static func cwd() -> String {
-    let rc = xsys.getcwd(nil /* malloc */, 0)
-    assert(rc != nil, "process has no cwd??")
-    defer { free(rc) }
-    guard rc != nil else { return "" }
-    
-    let s = String(validatingUTF8: rc!)
+    let pathMaybe = xsys.getcwd(nil /* malloc */, 0)
+    assert(pathMaybe != nil, "process has no cwd??")
+    guard let path = pathMaybe else { return "" }
+    defer { free(path) }
+
+    let s = String(validatingUTF8: path)
     assert(s != nil, "could not convert cwd to String?!")
-    return s!
+    return s ?? "/tmp"
   }
 }
 
