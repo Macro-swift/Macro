@@ -16,20 +16,23 @@ let package = Package(
   ],
   
   dependencies: [
+    .package(url: "https://github.com/apple/swift-atomics.git",
+             from: "1.0.2"),
     .package(url: "https://github.com/apple/swift-nio.git",
-             from: "2.36.0"),
+             from: "2.41.1"),
     /* use this for proper 100-continue until 
        https://github.com/apple/swift-nio/pull/1330 is working:
       .package(url: "file:///Users/helge/dev/Swift/NIO/swift-nio-helje5",
                .branch("feature/100-continue")),
     */
     .package(url: "https://github.com/apple/swift-log.git",
-             from: "1.4.2")
+             from: "1.4.4")
   ],
   
   targets: [
     .target(name: "MacroCore",
-            dependencies: [ 
+            dependencies: [
+              .product(name: "Atomics", package: "swift-atomics"),
               "NIO", "NIOConcurrencyHelpers", "NIOFoundationCompat", 
               "Logging",
               "xsys"
