@@ -65,6 +65,11 @@ Macro also provides additional Node-like modules, such as:
 - `macro.concat.maxsize`
 - `macro.streams.debug.rc`
 
+## Async/Await
+
+This intentionally doesn't support `async`/`await` yet as proper streaming
+would require custom executors. Which are not yet available.
+
 ### Links
 
 - [µExpress](http://www.alwaysrightinstitute.com/microexpress-nio2/)
