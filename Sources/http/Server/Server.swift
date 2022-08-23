@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2022 ZeeZide GmbH. All rights reserved.
 //
 
 import class     MacroCore.ErrorEmitter
@@ -28,7 +28,7 @@ import let       NIO.TCP_NODELAY
 import enum      NIOHTTP1.HTTPServerRequestPart
 import typealias NIOHTTP1.NIOHTTPServerUpgradeConfiguration
 import class     NIOConcurrencyHelpers.Lock
-import class     NIOConcurrencyHelpers.NIOAtomic
+import Atomics
 
 /**
  * http.Server
@@ -53,12 +53,12 @@ import class     NIOConcurrencyHelpers.NIOAtomic
  */
 open class Server: ErrorEmitter, CustomStringConvertible {
   
-  private static let serverID = NIOAtomic.makeAtomic(value: 0)
+  private static let serverID = Atomics.ManagedAtomic<Int>(0)
 
   public  let id        : Int
   public  let log       : Logger
   private var didRetain = false
-  private let txID      = NIOAtomic.makeAtomic(value: 0)
+  private let txID      = Atomics.ManagedAtomic<Int>(0)
   private let lock      = Lock()
 
   /**
@@ -72,7 +72,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
    * instead.
    */
   public init(log: Logger = .init(label: "μ.http")) {
-    self.id  = Server.serverID.add(1) + 1
+    self.id  = Server.serverID.wrappingIncrementThenLoad(ordering: .relaxed)
     self.log = log
     super.init()
   }
@@ -396,7 +396,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
             return
           }
 
-          let id  = server.txID.add(1) + 1
+          let id  = server.txID.wrappingIncrementThenLoad(ordering: .relaxed)
           var log = Logger(label: "μ.http")
           log[metadataKey: "request-id"] = "\(id)"
           
@@ -552,7 +552,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   // MARK: - Description
   
   public var description: String {
-    var ms = "<http.Server[\(id)]: #tx=\(txID.load())"
+    var ms = "<http.Server[\(id)]: #tx=\(txID.load(ordering: .relaxed))"
     
     let addrs = listenAddresses
     if addrs.isEmpty {

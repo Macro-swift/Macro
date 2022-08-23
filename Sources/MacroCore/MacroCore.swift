@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2022 ZeeZide GmbH. All rights reserved.
 //
 
 #if os(Windows)
@@ -20,6 +20,7 @@
 import Dispatch
 import NIO
 import NIOConcurrencyHelpers
+import Atomics
 
 /**
  * The core maintains the NIO EventLoop's and the runtime of the server.
@@ -91,9 +92,9 @@ public final class MacroCore {
   
   // Note: this is supposed to be used on the *main thread*! Hence it doesn't
   //       require a semaphore.
-  fileprivate let workCount         = NIOAtomic.makeAtomic(value: 0)
+  fileprivate let workCount         = Atomics.ManagedAtomic<Int>(0)
   fileprivate let exitDelayInMS     : Int64 = 100
-  fileprivate let didRegisterAtExit = NIOAtomic.makeAtomic(value: false)
+  fileprivate let didRegisterAtExit = Atomics.ManagedAtomic<Bool>(false)
   
   public var retainDebugMap : [ String : Int ] = [:]
   
@@ -103,7 +104,7 @@ public final class MacroCore {
   public final func retain(filename: String? = #file, line: Int? = #line,
                            function: String? = #function) -> Self
   {
-    let newValue = workCount.add(1)
+    let newValue = workCount.wrappingIncrementThenLoad(ordering: .relaxed)
     
     if debugRetain {
       let hash = filename ?? "<no file>"
@@ -113,7 +114,7 @@ public final class MacroCore {
       print("RETAIN [\(newValue)/\(old + 1)]: \(hash)")
     }
 
-    if !didRegisterAtExit.load() {
+    if !didRegisterAtExit.load(ordering: .relaxed) {
       _registerAtExit()
     }
     
@@ -135,13 +136,13 @@ public final class MacroCore {
         retainDebugMap[hash] = old - 1
       }
       
-      print("RELEASE[\(workCount.load())/\(old)]: \(hash)")
+      print("RELEASE[\(workCount.load(ordering: .relaxed))/\(old)]: \(hash)")
     }
     
-    let old = workCount.sub(1) // returns the _previous_ value
-    if old == 1 { // it is the old, before the sub ...
+    let new = workCount.wrappingDecrementThenLoad(ordering: .relaxed)
+    if new == 0 { // it is the old, before the sub ...
       if debugRetain {
-        print("TERMINATE[\(old): \(filename as Optional):\(line as Optional) " +
+        print("TERMINATE[\(new): \(filename as Optional):\(line as Optional) " +
               "\(function as Optional)")
       }
       maybeTerminate()
@@ -151,7 +152,8 @@ public final class MacroCore {
   func maybeTerminate() {
     #if false
       fallbackEventLoop().execute {
-        if self.workCount.load() == 0 { // work still zero, terminate
+        if self.workCount.load(ordering: .relaxed) == 0 {
+          // work still zero, terminate
           self.exit()
         }
       }
@@ -162,8 +164,9 @@ public final class MacroCore {
                   DispatchTimeInterval.milliseconds(Int(exitDelayInMS))
       
       DispatchQueue.main.asyncAfter(deadline: to) {
-        if self.workCount.load() == 0 { // work still zero, terminate
-          if !wasInExit || !self.didRegisterAtExit.load()  {
+        if self.workCount.load(ordering: .relaxed) == 0 {
+          // work still zero, terminate
+          if !wasInExit || !self.didRegisterAtExit.load(ordering: .relaxed) {
             self.exit()
           }
         }
@@ -198,10 +201,10 @@ public final class MacroCore {
   // Obviously this is a HACK and not exactly what atexit() was intended
   // for :->
   func _registerAtExit() {
-    guard didRegisterAtExit
-            .compareAndExchange(expected: false, desired: true) else {
-      return
-    }
+    let ( _, wasRegistered ) = didRegisterAtExit
+      .compareExchange(expected: false, desired: true, ordering: .relaxed)
+    
+    guard !wasRegistered else { return }
     atexit {
       if !wasInExit {
         wasInExit = true
@@ -218,10 +221,10 @@ extension MacroCore: CustomStringConvertible {
     defer { ms += ">" }
     
     if wasInExit { ms += " was-in-exit" }
-    if didRegisterAtExit.load() { ms += " did-reg-@exit" }
-    else                        { ms += " no-@exit"      }
+    if didRegisterAtExit.load(ordering: .relaxed) { ms += " did-reg-@exit" }
+    else                                          { ms += " no-@exit"      }
 
-    let wc = workCount.load()
+    let wc = workCount.load(ordering: .relaxed)
     if wc != 0 { ms += " work-count=\(wc)" }
     return ms
   }
@@ -231,7 +234,7 @@ fileprivate var wasInExit = false
 
 public func disableAtExitHandler() {
   // The atexit handler seems to conflict with the memory graph debugger
-  MacroCore.shared.didRegisterAtExit.store(true)
+  MacroCore.shared.didRegisterAtExit.store(true, ordering: .relaxed)
   wasInExit = true
 }
 
