@@ -3,13 +3,16 @@
 //  Macro/Noze.io
 //
 //  Created by Helge Hess.
-//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2022 ZeeZide GmbH. All rights reserved.
 //
 
+import enum   MacroCore.process
+
+#if canImport(Foundation)
 import struct Foundation.CharacterSet
 import class  Foundation.JSONEncoder
 import class  Foundation.JSONSerialization
-import enum   MacroCore.process
+#endif // canImport(Foundation)
 
 /**
  * Macro implementation of the Node `querystring` module.
@@ -21,6 +24,7 @@ public typealias querystring = QueryStringModule
 
 public extension QueryStringModule {
   
+#if canImport(Foundation)
   /**
    * Does URL percent decoding on the given string.
    *
@@ -82,6 +86,7 @@ public extension QueryStringModule {
   static func escape<S: StringProtocol>(_ string: S) -> String {
     return escape(string, allowedCharacters: .urlQueryAllowed)
   }
+#endif // canImport(Foundation)
 
   @inlinable
   static func decode(_ string           : String,
@@ -178,6 +183,7 @@ public extension QueryStringModule {
     }
   }
 
+#if canImport(Foundation)
   /**
    * Produces a URL query strings for the given `Encodable` object.
    *
@@ -192,10 +198,9 @@ public extension QueryStringModule {
    *
    * Throws an Error if the object encoding failed.
    */
-  @inlinable
   static func _stringify<T: Encodable>(_ object: T) throws -> String {
     // expensive, but useful :-)
-    let jsonData = try JSONEncoder().encode(object)
+    let jsonData = try makeEncoder().encode(object)
     let json     = try JSONSerialization.jsonObject(with: jsonData)
     return stringify(json)
   }
@@ -222,7 +227,8 @@ public extension QueryStringModule {
       return ""
     }
   }
-  
+#endif // canImport(Foundation)
+
   
   // MARK: - Parsing
 
@@ -391,3 +397,16 @@ public extension QueryStringModule {
     }
   }
 }
+
+#if canImport(Foundation)
+/// It is undocumented whether the encoder is threadsafe, so assume it is not.
+fileprivate func makeEncoder() -> JSONEncoder {
+  let encoder = JSONEncoder()
+  if #available(macOS 10.12, iOS 10.0, watchOS 3.0, tvOS 10.0, *) {
+    // According to https://github.com/NozeIO/MicroExpress/pull/13 the default
+    // strategy is NeXTstep time.
+    encoder.dateEncodingStrategy = .iso8601
+  }
+  return encoder
+}
+#endif // canImport(Foundation)

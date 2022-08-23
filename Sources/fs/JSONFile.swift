@@ -3,9 +3,10 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2022 ZeeZide GmbH. All rights reserved.
 //
 
+#if canImport(Foundation)
 import protocol NIO.EventLoop
 import class    NIO.NIOThreadPool
 import enum     NIO.ChannelError
@@ -197,7 +198,7 @@ public extension JSONFileModule {
       
       if case shouldRun = NIOThreadPool.WorkItemState.active {
         do {
-          let data = try JSONEncoder().encode(json)
+          let data = try makeEncoder().encode(json)
           try data.write(to: URL(fileURLWithPath: path), options: [.atomic])
           resultError = nil
         }
@@ -287,14 +288,26 @@ public extension JSONFileModule {
    *   - json:      The `Encodable` JSON objects to write.
    *   - options:   The `JSONSerialization.WritingOptions`, defaults to none
    */
-  @inlinable
   static func writeFileSync<T>(_  path : String,
                                _  json : T,
                                options : JSONSerialization.WritingOptions = [])
                 throws
                 where T: Encodable
   {
-    let data = try JSONEncoder().encode(json)
+    let data = try makeEncoder().encode(json)
     try data.write(to: URL(fileURLWithPath: path), options: [.atomic])
   }
 }
+
+/// It is undocumented whether the encoder is threadsafe, so assume it is not.
+fileprivate func makeEncoder() -> JSONEncoder {
+  let encoder = JSONEncoder()
+  if #available(macOS 10.12, iOS 10.0, watchOS 3.0, tvOS 10.0, *) {
+    // According to https://github.com/NozeIO/MicroExpress/pull/13 the default
+    // strategy is NeXTstep time.
+    encoder.dateEncodingStrategy = .iso8601
+  }
+  return encoder
+}
+
+#endif // canImport(Foundation)
