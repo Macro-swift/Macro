@@ -1,4 +1,4 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.4
 
 import PackageDescription
 
@@ -32,21 +32,32 @@ let package = Package(
   targets: [
     .target(name: "MacroCore",
             dependencies: [
-              .product(name: "Atomics", package: "swift-atomics"),
-              "NIO", "NIOConcurrencyHelpers", "NIOFoundationCompat", 
-              "Logging",
+              .product(name: "Atomics",               package: "swift-atomics"),
+              .product(name: "NIO",                   package: "swift-nio"),
+              .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
+              .product(name: "NIOFoundationCompat",   package: "swift-nio"),
+              .product(name: "Logging",               package: "swift-log"),
               "xsys"
-            ]),
-    .target(name: "xsys", dependencies: []),
+            ], exclude: [ "Process/README.md", "Streams/README.md" ]),
+    .target(name: "xsys", exclude: [ "README.md" ]),
     .target(name: "http",
             dependencies: [ 
-              "NIO", "NIOConcurrencyHelpers", "NIOHTTP1",
+              .product(name: "NIO",                   package: "swift-nio"),
+              .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
+              .product(name: "NIOHTTP1",              package: "swift-nio"),
               "MacroCore"
-            ]),
-    .target(name: "fs",    dependencies: [ "NIO", "MacroCore", "xsys" ]),
+            ],
+            exclude: [ "README.md" ]),
+    .target(name: "fs",
+            dependencies: [
+              .product(name: "NIO", package: "swift-nio"),
+              "MacroCore", "xsys"
+            ],
+            exclude: [ "README.md" ]),
     
     // This is the Umbrella Target
-    .target(name: "Macro", dependencies: [ "MacroCore", "xsys", "http", "fs" ]),
+    .target(name: "Macro", dependencies: [ "MacroCore", "xsys", "http", "fs" ],
+            exclude: [ "README.md" ]),
     
     
     // MARK: - Tests
