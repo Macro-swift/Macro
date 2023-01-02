@@ -1,4 +1,4 @@
-// swift-tools-version:5.4
+// swift-tools-version:5.5
 
 import PackageDescription
 
@@ -17,9 +17,9 @@ let package = Package(
   
   dependencies: [
     .package(url: "https://github.com/apple/swift-atomics.git",
-             from: "1.0.2"),
+             from: "1.0.3"),
     .package(url: "https://github.com/apple/swift-nio.git",
-             from: "2.41.1"),
+             from: "2.46.0"),
     /* use this for proper 100-continue until 
        https://github.com/apple/swift-nio/pull/1330 is working:
       .package(url: "file:///Users/helge/dev/Swift/NIO/swift-nio-helje5",

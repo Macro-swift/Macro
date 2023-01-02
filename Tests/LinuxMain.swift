@@ -1,6 +1,3 @@
 import XCTest
-import MacroTests
 
-var tests = [ XCTestCaseEntry ]()
-tests += MacroTests.allTests()
-XCTMain(tests)
+#error("Swift 5.5 requires --enable-test-discovery")

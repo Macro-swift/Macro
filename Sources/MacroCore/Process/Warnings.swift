@@ -3,15 +3,15 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2022 ZeeZide GmbH. All rights reserved.
 //
 
-import class NIOConcurrencyHelpers.Lock
+import struct NIOConcurrencyHelpers.NIOLock
 
 public extension process { // Warnings
 
   private static var _warningListeners = EventListenerSet<Warning>()
-  private static let _warningListenersLock = NIOConcurrencyHelpers.Lock()
+  private static let _warningListenersLock = NIOConcurrencyHelpers.NIOLock()
   
   static func onWarning(execute: @escaping ( Warning ) -> Void) {
     _warningListenersLock.lock()
