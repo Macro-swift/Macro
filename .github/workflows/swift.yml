@@ -25,7 +25,7 @@ jobs:
       - name: Build Swift Release Package
         run: swift build -c release
       - name: Run Tests
-        run: swift test
+        run: swift test --enable-test-discovery
   nextstep:
     runs-on: macos-latest
     steps:
