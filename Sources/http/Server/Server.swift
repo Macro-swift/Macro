@@ -27,7 +27,7 @@ import let       NIO.IPPROTO_TCP
 import let       NIO.TCP_NODELAY
 import enum      NIOHTTP1.HTTPServerRequestPart
 import typealias NIOHTTP1.NIOHTTPServerUpgradeConfiguration
-import class     NIOConcurrencyHelpers.Lock
+import struct    NIOConcurrencyHelpers.NIOLock
 import Atomics
 
 /**
@@ -59,7 +59,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   public  let log       : Logger
   private var didRetain = false
   private let txID      = Atomics.ManagedAtomic<Int>(0)
-  private let lock      = Lock()
+  private let lock      = NIOLock()
 
   /**
    * The initializer for `Server`. This is intended for subclasses. Framework

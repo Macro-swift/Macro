@@ -3,13 +3,13 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2022 ZeeZide GmbH. All rights reserved.
 //
 
 import class    NIO.NIOFileHandle
 import protocol NIO.EventLoop
 import struct   NIO.NonBlockingFileIO
-import class    NIOConcurrencyHelpers.Lock
+import struct   NIOConcurrencyHelpers.NIOLock
 import class    MacroCore.MacroCore
 import enum     MacroCore.WritableError
 import class    MacroCore.WritableByteStream
@@ -29,7 +29,7 @@ public func createWriteStream(on eventLoop: EventLoop? = nil,
                          path: path, flags: flags)
 }
 
-fileprivate let retainLock      = Lock()
+fileprivate let retainLock      = NIOLock()
 fileprivate var retainedStreams = [ ObjectIdentifier : FileWriteStream ]()
 
 open class FileWriteStream: WritableByteStream, FileStream,
