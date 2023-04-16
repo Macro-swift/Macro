@@ -103,6 +103,7 @@ public extension JSONModule {
   
   // MARK: - Encodable versions
 
+  @inlinable
   static func dataify<C: Encodable>(_ object : C?,
                                     outputFormatting:
                                       JSONEncoder.OutputFormatting
@@ -110,7 +111,7 @@ public extension JSONModule {
               -> Foundation.Data?
   {
     do {
-      let encoder = makeEncoder()
+      let encoder = JSONEncoderWithISO8601()
       encoder.outputFormatting = outputFormatting
       return try encoder.encode(object)
     }
@@ -158,6 +159,7 @@ public let _defaultJSONEncoderOptions : JSONEncoder.OutputFormatting = {
 public extension WritableStreamType where WritablePayload == Buffer {
 
   @discardableResult
+  @inlinable
   func write<S: Encodable>(_ jsonObject: S,
                            outputFormatting:
                              JSONEncoder.OutputFormatting
@@ -165,7 +167,7 @@ public extension WritableStreamType where WritablePayload == Buffer {
                            whenDone : @escaping () -> Void = {}) -> Bool
   {
     do {
-      let encoder = makeEncoder()
+      let encoder = JSONEncoderWithISO8601()
       encoder.outputFormatting = outputFormatting
       let data = try encoder.encode(jsonObject)
       return write(data, whenDone: whenDone)
@@ -205,7 +207,8 @@ public extension WritableStreamType where WritablePayload == Buffer {
 }
 
 /// It is undocumented whether the encoder is threadsafe, so assume it is not.
-fileprivate func makeEncoder() -> JSONEncoder {
+@usableFromInline
+func JSONEncoderWithISO8601() -> JSONEncoder {
   let encoder = JSONEncoder()
   if #available(macOS 10.12, iOS 10.0, watchOS 3.0, tvOS 10.0, *) {
     // According to https://github.com/NozeIO/MicroExpress/pull/13 the default
