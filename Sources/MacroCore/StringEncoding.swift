@@ -3,8 +3,11 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
 //
+
+#if canImport(Foundation)
+import Foundation
 
 @usableFromInline
 internal let stringEncodingNames : Set<String> = [
@@ -66,3 +69,4 @@ public enum CharsetConversionError: Swift.Error {
   case failedToConverData   (encoding: String.Encoding)
   case failedToConvertString(encoding: String.Encoding)
 }
+#endif // canImport(Foundation)
