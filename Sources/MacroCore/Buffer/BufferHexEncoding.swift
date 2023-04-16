@@ -3,8 +3,10 @@
 //  Macro
 //
 //  Created by Helge Heß.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
 //
+
+import NIOCore
 
 @usableFromInline
 internal let hexAlphabet = "0123456789abcdef".unicodeScalars.map { $0 }

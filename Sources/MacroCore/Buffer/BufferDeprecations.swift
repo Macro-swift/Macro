@@ -3,10 +3,11 @@
 //  Macro
 //
 //  Created by Helge Heß.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
 //
 
 #if canImport(Foundation)
+import Foundation
 
 public extension Buffer {
   

@@ -3,11 +3,11 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
 //
 
-import class Foundation.ProcessInfo
 import xsys
+import NIO
 
 #if os(Windows)
   import WinSDK

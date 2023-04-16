@@ -3,8 +3,11 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2021-2023 ZeeZide GmbH. All rights reserved.
 //
+
+#if canImport(Foundation)
+import Foundation
 
 @inlinable
 public func parseInt(_ string: String, _ radix: Int = 10) -> Int? {
@@ -31,6 +34,7 @@ public extension String {
     return trimmingCharacters(in: .whitespacesAndNewlines)
   }
 }
+#endif // canImport(Foundation)
 
 public extension Sequence where Element: StringProtocol {
   

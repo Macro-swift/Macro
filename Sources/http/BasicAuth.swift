@@ -3,17 +3,24 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
 //
 
 public enum BasicAuthModule {}
 public typealias basicAuth = BasicAuthModule
 
+#if canImport(Foundation)
 import Foundation
+#endif
 import enum MacroCore.CharsetConversionError
 
 public extension BasicAuthModule {
 
+  /**
+   * HTTP Basic Authentication credentials as extracted by the
+   * ``auth(_:encoding:)`` function, i.e. the name/password associated
+   * with an ``IncomingMessage``.
+   */
   struct Credentials {
     public let name : String
     public let pass : String
@@ -28,10 +35,37 @@ public extension BasicAuthModule {
     case stringEncodingError
   }
 
-  static func auth(_ req: IncomingMessage, encoding: String.Encoding = .utf8)
+  #if canImport(Foundation) // `String.Encoding.utf8`, provide alternative!
+  /**
+   * Extract HTTP Basic authentication credentials (name/pass) from the given
+   * ```IncomingMessage```.
+   *
+   * - Parameters:
+   *   - request:  The ``IncomingMessage`` containing the `Authorization`
+   *               header.
+   *   - encoding: The encoding the String is using.
+   * - Returns: The ``Credentials``, i.e. `name`/`pass`.
+   * - Throws:
+   *   - ``BasicAuthError/missingAuthorizationHeader``: If there is no
+   *     `Authorization` header
+   *   - ``BasicAuthError/unexpectedAuthorizationHeaderType``: If the header
+   *     existed, but wasn't a `String`.
+   *   - ``BasicAuthError/invalidAuthorizationHeader``: If the header value
+   *     syntax could not be parsed.
+   *   - ``BasicAuthError/differentAuthorization``: If the header was set, but
+   *     wasn't HTTP Basic authentication.
+   *   - ``BasicAuthError/invalidBasicAuthorizationHeader``: If the header was
+   *     set, but didn't had the right Basic auth syntax.
+   *   - ``BasicAuthError/invalidBasicAuthorizationHeader``: If the header could
+   *     be parsed, but the values could not be parsed using the given
+   *     `encoding` specified.
+   *
+   */
+  static func auth(_ request: IncomingMessage,
+                   encoding: String.Encoding = .utf8)
                 throws -> Credentials
   {
-    guard let authorization = req.getHeader("Authorization") else {
+    guard let authorization = request.getHeader("Authorization") else {
       throw BasicAuthError.missingAuthorizationHeader
     }
     guard let authString = authorization as? String else {
@@ -69,4 +103,5 @@ public extension BasicAuthModule {
       pass: String(string[colIdx..<string.endIndex])
     )
   }
+  #endif // canImport(Foundation)
 }
