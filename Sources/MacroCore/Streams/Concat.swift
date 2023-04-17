@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
 //
 
 /**
@@ -124,7 +124,8 @@ public class ConcatByteStream: WritableByteStream,
   // MARK: - CustomStringConvertible
 
   open var description: String {
-    var ms = "<Concat[\(ObjectIdentifier(self))]:"
+    let id = String(Int(bitPattern: ObjectIdentifier(self)), radix: 16)
+    var ms = "<Concat[0x\(id)]:"
     defer { ms += ">" }
 
     let count = writableBuffer.count
