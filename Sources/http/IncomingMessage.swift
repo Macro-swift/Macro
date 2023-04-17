@@ -254,14 +254,7 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
   // MARK: - Description
   
   open var description: String {
-    let id : String = {
-      let oids = ObjectIdentifier(self).debugDescription
-      // ObjectIdentifier(0x000000010388a610)
-      let dropPrefix = "ObjectIdentifier(0x000000"
-      guard oids.hasPrefix(dropPrefix) else { return oids }
-      return "0x" + oids.dropFirst(dropPrefix.count).dropLast()
-    }()
-    
+    let id = "0x" + String(Int(bitPattern: ObjectIdentifier(self)), radix: 16)
     var ms = "<IncomingMessage[\(id)]:"
     defer { ms += ">" }
     
