@@ -207,8 +207,12 @@ public extension FileSystemModule {
   {
     fs.writeFile(path, string, encoding, whenDone: whenDone)
   }
+}
 
-  // MARK: - Synchronous
+
+// MARK: - Synchronous
+
+public extension FileSystemModule {
 
   @inlinable static func readFileSync(_ path: String) -> Buffer? {
     return fs.readFileSync(path)

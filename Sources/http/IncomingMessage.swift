@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Heß.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
 //
 
 import struct   Logging.Logger
@@ -24,15 +24,16 @@ import protocol MacroCore.EnvironmentValuesHolder
 /**
  * Represents an incoming HTTP message.
  * 
- * This can be both, a Request or a Response - it is a Response when it got
- * created by a client and it is a Request if it is coming from the Server.
+ * This can be both, a request or a response - it is a response when it got
+ * created by a client and it is a request if it is coming from the server.
  *
- * You don't usually create this directly, but get it as an argument in a
+ * This isn't usually created directly, but passed inas an argument in a
  * middleware function, e.g. it is the `req` argument in this case:
- *
- *     http.createServer { req, res in
- *       req.log.info("got message:", req.method)
- *     }
+ * ```
+ * http.createServer { req, res in
+ *   req.log.info("got message:", req.method)
+ * }
+ * ```
  *
  * Hierarchy:
  *
@@ -47,6 +48,7 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     case request (HTTPRequestHead)
     case response(HTTPResponseHead)
     
+    /// Set or get the `HTTPVersion` of the message.
     @inlinable
     public var version : HTTPVersion {
       set {
@@ -66,6 +68,8 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
         }
       }
     }
+
+    /// Set or get the `HTTPHeaders` of the message.
     @inlinable
     public var headers : HTTPHeaders {
       set {
@@ -87,9 +91,15 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     }
   }
   
+  /// The HTTP header for the ``IncomingMessage``, can be either a request or
+  /// a response.
   public var head : IncomingType
+  
+  /// The `Logger` associated with the request, use it to log request related
+  /// messages.
   public var log  : Logger
   
+  /// The SwiftNIO `Channel` backing the message.
   public private(set) var socket : NIO.Channel?
 
   /**
@@ -124,6 +134,7 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
   @inlinable
   override open var errorLog : Logger { return log } // this was a mistake
 
+  /// Whether the message was read completedly.
   public internal(set) var complete : Bool = false {
     didSet {
       guard complete != oldValue else { return }
@@ -162,6 +173,15 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
   
   // MARK: - Initialization
 
+  /**
+   * Create a new ``IncomingMessage`` request object from a `HTTPRequestHead`.
+   *
+   * - Parmeters:
+   *   - head:   The SwiftNIO `HTTPRequestHead` structure.
+   *   - socket: The associated SwiftNIO `Channel`, if there is one, defaults to
+   *             `nil`.
+   *   - log:    The `Logger` associated w/ the message (defaults to "μ.http").
+   */
   public init(_ head : HTTPRequestHead,
               socket : NIO.Channel? = nil,
               log    : Logger = .init(label: "μ.http"))
@@ -170,6 +190,16 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     self.head   = .request(head)
     self.socket = socket
   }
+
+  /**
+   * Create a new ``IncomingMessage`` response object from a `HTTPResponseHead`.
+   *
+   * - Parmeters:
+   *   - head:   The SwiftNIO `HTTPRequestHead` structure.
+   *   - socket: The associated SwiftNIO `Channel`, if there is one, defaults to
+   *             `nil`.
+   *   - log:    The `Logger` associated w/ the message (defaults to "μ.http").
+   */
   public init(_ head : HTTPResponseHead,
               socket : NIO.Channel? = nil,
               log    : Logger = .init(label: "μ.http"))
@@ -182,10 +212,14 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
   
   // MARK: - HTTP Responses
 
+  /// Returns the `HTTPResponseStatus` of the message (e.g. `.ok`).
+  /// Returns `.notImplemented` for requests.
   @inlinable
   public var status : HTTPResponseStatus {
-    guard case .response(let request) = head else { return .notImplemented }
-    return request.status
+    switch head {
+      case .response(let response) : return response.status
+      case .request(_)             : return .notImplemented
+    }
   }
   
   
@@ -200,17 +234,25 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     }
   }
 
+  
   // MARK: - Node like API
 
+  /// Returns the textual HTTP protocol version associated with the message.
+  /// A structured version can be retrieved using `head.version`.
   @inlinable
   public var httpVersion : String { return head.version.description }
 
-  // TBD
+  /// Returns the HTTP headers associated with the message.
   @inlinable
   public var headers : HTTPHeaders { return head.headers }
 
+  
   // MARK: - HTTP Requests
   
+  /// The textual HTTP method associated with the HTTP request.
+  /// If it is a response, setting this has no effect and retrieving it returns
+  /// an empty string.
+  /// The structured `HTTPMethod` can be retrieved using the head.
   @inlinable
   public var method : String {
     set {
@@ -225,29 +267,44 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
       }
     }
     get {
-      guard case .request(let request) = head else { return "" }
-      return request.method.rawValue
+      switch head {
+        case .request(let request) : return request.method.rawValue
+        case .response(_)          : return ""
+      }
     }
   }
   
+  /// The URI associated with the request as a plain string.
+  /// Returns an empty string for responses.
   @inlinable
   public var url : String {
-    guard case .request(let request) = head else { return "" }
-    return request.uri
+    switch head {
+      case .request(let request) : return request.uri
+      case .response(_)          : return ""
+    }
   }
+  
   
   // MARK: - HTTP Responses
  
+  /// The numeric HTTP status code associated with a response (e.g. 200).
+  /// Returns 0 for HTTP requests.
   @inlinable
   public var statusCode : Int {
-    guard case .response(let request) = head else { return 0 }
-    return Int(request.status.code)
+    switch head {
+      case .request(_)             : return 0
+      case .response(let response) : return Int(response.status.code)
+    }
   }
   
+  /// The textual HTTP status code associated with a response (e.g. "OK").
+  /// Returns nil for HTTP requests.
   @inlinable
   public var statusMessage : String? {
-    guard case .response(let request) = head else { return nil }
-    return request.status.reasonPhrase
+    switch head {
+      case .request(_)             : return nil
+      case .response(let response) : return response.status.reasonPhrase
+    }
   }
   
   
