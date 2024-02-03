@@ -85,14 +85,8 @@ would require custom executors. Which are not yet available.
 ### Who
 
 **Macro** is brought to you by
-the
-[Always Right Institute](http://www.alwaysrightinstitute.com)
-and
-[ZeeZide](http://zeezide.de).
-We like 
-[feedback](https://twitter.com/ar_institute), 
-GitHub stars, 
-cool [contract work](http://zeezide.com/en/services/services.html),
+[Helge Heß](https://github.com/helje5/) / [ZeeZide](https://zeezide.de).
+We like feedback, GitHub stars, cool contract work, 
 presumably any form of praise you can think of.
 
 There is a `#microexpress` channel on the 
