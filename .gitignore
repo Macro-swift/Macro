@@ -95,4 +95,6 @@ xcuserdata
 .docker.build
 .swiftpm
 .vscode
+.DS_Store
+*.swp
 

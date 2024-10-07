@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
 //
 
 /**
@@ -13,6 +13,20 @@
  *
  * Be careful w/ using that. You don't want to baloon payloads in memory!
  *
+ * Usage:
+ * ```
+ * request | concat { buffer in
+ *   console.log("The size of the request body is:", buffer.count)
+ * }
+ * ```
+ *
+ * Pushes a ``ConcatError`` if the maximum size was exceeded.
+ *
+ * - Parameters:
+ *   - maximumSize: The maximum size of the request body. Can be configured
+ *                  using the `macro.concat.maxsize` environment variable.
+ *   - yield:       A closure called with the loaded data (a ``Buffer``).
+ * - Returns: The ``ConcatByteStream``.
  */
 @inlinable
 public func concat(maximumSize: Int = _defaultConcatMaximumSize,
@@ -33,6 +47,20 @@ public func concat(maximumSize: Int = _defaultConcatMaximumSize,
  *
  * Be careful w/ using that. You don't want to baloon payloads in memory!
  *
+ * Usage:
+ * ```
+ * request | concat { buffer in
+ *   console.log("The size of the request body is:", buffer.count)
+ * }
+ * ```
+ *
+ * Pushes a ``ConcatError`` if the maximum size was exceeded.
+ *
+ * - Parameters:
+ *   - maximumSize: The maximum size of the request body. Can be configured
+ *                  using the `macro.concat.maxsize` environment variable.
+ *   - yield:       A closure called with the loaded data (a ``Buffer``).
+ * - Returns: The ``ConcatByteStream``.
  */
 @inlinable
 public func concat(maximumSize: Int = _defaultConcatMaximumSize,
@@ -124,7 +152,8 @@ public class ConcatByteStream: WritableByteStream,
   // MARK: - CustomStringConvertible
 
   open var description: String {
-    var ms = "<Concat[\(ObjectIdentifier(self))]:"
+    let id = String(Int(bitPattern: ObjectIdentifier(self)), radix: 16)
+    var ms = "<Concat[0x\(id)]:"
     defer { ms += ">" }
 
     let count = writableBuffer.count
@@ -146,10 +175,20 @@ public class ConcatByteStream: WritableByteStream,
   }
 }
 
+/**
+ * The ``concat`` middleware failed.
+ */
 public enum ConcatError: Swift.Error {
+  /// The maximum allowed size was exceeded.
   case maximumSizeExceeded(maximumSize: Int, availableSize: Int)
 }
 
+/**
+ * The default maximum request size for the ``concat`` middleware.
+ *
+ * Can be set using the `macro.concat.maxsize` environment variable (in bytes),
+ * and defaults to 1MB.
+ */
 public let _defaultConcatMaximumSize =
   process.getenv("macro.concat.maxsize",
                  defaultValue      : 1024 * 1024, // 1MB

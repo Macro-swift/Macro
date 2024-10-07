@@ -4,6 +4,8 @@ import XCTest
 @testable import MacroTestUtilities
 
 final class AgentTests: XCTestCase {
+  
+  let runsInCI = env["CI"] == "true"
 
   override class func setUp() {
     disableAtExitHandler()
@@ -42,6 +44,9 @@ final class AgentTests: XCTestCase {
   }
 
   func testSimplePost() throws {
+    // Looks like typicode returns a 403 for GH Actions
+    try XCTSkipIf(runsInCI, "Not running in CI")
+
     let exp = expectation(description: "post result")
     
     let options = http.ClientRequestOptions(

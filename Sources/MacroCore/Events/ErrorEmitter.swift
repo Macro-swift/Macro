@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
 //
 
 public protocol ErrorEmitterType {
@@ -42,7 +42,8 @@ open class ErrorEmitter : ErrorEmitterType, ErrorEmitterTarget {
   @inlinable
   open func emit(error: Error) {
     if errorListeners.isEmpty {
-      let objectInfo = "\(type(of: self)):\(ObjectIdentifier(self))"
+      let id = String(Int(bitPattern: ObjectIdentifier(self)), radix: 16)
+      let objectInfo = "\(type(of: self)):0x\(id)"
       errorLog.error("[\(objectInfo)] Error not handled: \(error)")
     }
     else {
