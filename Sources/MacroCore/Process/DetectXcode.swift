@@ -22,8 +22,13 @@ public extension process {
   #else
     static let isRunningInXCode : Bool = {
       // TBD: is there a better way?
-      guard let s = xsys.getenv("XPC_SERVICE_NAME") else { return false }
-      return strstr(s, "Xcode") != nil
+      if let s = xsys.getenv("XPC_SERVICE_NAME") { // not in Xcode 16 anymore
+        if strstr(s, "Xcode") != nil { return true }
+      }
+      if xsys.getenv("__XCODE_BUILT_PRODUCTS_DIR_PATHS") != nil { // Xcode 16
+        return true
+      }
+      return false
     }()
   #endif
 }
