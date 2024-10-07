@@ -178,5 +178,9 @@
   // this doesn't seem to work though
   import Foundation // this is for POSIXError : Error
 
+  #if compiler(>=6)
+  extension POSIXErrorCode : @retroactive Error {}
+  #else
   extension POSIXErrorCode : Error {}
+  #endif
 #endif // MacOS

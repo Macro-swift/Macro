@@ -84,7 +84,7 @@ public func -(left: timeval, right: timeval) -> timeval {
   return result
 }
 
-extension timespec: CustomStringConvertible {
+extension timespec {
   public var description : String {
     switch ( tv_sec, tv_nsec ) {
       case ( 0, 0 ): return "timespec()"
@@ -95,7 +95,7 @@ extension timespec: CustomStringConvertible {
   }
 }
 
-extension timeval: CustomStringConvertible {
+extension timeval {
   public var description : String {
     switch ( tv_sec, tv_usec ) {
       case ( 0, 0 ): return "timeval()"
@@ -105,5 +105,13 @@ extension timeval: CustomStringConvertible {
     }
   }
 }
+
+#if compiler(>=6)
+extension timespec : @retroactive CustomStringConvertible {}
+extension timeval  : @retroactive CustomStringConvertible {}
+#else
+extension timespec : CustomStringConvertible {}
+extension timeval  : CustomStringConvertible {}
+#endif
 
 #endif // !os(Windows)
