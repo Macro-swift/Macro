@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Heß.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2024 ZeeZide GmbH. All rights reserved.
 //
 
 #if canImport(Foundation)
@@ -125,11 +125,12 @@ public extension Buffer {
    * `CharsetConversionError`.
    *
    * Example:
+   * ```swift
+   * let buffer = try Buffer.from("48656c6c6f", "hex")
+   * let string = try buffer.toString()
+   * // "Hello"
+   * ```
    *
-   *     let buffer = try Buffer.from("48656c6c6f", "hex")
-   *     let string = try buffer.toString()
-   *     // "Hello"
-   * 
    * - Parameters:
    *   - string:   The string to convert to a Buffer.
    *   - encoding: The requested encoding, e.g. 'utf8' or 'hex'.
@@ -159,18 +160,18 @@ public extension Buffer {
         return try from(string, .encodingWithName(encoding))
     }
   }
-
+  
   /**
    * Returns true if the string argument represents a valid encoding, i.e.
    * if it can be used in the `Buffer.toString` method.
    *
    * Example:
-   *
-   *     Buffer.isEncoding("utf8")        // true
-   *     Buffer.isEncoding("hex")         // true
-   *     Buffer.isEncoding("base64")      // true
-   *     Buffer.isEncoding("alwaysright") // false
-   *
+   * ```swift
+   * Buffer.isEncoding("utf8")        // true
+   * Buffer.isEncoding("hex")         // true
+   * Buffer.isEncoding("base64")      // true
+   * Buffer.isEncoding("alwaysright") // false
+   * ```
    * - Parameter encoding: The name of an encoding, e.g. 'utf8' or 'hex'
    * - Returns: true if the name is a known encoding, false otherwise.
    */
@@ -208,11 +209,12 @@ public extension Buffer {
    * `CharsetConversionError`.
    *
    * Example:
+   * ```swift
+   * let buffer = Buffer("Hello".utf8)
+   * let string = try buffer.toString("hex")
+   * // "48656c6c6f"
+   * ```
    *
-   *     let buffer = Buffer("Hello".utf8)
-   *     let string = try buffer.toString("hex")
-   *     // "48656c6c6f"
-   * 
    * - Parameter encoding: The requested encoding, e.g. 'hex' or 'base64'
    * - Returns: A string representing the Buffer in the given encoding.
    * - Throws: CharsetConversionError if the data could not be converted to

@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Heß.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2024 ZeeZide GmbH. All rights reserved.
 //
 
 import struct NIO.ByteBuffer
@@ -16,36 +16,39 @@ import struct NIO.ByteBufferAllocator
  * Node Buffer API: https://nodejs.org/api/buffer.html
  *
  * Creating buffers:
- *
- *     Buffer.from("Hello") // UTF-8 data
- *     Buffer()             // empty
- *     Buffer([ 42, 13, 10 ])
+ * ```swift
+ * Buffer.from("Hello") // UTF-8 data
+ * Buffer()             // empty
+ * Buffer([ 42, 13, 10 ])
+ * ```
  *
  * Reading:
+ * ```swift
+ * buffer.count
+ * buffer.isEmpty
+ * let byte = buffer[10]
  *
- *     buffer.count
- *     buffer.isEmpty
- *     let byte = buffer[10]
+ * let slice = buffer.consumeFirst(10)
+ * let slice = buffer.slice(5)
+ * let slice = buffer.slice(5, 7)
  *
- *     let slice = buffer.consumeFirst(10)
- *     let slice = buffer.slice(5)
- *     let slice = buffer.slice(5, 7)
- *
- *     let idx   = buffer.indexOf(42) // -1 on not found
- *     let idx   = buffer.indexOf([ 13, 10 ])
+ * let idx   = buffer.indexOf(42) // -1 on not found
+ * let idx   = buffer.indexOf([ 13, 10 ])
+ * ```
  *
  * Writing:
- *
- *     buffer.append(otherBuffer)
- *     buffer.append([ 42, 10 ])
+ * ```swift
+ * buffer.append(otherBuffer)
+ * buffer.append([ 42, 10 ])
+ * ```
  *
  * Converting to strings:
- *
- *     try buffer.toString()
- *     try buffer.toString("hex")
- *     try buffer.toString("base64")
- *     buffer.hexEncodedString()
- *
+ * ```swift
+ * try buffer.toString()
+ * try buffer.toString("hex")
+ * try buffer.toString("base64")
+ * buffer.hexEncodedString()
+ * ```
  */
 public struct Buffer: Codable, Hashable {
   
