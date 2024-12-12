@@ -151,10 +151,23 @@ public extension Buffer {
         return buffer
       
       case "base64":
-        guard let data = Data(base64Encoded: String(string)) else {
-          throw DataDecodingError.failedToDecodeBase64
+        let s = String(string)
+        if let data = Data(base64Encoded: s) { return Buffer(data) }
+
+        // https://stackoverflow.com/questions/4080988/why-does-base64-encoding
+        switch s.count % 4 {
+          case 0: // should have decoded above
+            throw DataDecodingError.failedToDecodeBase64
+          case 1: // invalid base64
+            throw DataDecodingError.failedToDecodeBase64
+          case 2:
+            if let data = Data(base64Encoded: s + "==") { return Buffer(data) }
+          case 3:
+            if let data = Data(base64Encoded: s + "=")  { return Buffer(data) }
+          default:
+            assertionFailure("Invalid % operation.")
         }
-        return Buffer(data)
+        throw DataDecodingError.failedToDecodeBase64
 
       case "base64url":
         return try Self.from(String(string.map {
@@ -163,7 +176,7 @@ public extension Buffer {
             case "_" : return "/"
             default  : return $0
           }
-        }), encoding)
+        }), "base64")
 
       default:
         return try from(string, .encodingWithName(encoding))
