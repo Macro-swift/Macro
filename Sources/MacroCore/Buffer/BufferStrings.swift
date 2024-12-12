@@ -156,6 +156,15 @@ public extension Buffer {
         }
         return Buffer(data)
 
+      case "base64url":
+        return try Self.from(String(string.map {
+          switch $0 {
+            case "-" : return "+"
+            case "_" : return "/"
+            default  : return $0
+          }
+        }), encoding)
+
       default:
         return try from(string, .encodingWithName(encoding))
     }
@@ -178,7 +187,7 @@ public extension Buffer {
   @inlinable
   static func isEncoding(_ encoding: String) -> Bool {
     switch encoding {
-      case "hex", "base64": return true
+      case "hex", "base64", "base64url": return true
       default: return String.Encoding.isEncoding(encoding)
     }
   }
@@ -223,8 +232,19 @@ public extension Buffer {
   @inlinable
   func toString(_ encoding: String) throws -> String {
     switch encoding {
-      case "hex"    : return hexEncodedString()
-      case "base64" : return data.base64EncodedString()
+      case "hex"       : return hexEncodedString()
+      case "base64"    : return data.base64EncodedString()
+      case "base64url" :
+        var b64 = data.base64EncodedString()
+        if let eqIdx = b64.firstIndex(of: "=") { b64 = String(b64[..<eqIdx]) }
+        return String(b64.map {
+          switch $0 {
+            case "+" : return "-"
+            case "/" : return "_"
+            default  : return $0
+          }
+        })
+
       default: return try toString(.encodingWithName(encoding))
     }
   }
