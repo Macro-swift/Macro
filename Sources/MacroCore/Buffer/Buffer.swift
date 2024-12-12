@@ -86,7 +86,7 @@ public struct Buffer: Codable, Hashable, Sendable {
   
   @inlinable
   public mutating func append<S>(contentsOf sequence: S)
-                         where S : Sequence, S.Element == UInt8
+    where S : Sequence, S.Element == UInt8
   {
     byteBuffer.writeBytes(sequence)
   }
@@ -281,6 +281,42 @@ public extension Buffer {
   }
 }
 
+public extension Buffer {
+  
+  @inlinable
+  static func concat<S>(_ buffers: S...) -> Buffer
+    where S: Sequence, S.Element == UInt8
+  {
+    return concat(buffers)
+  }
+  
+  @inlinable
+  static func concat<S>(_ buffers: S...) -> Buffer
+    where S: Collection, S.Element == UInt8
+  {
+    return concat(buffers)
+  }
+  
+  @inlinable
+  static func concat<S>(_ buffers: S) -> Buffer
+    where S: Sequence, S.Element: Sequence, S.Element.Element == UInt8
+  {
+    var buffer = Buffer()
+    for sub in buffers {
+      buffer.append(contentsOf: sub)
+    }
+    return buffer
+  }
+  @inlinable
+  static func concat<S>(_ buffers: S) -> Buffer
+    where S: Collection, S.Element: Collection, S.Element.Element == UInt8
+  {
+    let size   = buffers.reduce(0) { $0 + $1.count }
+    var buffer = Buffer(capacity: size)
+    for sub in buffers { buffer.append(contentsOf: sub)}
+    return buffer
+  }
+}
 
 extension Buffer: Collection {
   
