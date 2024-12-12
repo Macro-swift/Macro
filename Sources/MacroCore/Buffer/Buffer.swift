@@ -50,9 +50,10 @@ import struct NIO.ByteBufferAllocator
  * buffer.hexEncodedString()
  * ```
  */
-public struct Buffer: Codable, Hashable {
+public struct Buffer: Codable, Hashable, Sendable {
   
-  public typealias Index = Int
+  public typealias Index   = Int
+  public typealias Element = UInt8
   
   public var byteBuffer : ByteBuffer
     
@@ -142,7 +143,7 @@ public struct Buffer: Codable, Hashable {
     let end         = endIndex ?? count
     let startOffset = startIndex >= 0 ? startIndex : (count + startIndex)
     let endOffset   = end   >= 0 ? end   : (count + end)
-    let length      = max(0, endOffset - startOffset)
+    let length      = Swift.max(0, endOffset - startOffset)
     let startIndex  = byteBuffer.readerIndex + startOffset
     assert(length >= 0, "invalid index parameters to `slice`")
     if length < 1 { return Buffer(MacroCore.shared.emptyByteBuffer) }
@@ -278,6 +279,18 @@ public extension Buffer {
     self.init()
     append(contentsOf: bytes)
   }
+}
+
+
+extension Buffer: Collection {
+  
+  @inlinable
+  public func index(after i: Int) -> Int { return i + 1 }
+  
+  @inlinable
+  public var startIndex : Int { return 0 }
+  @inlinable
+  public var endIndex   : Int { return count }
 }
 
 extension Buffer: CustomStringConvertible {
