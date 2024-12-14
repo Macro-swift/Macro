@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Heß.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2024 ZeeZide GmbH. All rights reserved.
 //
 
 #if canImport(Foundation)
@@ -125,11 +125,12 @@ public extension Buffer {
    * `CharsetConversionError`.
    *
    * Example:
+   * ```swift
+   * let buffer = try Buffer.from("48656c6c6f", "hex")
+   * let string = try buffer.toString()
+   * // "Hello"
+   * ```
    *
-   *     let buffer = try Buffer.from("48656c6c6f", "hex")
-   *     let string = try buffer.toString()
-   *     // "Hello"
-   * 
    * - Parameters:
    *   - string:   The string to convert to a Buffer.
    *   - encoding: The requested encoding, e.g. 'utf8' or 'hex'.
@@ -150,34 +151,56 @@ public extension Buffer {
         return buffer
       
       case "base64":
-        guard let data = Data(base64Encoded: String(string)) else {
-          throw DataDecodingError.failedToDecodeBase64
+        let s = String(string)
+        if let data = Data(base64Encoded: s) { return Buffer(data) }
+
+        // https://stackoverflow.com/questions/4080988/why-does-base64-encoding
+        switch s.count % 4 {
+          case 0: // should have decoded above
+            throw DataDecodingError.failedToDecodeBase64
+          case 1: // invalid base64
+            throw DataDecodingError.failedToDecodeBase64
+          case 2:
+            if let data = Data(base64Encoded: s + "==") { return Buffer(data) }
+          case 3:
+            if let data = Data(base64Encoded: s + "=")  { return Buffer(data) }
+          default:
+            assertionFailure("Invalid % operation.")
         }
-        return Buffer(data)
+        throw DataDecodingError.failedToDecodeBase64
+
+      case "base64url":
+        return try Self.from(String(string.map {
+          switch $0 {
+            case "-" : return "+"
+            case "_" : return "/"
+            default  : return $0
+          }
+        }), "base64")
 
       default:
         return try from(string, .encodingWithName(encoding))
     }
   }
-
+  
   /**
    * Returns true if the string argument represents a valid encoding, i.e.
    * if it can be used in the `Buffer.toString` method.
    *
    * Example:
-   *
-   *     Buffer.isEncoding("utf8")        // true
-   *     Buffer.isEncoding("hex")         // true
-   *     Buffer.isEncoding("base64")      // true
-   *     Buffer.isEncoding("alwaysright") // false
-   *
+   * ```swift
+   * Buffer.isEncoding("utf8")        // true
+   * Buffer.isEncoding("hex")         // true
+   * Buffer.isEncoding("base64")      // true
+   * Buffer.isEncoding("alwaysright") // false
+   * ```
    * - Parameter encoding: The name of an encoding, e.g. 'utf8' or 'hex'
    * - Returns: true if the name is a known encoding, false otherwise.
    */
   @inlinable
   static func isEncoding(_ encoding: String) -> Bool {
     switch encoding {
-      case "hex", "base64": return true
+      case "hex", "base64", "base64url": return true
       default: return String.Encoding.isEncoding(encoding)
     }
   }
@@ -208,11 +231,12 @@ public extension Buffer {
    * `CharsetConversionError`.
    *
    * Example:
+   * ```swift
+   * let buffer = Buffer("Hello".utf8)
+   * let string = try buffer.toString("hex")
+   * // "48656c6c6f"
+   * ```
    *
-   *     let buffer = Buffer("Hello".utf8)
-   *     let string = try buffer.toString("hex")
-   *     // "48656c6c6f"
-   * 
    * - Parameter encoding: The requested encoding, e.g. 'hex' or 'base64'
    * - Returns: A string representing the Buffer in the given encoding.
    * - Throws: CharsetConversionError if the data could not be converted to
@@ -221,8 +245,19 @@ public extension Buffer {
   @inlinable
   func toString(_ encoding: String) throws -> String {
     switch encoding {
-      case "hex"    : return hexEncodedString()
-      case "base64" : return data.base64EncodedString()
+      case "hex"       : return hexEncodedString()
+      case "base64"    : return data.base64EncodedString()
+      case "base64url" :
+        var b64 = data.base64EncodedString()
+        if let eqIdx = b64.firstIndex(of: "=") { b64 = String(b64[..<eqIdx]) }
+        return String(b64.map {
+          switch $0 {
+            case "+" : return "-"
+            case "/" : return "_"
+            default  : return $0
+          }
+        })
+
       default: return try toString(.encodingWithName(encoding))
     }
   }

@@ -3,14 +3,20 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2022 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2024 ZeeZide GmbH. All rights reserved.
 //
 
+#if os(Linux)
+  import let Glibc.ECONNRESET
+#else
+  import let Darwin.ECONNRESET
+#endif
 import class     MacroCore.ErrorEmitter
 import enum      MacroCore.EventListenerSet
 import class     MacroCore.MacroCore
 import struct    MacroCore.Buffer
 import struct    Logging.Logger
+import struct    NIOCore.IOError
 import struct    NIO.NIOAny
 import class     NIO.EventLoopFuture
 import class     NIO.ServerBootstrap
@@ -538,12 +544,24 @@ open class Server: ErrorEmitter, CustomStringConvertible {
         // HTTPParserError.invalidEOFState
         server.log.error("HTTP error in TX \(id), closing connection: \(error)")
         server.emitError(error, transaction: ( request, response ))
+        self.transaction = nil
       }
       else {
-        server.log.error("HTTP error, closing connection: \(error)")
+        assert(transaction == nil)
+        var doError = true
+        
+        if let error = error as? IOError, error.errnoCode == ECONNRESET {
+          doError = false
+        }
+
+        if doError {
+          server.log.error("HTTP error, closing connection: \(error)")
+        }
+        else {
+          server.log.trace("HTTP error, closing connection: \(error)")
+        }
         server.emitError(error, transaction: nil)
       }
-      self.transaction = nil
       context.close(promise: nil)
     }
   }
