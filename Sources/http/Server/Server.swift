@@ -546,21 +546,17 @@ open class Server: ErrorEmitter, CustomStringConvertible {
         server.emitError(error, transaction: ( request, response ))
         self.transaction = nil
       }
-      else {
+      else { // We are not in a transaction. ECONNRESET is not an error.
         assert(transaction == nil)
-        var doError = true
         
         if let error = error as? IOError, error.errnoCode == ECONNRESET {
-          doError = false
-        }
-
-        if doError {
-          server.log.error("HTTP error, closing connection: \(error)")
+          server.log.trace("HTTP ECONNRESET, closing connection: \(error)")
+          // Do not emit ECONNRESET
         }
         else {
-          server.log.trace("HTTP error, closing connection: \(error)")
+          server.log.error("HTTP error, closing connection: \(error)")
+          server.emitError(error, transaction: nil)
         }
-        server.emitError(error, transaction: nil)
       }
       context.close(promise: nil)
     }
