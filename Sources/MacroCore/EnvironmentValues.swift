@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2025 ZeeZide GmbH. All rights reserved.
 //
 
 /**
@@ -13,43 +13,47 @@
  * "")
  *
  * Example:
- *
- *     enum LoginUserEnvironmentKey: EnvironmentKey {
- *       static let defaultValue = ""
- *     }
+ * ```swift
+ * enum LoginUserEnvironmentKey: EnvironmentKey {
+ *   static let defaultValue = ""
+ * }
+ * ```
  *
  * In addition to the key definition, one usually declares an accessor to the
  * respective environment holder, for example the `IncomingMessage`:
+ * ```swift
+ * extension IncomingMessage {
  *
- *     extension IncomingMessage {
- *
- *       var loginUser : String {
- *         set { self[LoginUserEnvironmentKey.self] = newValue }
- *         get { self[LoginUserEnvironmentKey.self] }
- *       }
- *     }
+ *   var loginUser : String {
+ *     set { self[LoginUserEnvironmentKey.self] = newValue }
+ *     get { self[LoginUserEnvironmentKey.self] }
+ *   }
+ * }
+ * ```
  *
  * It can then be used like:
- *
- *     app.use { req, res, next in
- *       console.log("active user:", req.loginUser)
- *       next()
- *     }
+ * ```swift
+ * app.use { req, res, next in
+ *   console.log("active user:", req.loginUser)
+ *   next()
+ * }
+ * ```
  *
  * If the value really is optional, it can be declared an optional:
- *
- *     enum DatabaseConnectionEnvironmentKey: EnvironmentKey {
- *       static let defaultValue : DatabaseConnection?
- *     }
+ * ```swift
+ * enum DatabaseConnectionEnvironmentKey: EnvironmentKey {
+ *   static let defaultValue : DatabaseConnection?
+ * }
+ * ```
  *
  * To add a shorter name for environment dumps, implement the `loggingKey`
  * property:
- *
- *     enum DatabaseConnectionEnvironmentKey: EnvironmentKey {
- *       static let defaultValue : DatabaseConnection? = nil
- *       static let loggingKey   = "db"
- *     }
- *
+ * ```
+ * enum DatabaseConnectionEnvironmentKey: EnvironmentKey {
+ *   static let defaultValue : DatabaseConnection? = nil
+ *   static let loggingKey   = "db"
+ * }
+ * ```
  */
 public protocol EnvironmentKey {
   
@@ -144,7 +148,15 @@ public extension EnvironmentValues {
   }
 }
 
-public protocol EnvironmentValuesHolder {
+/**
+ * Some object that can hold an environment.
+ * 
+ * Current implementors:
+ * - `IncomingMessage`
+ * - `OutgoingMessage`
+ */
+public protocol EnvironmentValuesHolder: AnyObject {
+  // Note: This is AnyObject to allow subscript modifications.
   
   var environment : EnvironmentValues { set get }
   
