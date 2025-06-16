@@ -5,11 +5,18 @@ import XCTest
 
 final class AgentTests: XCTestCase {
   
+  let runsInCI = env["CI"] == "true"
+
+  override class func setUp() {
+    disableAtExitHandler()
+    super.setUp()
+  }
+
   func testSimpleGet() {
     let exp = expectation(description: "get result")
     
     http.get("https://zeezide.de") { res in
-      XCTAssertEqual(res.status, .ok)
+      XCTAssertEqual(res.statusCode, 200, "Status code is not 200!")
       
       res.onError { error in
         XCTAssert(false, "an error happened: \(error)")
@@ -18,8 +25,10 @@ final class AgentTests: XCTestCase {
       res | concat { buffer in
         do {
           let s = try buffer.toString()
-          XCTAssert(s.contains("<html"))
-          XCTAssert(s.contains("ZeeZide"))
+          XCTAssert(s.contains("<html"),
+                    "buffer does not start w/ <html: \(s)")
+          XCTAssert(s.contains("ZeeZide"),
+                    "buffer does not contain ZeeZide: \(s)")
         }
         catch {
           XCTAssert(false, "failed to grab string: \(error)")
@@ -35,6 +44,9 @@ final class AgentTests: XCTestCase {
   }
 
   func testSimplePost() throws {
+    // Looks like typicode returns a 403 for GH Actions
+    try XCTSkipIf(runsInCI, "Not running in CI")
+
     let exp = expectation(description: "post result")
     
     let options = http.ClientRequestOptions(
@@ -45,7 +57,7 @@ final class AgentTests: XCTestCase {
     )
     
     let req = http.request(options) { res in
-      XCTAssertEqual(res.status, .created)
+      XCTAssertEqual(res.statusCode, 201)
       
       res.onError { error in
         XCTAssert(false, "an error happened: \(error)")

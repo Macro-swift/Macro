@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
 //
 
 import struct Logging.Logger
@@ -155,7 +155,8 @@ open class TestServerResponse: ServerResponse {
   // MARK: - CustomStringConvertible
 
   override open var description: String {
-    var ms = "<TestResponse[\(ObjectIdentifier(self))]:"
+    let id = String(Int(bitPattern: ObjectIdentifier(self)), radix: 16)
+    var ms = "<TestResponse[0x\(id)]:"
     defer { ms += ">" }
     
     ms += " \(statusCode)"

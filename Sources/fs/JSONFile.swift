@@ -3,9 +3,10 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2024 ZeeZide GmbH. All rights reserved.
 //
 
+#if canImport(Foundation)
 import protocol NIO.EventLoop
 import class    NIO.NIOThreadPool
 import enum     NIO.ChannelError
@@ -36,7 +37,7 @@ public extension JSONFileModule {
    *
    * Example:
    *
-   *     jsonfile.readFile("/tmp/myfile.json) { error, value in
+   *     jsonfile.readFile("/tmp/myfile.json") { error, value in
    *       if let error = error {
    *         console.error("loading failed:", error)
    *       }
@@ -83,6 +84,77 @@ public extension JSONFileModule {
       }
       else {
         result      = ChannelError.ioOnClosedChannel
+        resultError = ChannelError.ioOnClosedChannel
+      }
+      
+      loop.execute {
+        yield(resultError, result)
+        module.release()
+      }
+    }
+  }
+  
+  /**
+   * Reads a file as JSON.
+   *
+   * This uses Foundation `JSONDecoder`, the returned object is the
+   * respective Swift object conforming to `Decodable`.
+   *
+   * The JSON parsing happens on the I/O thread (`fs.threadPool`).
+   *
+   * Example:
+   *
+   *     jsonfile.readFile("/tmp/myfile.json", as: Person.self) {
+   *       error, value in
+   *       if let error = error {
+   *         console.error("loading failed:", error)
+   *       }
+   *       else {
+   *         print("Loaded JSON:", value)
+   *       }
+   *     }
+   *
+   * - Parameters:
+   *   - eventLoop: The NIO EventLoop to call the callback on. Defaults to the
+   *                current EventLoop, if available.
+   *   - path:      The path of the file to read from.
+   *   - type:      The `Decodable` Swift type to use.
+   *   - decoder:   Optionally the `JSONDecoder` to use.
+   *   - yield:     Callback which is called when the reading and decoding
+   *                succeeded or failed. The first argument is the Error if one
+   *                occurred, the second argument the JSON objects read (or the
+   *                error).
+   */
+  static func readFile<T>(on eventLoop : EventLoop? = nil,
+                          _       path : String,
+                          as      type : T.Type,
+                          decoder      : JSONDecoder? = nil,
+                          yield        : @escaping ( Swift.Error?, T? ) -> Void)
+              -> Void
+    where T: Decodable
+  {
+    let module = MacroCore.shared.retain()
+    let loop   = module.fallbackEventLoop(eventLoop)
+    
+    FileSystemModule.threadPool.submit { shouldRun in
+      let result      : T?
+      let resultError : Swift.Error?
+      
+      if case shouldRun = NIOThreadPool.WorkItemState.active {
+        do {
+          let data    = try Data(contentsOf: URL(fileURLWithPath: path))
+          let decoder = decoder ?? makeDecoder()
+          let json    = try decoder.decode(type, from: data)
+          result      = json
+          resultError = nil
+        }
+        catch {
+          result      = nil
+          resultError = error
+        }
+      }
+      else {
+        result      = nil
         resultError = ChannelError.ioOnClosedChannel
       }
       
@@ -197,7 +269,7 @@ public extension JSONFileModule {
       
       if case shouldRun = NIOThreadPool.WorkItemState.active {
         do {
-          let data = try JSONEncoder().encode(json)
+          let data = try makeEncoder().encode(json)
           try data.write(to: URL(fileURLWithPath: path), options: [.atomic])
           resultError = nil
         }
@@ -224,7 +296,7 @@ public extension JSONFileModule {
    *
    * Example:
    *
-   *     let json = try jsonfile.readFileSync("/tmp/myfile.json)
+   *     let json = try jsonfile.readFileSync("/tmp/myfile.json")
    *     print("Loaded JSON:", json)
    *
    * - Parameters:
@@ -241,6 +313,33 @@ public extension JSONFileModule {
     return json
   }
   
+  /**
+   * Reads a file as JSON.
+   *
+   * This uses Foundation `JSONDecoder`, the returned object is the
+   * respective Swift object conforming to the Swift `Decodable` protocol.
+   *
+   * Example:
+   *
+   *     let json = try jsonfile.readFileSync("/tmp/myfile.json",
+   *                                          as: Person.self)
+   *     print("Loaded JSON:", json)
+   *
+   * - Parameters:
+   *   - path:    The path of the file to read from.
+   *   - type:    The `Decodable` Swift type to use.
+   *   - decoder: Optionally the `JSONDecoder` to use.
+   */
+  static func readFileSync<T>(_  path : String, as type: T.Type,
+                              decoder: JSONDecoder? = nil)
+                throws -> T
+    where T: Decodable
+  {
+    let data = try Data(contentsOf: URL(fileURLWithPath: path))
+    let decoder = decoder ?? makeDecoder()
+    return try decoder.decode(type, from: data)
+  }
+
   /**
    * Writes JSON objects to a file.
    *
@@ -287,14 +386,36 @@ public extension JSONFileModule {
    *   - json:      The `Encodable` JSON objects to write.
    *   - options:   The `JSONSerialization.WritingOptions`, defaults to none
    */
-  @inlinable
   static func writeFileSync<T>(_  path : String,
                                _  json : T,
                                options : JSONSerialization.WritingOptions = [])
                 throws
                 where T: Encodable
   {
-    let data = try JSONEncoder().encode(json)
+    let data = try makeEncoder().encode(json)
     try data.write(to: URL(fileURLWithPath: path), options: [.atomic])
   }
 }
+
+/// It is undocumented whether the encoder is threadsafe, so assume it is not.
+fileprivate func makeEncoder() -> JSONEncoder {
+  let encoder = JSONEncoder()
+  if #available(macOS 10.12, iOS 10.0, watchOS 3.0, tvOS 10.0, *) {
+    // According to https://github.com/NozeIO/MicroExpress/pull/13 the default
+    // strategy is NeXTstep time.
+    encoder.dateEncodingStrategy = .iso8601
+  }
+  return encoder
+}
+/// It is undocumented whether the encoder is threadsafe, so assume it is not.
+fileprivate func makeDecoder() -> JSONDecoder {
+  let decoder = JSONDecoder()
+  if #available(macOS 10.12, iOS 10.0, watchOS 3.0, tvOS 10.0, *) {
+    // According to https://github.com/NozeIO/MicroExpress/pull/13 the default
+    // strategy is NeXTstep time.
+    decoder.dateDecodingStrategy = .iso8601
+  }
+  return decoder
+}
+
+#endif // canImport(Foundation)

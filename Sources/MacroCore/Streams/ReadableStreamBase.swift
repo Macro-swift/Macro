@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
 //
 
 /**
@@ -37,10 +37,12 @@ open class ReadableStreamBase<ReadablePayload>: ErrorEmitter {
   #if DEBUG && false // cycle debugging
   public override init() {
     super.init()
-    print("INIT:\(ObjectIdentifier(self)) \(type(of:self))")
+    let id = String(Int(bitPattern: ObjectIdentifier(self)), radix: 16)
+    print("INIT:0x\(id) \(type(of:self))")
   }
   deinit {
-    print("DEINIT:\(ObjectIdentifier(self)) \(type(of:self))")
+    let id = String(Int(bitPattern: ObjectIdentifier(self)), radix: 16)
+    print("DEINIT:0x\(id) \(type(of:self))")
   }
   #else
   public override init() {

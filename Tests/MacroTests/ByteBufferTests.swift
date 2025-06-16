@@ -4,6 +4,11 @@ import NIO
 
 final class ByteBufferTests: XCTestCase {
 
+  override class func setUp() {
+    disableAtExitHandler()
+    super.setUp()
+  }
+
   func testByteBufferAssumptions() {
     var bb = ByteBuffer()
     XCTAssertEqual(bb.readerIndex   , 0)

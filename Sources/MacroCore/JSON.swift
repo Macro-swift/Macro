@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2022 ZeeZide GmbH. All rights reserved.
 //
 
 #if canImport(Foundation)
@@ -111,7 +111,7 @@ public extension JSONModule {
               -> Foundation.Data?
   {
     do {
-      let encoder = JSONEncoder()
+      let encoder = JSONEncoderWithISO8601()
       encoder.outputFormatting = outputFormatting
       return try encoder.encode(object)
     }
@@ -156,9 +156,7 @@ public let _defaultJSONEncoderOptions : JSONEncoder.OutputFormatting = {
 
 // MARK: - JSON Streams
 
-public extension WritableStreamType where WritablePayload == Buffer,
-                                          Self : ErrorEmitterTarget
-{
+public extension WritableStreamType where WritablePayload == Buffer {
 
   @discardableResult
   @inlinable
@@ -169,7 +167,7 @@ public extension WritableStreamType where WritablePayload == Buffer,
                            whenDone : @escaping () -> Void = {}) -> Bool
   {
     do {
-      let encoder = JSONEncoder()
+      let encoder = JSONEncoderWithISO8601()
       encoder.outputFormatting = outputFormatting
       let data = try encoder.encode(jsonObject)
       return write(data, whenDone: whenDone)
@@ -206,6 +204,18 @@ public extension WritableStreamType where WritablePayload == Buffer,
   {
     return write(string ?? "null", whenDone: whenDone)
   }
+}
+
+/// It is undocumented whether the encoder is threadsafe, so assume it is not.
+@usableFromInline
+func JSONEncoderWithISO8601() -> JSONEncoder {
+  let encoder = JSONEncoder()
+  if #available(macOS 10.12, iOS 10.0, watchOS 3.0, tvOS 10.0, *) {
+    // According to https://github.com/NozeIO/MicroExpress/pull/13 the default
+    // strategy is NeXTstep time.
+    encoder.dateEncodingStrategy = .iso8601
+  }
+  return encoder
 }
 
 #endif // canImport(Foundation)

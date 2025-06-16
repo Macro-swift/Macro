@@ -3,6 +3,11 @@ import XCTest
 import struct NIO.ByteBuffer
 
 final class CollectionTests: XCTestCase {
+  
+  override class func setUp() {
+    disableAtExitHandler()
+    super.setUp()
+  }
 
   func testByteBufferSearch() {
     var bb = ByteBuffer()
@@ -85,6 +90,7 @@ final class CollectionTests: XCTestCase {
     do {
       var bb = ByteBuffer()
       bb.writeBytes([ 10, 20, 30, 50, 60, 30, 40 ])
+                                       // ^^  ^^ remaining match
       
       let idxMaybe = bb.readableBytesView
             .firstIndex(of: [ 30, 40, 50, 50 ], options: .partialSuffixMatch)
@@ -104,6 +110,36 @@ final class CollectionTests: XCTestCase {
     }
   }
 
+  func testByteBufferSingleItemRemainingMatch() {
+    var bb = ByteBuffer()
+    bb.writeBytes([ 45 ])
+    
+    let idxMaybe = bb.readableBytesView
+          .firstIndex(of: [ 45, 45, 50, 50 ], options: .partialSuffixMatch)
+    XCTAssertNotNil(idxMaybe)
+    guard let idx = idxMaybe else { return }
+    XCTAssertEqual(idx, 0)
+  }
+
+  func testByteBufferRemainingMatchPerformance() {
+    let needle : [ UInt8 ] = [ 30, 50, 60, 42, 22, 13, 37, 98, 12 ]
+
+    var bb = ByteBuffer(repeating: 0, count: 32 * 1024)
+    bb.writeBytes(needle.dropLast(2))
+    bb.writeBytes(ByteBuffer(repeating: 0, count: 32 * 1024).readableBytesView)
+    assert(bb.readableBytes > 64 * 1024)
+    
+    let start = Date()
+    measure {
+      for _ in 0..<10 {
+        let idxMaybe = bb.readableBytesView
+              .firstIndex(of: needle, options: .partialSuffixMatch)
+        XCTAssertNil(idxMaybe)
+      }
+    }
+    print("TOOK:", -start.timeIntervalSinceNow)
+  }
+
   static var allTests = [
     ( "testByteBufferSearch"              , testByteBufferSearch              ),
     ( "testByteBufferSearchNoMatch"       , testByteBufferSearchNoMatch       ),
@@ -113,6 +149,10 @@ final class CollectionTests: XCTestCase {
     ( "testByteBufferSearchStableIndices" , testByteBufferSearchStableIndices ),
     ( "testByteBufferSearchLeftEdge"      , testByteBufferSearchLeftEdge      ),
     ( "testByteBufferSearchRightEdge"     , testByteBufferSearchRightEdge     ),
-    ( "testByteBufferRemainingMatch"      , testByteBufferRemainingMatch      )
+    ( "testByteBufferRemainingMatch"      , testByteBufferRemainingMatch      ),
+    ( "testByteBufferSingleItemRemainingMatch",
+      testByteBufferSingleItemRemainingMatch ),
+    ( "testByteBufferRemainingMatchPerformance",
+      testByteBufferRemainingMatchPerformance )
   ]
 }

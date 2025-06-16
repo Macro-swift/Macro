@@ -37,7 +37,7 @@ swift-sh scripts.
 The most basic HTTP server:
 ```swift
 #!/usr/bin/swift sh
-import Macro // @Macro-swift ~> 0.5.4
+import Macro // @Macro-swift ~> 0.8.0
 
 http
   .createServer { req, res in
@@ -65,6 +65,11 @@ Macro also provides additional Node-like modules, such as:
 - `macro.concat.maxsize`
 - `macro.streams.debug.rc`
 
+## Async/Await
+
+This intentionally doesn't support `async`/`await` yet as proper streaming
+would require custom executors. Which are not yet available.
+
 ### Links
 
 - [µExpress](http://www.alwaysrightinstitute.com/microexpress-nio2/)
@@ -80,14 +85,8 @@ Macro also provides additional Node-like modules, such as:
 ### Who
 
 **Macro** is brought to you by
-the
-[Always Right Institute](http://www.alwaysrightinstitute.com)
-and
-[ZeeZide](http://zeezide.de).
-We like 
-[feedback](https://twitter.com/ar_institute), 
-GitHub stars, 
-cool [contract work](http://zeezide.com/en/services/services.html),
+[Helge Heß](https://github.com/helje5/) / [ZeeZide](https://zeezide.de).
+We like feedback, GitHub stars, cool contract work, 
 presumably any form of praise you can think of.
 
 There is a `#microexpress` channel on the 

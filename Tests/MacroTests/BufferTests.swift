@@ -3,6 +3,11 @@ import XCTest
 
 final class BufferTests: XCTestCase {
 
+  override class func setUp() {
+    disableAtExitHandler()
+    super.setUp()
+  }
+
   func testIndexOf() throws {
     // matching https://nodejs.org/api/buffer.html#buffer_buf_indexof_value_byteoffset_encoding
     let buf = try Buffer.from("this is a buffer")
@@ -16,11 +21,18 @@ final class BufferTests: XCTestCase {
     XCTAssertEqual(8,  buf.indexOf(try Buffer.from("a buffer example")
                                         .slice(0, 8)))
 
+    #if false // this part is non-sense, it creates an UTF-8 buffer
+    #if false
+    let utf16Buffer = try Buffer.from("\u{039a}\u{0391}\u{03a3}\u{03a3}\u{0395}")
+    #else
+    // "utf16le" is not a known encoding for us :-)
     let utf16Buffer =
           try Buffer.from("\u{039a}\u{0391}\u{03a3}\u{03a3}\u{0395}", "utf16le")
+    #endif
 
     XCTAssertEqual(4, utf16Buffer.indexOf("\u{03a3}",  0, "utf16le"))
     XCTAssertEqual(6, utf16Buffer.indexOf("\u{03a3}", -4, "utf16le"))
+    #endif
   }
   
   func testIndexOfPartialSuffix() throws {
@@ -86,7 +98,8 @@ final class BufferTests: XCTestCase {
       let buf = Buffer.from([ UInt8 ](repeating: 0x42, count: 100))
       let s   = buf.description
       XCTAssert(s.hasPrefix("<Buffer: #100 42 42 42 "))
-      XCTAssert(s.hasSuffix("…>"))
+      XCTAssert(s.contains("…"))
+      XCTAssert(s.hasSuffix("42 42>"))
       XCTAssert(s.count < 200)
     }
   }

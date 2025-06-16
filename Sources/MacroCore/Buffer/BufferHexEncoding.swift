@@ -3,8 +3,10 @@
 //  Macro
 //
 //  Created by Helge Heß.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2024 ZeeZide GmbH. All rights reserved.
 //
+
+import NIOCore
 
 @usableFromInline
 internal let hexAlphabet = "0123456789abcdef".unicodeScalars.map { $0 }
@@ -17,19 +19,21 @@ public extension Buffer {
    * Returns the data in the buffer as a hex encoded string.
    *
    * Example:
-   *
-   *     let buffer = Buffer("Hello".utf8)
-   *     let string = buffer.hexEncodedString()
-   *     // "48656c6c6f"
+   * ```swift
+   * let buffer = Buffer("Hello".utf8)
+   * let string = buffer.hexEncodedString()
+   * // "48656c6c6f"
+   * ```
    *
    * Each byte is represented by two hex digits, e.g. `6c` in the example.
    *
    * `hex` is also recognized as a string encoding, this works as well:
+   * ```swift
+   * let buffer = Buffer("Hello".utf8)
+   * let string = try buffer.toString("hex")
+   * // "48656c6c6f"
+   * ```
    *
-   *     let buffer = Buffer("Hello".utf8)
-   *     let string = try buffer.toString("hex")
-   *     // "48656c6c6f"
-   * 
    * - Parameters:
    *   - uppercase: If true, the a-f hexdigits are generated in
    *                uppercase (ABCDEF). Defaults to false.
@@ -65,18 +69,18 @@ public extension Buffer {
    * Appends the bytes represented by a hex encoded string to the Buffer.
    *
    * Example:
-   *
-   *     let buffer = Buffer()
-   *     buffer.writeHexString("48656c6c6f")
-   *     let string = try buffer.toString()
-   *     // "Hello"
-   *
+   * ```swift
+   * let buffer = Buffer()
+   * buffer.writeHexString("48656c6c6f")
+   * let string = try buffer.toString()
+   * // "Hello"
+   * ```
    * `hex` is also recognized as a string encoding, this works as well:
-   *
-   *     let buffer = try Buffer.from("48656c6c6f", "hex")
-   *     let string = try buffer.toString()
-   *     // "Hello"
-   * 
+   * ```swift
+   * let buffer = try Buffer.from("48656c6c6f", "hex")
+   * let string = try buffer.toString()
+   * // "Hello"
+   * ```
    * - Parameters:
    *   - hexString: A hex encoded string, no spaces etc allowed between the
    *                bytes.

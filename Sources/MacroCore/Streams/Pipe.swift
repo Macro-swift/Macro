@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
 //
 
 /**
@@ -71,6 +71,7 @@ public func |<Input, Output>(left: Input, right: Output) -> Output
 
 public extension ReadableStreamType {
   
+  @discardableResult
   @inlinable
   func pipe<Output>(_ output       : Output,
                     passEnd        : Bool = true,
@@ -191,6 +192,7 @@ public extension IteratorProtocol {
   
   // TODO: We could support an async mode for blocking Sequences.
   
+  @discardableResult
   @inlinable
   mutating func pipe<Output>(_ output : Output, callEnd  : Bool = true)
                 -> Output
@@ -215,6 +217,7 @@ public extension IteratorProtocol {
  */
 public extension Sequence {
   
+  @discardableResult
   @inlinable
   func pipe<Output>(_ output : Output,
                     callEnd  : Bool = true)

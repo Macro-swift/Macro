@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Heß.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2024 ZeeZide GmbH. All rights reserved.
 //
 
 import struct NIO.ByteBuffer
@@ -16,40 +16,44 @@ import struct NIO.ByteBufferAllocator
  * Node Buffer API: https://nodejs.org/api/buffer.html
  *
  * Creating buffers:
- *
- *     Buffer.from("Hello") // UTF-8 data
- *     Buffer()             // empty
- *     Buffer([ 42, 13, 10 ])
+ * ```swift
+ * Buffer.from("Hello") // UTF-8 data
+ * Buffer()             // empty
+ * Buffer([ 42, 13, 10 ])
+ * ```
  *
  * Reading:
+ * ```swift
+ * buffer.count
+ * buffer.isEmpty
+ * let byte = buffer[10]
  *
- *     buffer.count
- *     buffer.isEmpty
- *     let byte = buffer[10]
+ * let slice = buffer.consumeFirst(10)
+ * let slice = buffer.slice(5)
+ * let slice = buffer.slice(5, 7)
  *
- *     let slice = buffer.consumeFirst(10)
- *     let slice = buffer.slice(5)
- *     let slice = buffer.slice(5, 7)
- *
- *     let idx   = buffer.indexOf(42) // -1 on not found
- *     let idx   = buffer.indexOf([ 13, 10 ])
+ * let idx   = buffer.indexOf(42) // -1 on not found
+ * let idx   = buffer.indexOf([ 13, 10 ])
+ * ```
  *
  * Writing:
- *
- *     buffer.append(otherBuffer)
- *     buffer.append([ 42, 10 ])
+ * ```swift
+ * buffer.append(otherBuffer)
+ * buffer.append([ 42, 10 ])
+ * ```
  *
  * Converting to strings:
- *
- *     try buffer.toString()
- *     try buffer.toString("hex")
- *     try buffer.toString("base64")
- *     buffer.hexEncodedString()
- *
+ * ```swift
+ * try buffer.toString()
+ * try buffer.toString("hex")
+ * try buffer.toString("base64")
+ * buffer.hexEncodedString()
+ * ```
  */
-public struct Buffer: Codable, Hashable {
+public struct Buffer: Codable, Hashable, Sendable {
   
-  public typealias Index = Int
+  public typealias Index   = Int
+  public typealias Element = UInt8
   
   public var byteBuffer : ByteBuffer
     
@@ -82,7 +86,7 @@ public struct Buffer: Codable, Hashable {
   
   @inlinable
   public mutating func append<S>(contentsOf sequence: S)
-                         where S : Sequence, S.Element == UInt8
+    where S : Sequence, S.Element == UInt8
   {
     byteBuffer.writeBytes(sequence)
   }
@@ -139,7 +143,7 @@ public struct Buffer: Codable, Hashable {
     let end         = endIndex ?? count
     let startOffset = startIndex >= 0 ? startIndex : (count + startIndex)
     let endOffset   = end   >= 0 ? end   : (count + end)
-    let length      = max(0, endOffset - startOffset)
+    let length      = Swift.max(0, endOffset - startOffset)
     let startIndex  = byteBuffer.readerIndex + startOffset
     assert(length >= 0, "invalid index parameters to `slice`")
     if length < 1 { return Buffer(MacroCore.shared.emptyByteBuffer) }
@@ -207,6 +211,21 @@ public extension Buffer { // MARK: - Searching
   }
   
   @inlinable
+  func indexOf(_ string: [ UInt8 ], _ byteOffset: Int = 0,
+               options: StringMatchOptions = [])
+         -> Int
+  {
+    let view   = byteBuffer.readableBytesView
+    let offset = byteOffset >= 0 ? byteOffset : (count + byteOffset)
+    let start  = view.index(view.startIndex, offsetBy: offset)
+    guard let idx = view.firstIndex(of: string, startingAt: start,
+                                    options: options) else {
+      return -1
+    }
+    return idx - view.startIndex
+  }
+  
+  @inlinable
   func indexOf<C>(_ string: C, _ byteOffset: Int = 0,
                   options: StringMatchOptions = [])
          -> Int
@@ -260,6 +279,54 @@ public extension Buffer {
     self.init()
     append(contentsOf: bytes)
   }
+}
+
+public extension Buffer {
+  
+  @inlinable
+  static func concat<S>(_ buffers: S...) -> Buffer
+    where S: Sequence, S.Element == UInt8
+  {
+    return concat(buffers)
+  }
+  
+  @inlinable
+  static func concat<S>(_ buffers: S...) -> Buffer
+    where S: Collection, S.Element == UInt8
+  {
+    return concat(buffers)
+  }
+  
+  @inlinable
+  static func concat<S>(_ buffers: S) -> Buffer
+    where S: Sequence, S.Element: Sequence, S.Element.Element == UInt8
+  {
+    var buffer = Buffer()
+    for sub in buffers {
+      buffer.append(contentsOf: sub)
+    }
+    return buffer
+  }
+  @inlinable
+  static func concat<S>(_ buffers: S) -> Buffer
+    where S: Collection, S.Element: Collection, S.Element.Element == UInt8
+  {
+    let size   = buffers.reduce(0) { $0 + $1.count }
+    var buffer = Buffer(capacity: size)
+    for sub in buffers { buffer.append(contentsOf: sub)}
+    return buffer
+  }
+}
+
+extension Buffer: Collection {
+  
+  @inlinable
+  public func index(after i: Int) -> Int { return i + 1 }
+  
+  @inlinable
+  public var startIndex : Int { return 0 }
+  @inlinable
+  public var endIndex   : Int { return count }
 }
 
 extension Buffer: CustomStringConvertible {
