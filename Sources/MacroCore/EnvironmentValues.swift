@@ -152,8 +152,8 @@ public extension EnvironmentValues {
  * Some object that can hold an environment.
  * 
  * Current implementors:
- * - `IncomingMessage`
- * - `OutgoingMessage`
+ * - ``IncomingMessage``
+ * - ``OutgoingMessage``
  */
 public protocol EnvironmentValuesHolder: AnyObject {
   // Note: This is AnyObject to allow subscript modifications.
