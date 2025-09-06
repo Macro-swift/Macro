@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2025 ZeeZide GmbH. All rights reserved.
 //
 
 import class    MacroCore.MacroCore
@@ -33,6 +33,7 @@ public protocol FileStream: AnyObject, ErrorEmitterType, ErrorEmitterTarget {
 
 internal extension FileStream {
 
+  @inlinable
   var fileIO : NonBlockingFileIO { return FileSystemModule.fileIO }
 
   func _clearFileListeners() {
@@ -49,8 +50,7 @@ public extension FileStream {
     return MacroCore.shared.allocator
   }
   
-  @discardableResult
-  @inlinable
+  @discardableResult @inlinable
   func onceOpen(execute: @escaping ( NIOFileHandle ) -> Void) -> Self {
     if let fileHandle = fileHandle { execute(fileHandle) }
     else { openListeners.once(execute) }
