@@ -3,7 +3,7 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Hess on 11/04/16.
-//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2025 ZeeZide GmbH. All rights reserved.
 //
 
 // TBD: This is a bit weird. Now even more due to POSIXErrorCode vs POSIXError.
@@ -179,7 +179,8 @@
   import Foundation // this is for POSIXError : Error
 
   #if compiler(>=6)
-  extension POSIXErrorCode : @retroactive Error {}
+  extension POSIXErrorCode : @retroactive _BridgedNSError {}
+  extension POSIXErrorCode : @retroactive Swift.Error {}
   #else
   extension POSIXErrorCode : Error {}
   #endif
