@@ -1,10 +1,3 @@
-//
-//  PathTests.swift
-//  Macro
-//
-//  Created by Helge Heß on 07.09.25.
-//
-
 import XCTest
 @testable import MacroCore
 @testable import fs
@@ -44,4 +37,11 @@ final class PathTests: XCTestCase {
     XCTAssertEqual(path.extname("archive.")    , ".") // trailing dot, extension
     XCTAssertEqual(path.extname("image.gif")   , ".gif")
   }
+
+  static var allTests = [
+    ( "testBasename"         , testBasename         ),
+    ( "testBasenameWithDrop" , testBasenameWithDrop ),
+    ( "testDirname"          , testDirname          ),
+    ( "testExtname"          , testExtname          )
+  ]
 }
