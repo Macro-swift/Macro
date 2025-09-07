@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2021-2025 ZeeZide GmbH. All rights reserved.
 //
 
 #if canImport(Foundation)
@@ -12,15 +12,21 @@ import class  Foundation.NSString
 import struct Foundation.NSRange
 
 public extension String {
-  
+  /*
+   * FIXME(2025-08-30): We do have Regex syntax in Swift now, at least 
+   *                    optionally.
+   */
+
   /**
-   * No Regex syntax in Swift. This is used to replicate those:
-   *
-   *     arg.match(/^-/)
+   * This is used to replicate those:
+   * ```javascript
+   * arg.match(/^-/)
+   * ```
    *
    * TODO: `g` and `i` suffixes, don't know about `g`, but `i` is an option:
-   *
-   *     arg.match("ain", .caseInsensitive)
+   * ```javascript
+   * arg.match("ain", .caseInsensitive)
+   * ```
    *
    * Note: Like JS this returns `nil` if no matches are found.
    */
@@ -51,12 +57,13 @@ public extension String {
   }
   
   /**
-   * No Regex syntax in Swift. This is used to replicate those:
-   *
-   *     arg.replace(/^-+/, "")
-   *     searchPath.replace(/\\/g, "\\\\"))
-   *
+   * This is used to replicate those:
+   * ```javascript
+   * arg.replace(/^-+/, "")
+   * searchPath.replace(/\\/g, "\\\\"))
+   * ```
    * TODO: What about `g`, what is that in NSRegEx? An option?
+   * 
    */
   @inlinable
   func replace(_ pattern: String, _ replacement: String,
@@ -73,7 +80,15 @@ public extension String {
                                           withTemplate: replacement)
   }
 
-  /// Same like `String.split(separator:)`
+  /**
+   * This is used to replicate those:
+   * ```javascript
+   * arg.split(/^-+/, "")
+   * searchPath.split(/\\/g, "\\\\"))
+   * ```
+   *
+   * TODO: What about `g`, what is that in NSRegEx? An option?
+   */
   @inlinable
   func split(_ pattern: String, omitEmpty: Bool = false) -> [ String ] {
     guard !self.isEmpty else { return [ "" ] } // That's what Node does
