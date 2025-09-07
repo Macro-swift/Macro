@@ -34,6 +34,12 @@ public extension PathModule {
       return String(cString: sp2 + 1)
     }
   }
+  @inlinable
+  static func basename(_ path: String, _ dropExtension: String) -> String {
+    let base = basename(path)
+    guard base.hasSuffix(dropExtension) else { return base }
+    return String(base.dropLast(dropExtension.count))
+  }
   
   @inlinable
   static func dirname(_ path: String) -> String {

@@ -22,6 +22,13 @@ final class PathTests: XCTestCase {
     XCTAssertEqual(path.basename("/dir/hello"), "hello")
     XCTAssertEqual(path.basename("/dir/hello.gif"), "hello.gif")
   }
+  
+  func testBasenameWithDrop() {
+    XCTAssertEqual(path.basename("hello",          ".gif"), "hello")
+    XCTAssertEqual(path.basename("dir/hello",      ".gif"), "hello")
+    XCTAssertEqual(path.basename("/dir/hello",     ".gif"), "hello")
+    XCTAssertEqual(path.basename("/dir/hello.gif", ".gif"), "hello")
+  }
 
   func testDirname() {
     XCTAssertEqual(path.dirname("hello"), "hello")
