@@ -274,8 +274,10 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
     }
   }
   
-  /// The URI associated with the request as a plain string.
-  /// Returns an empty string for responses.
+  /**
+   * The URI associated with the request as a plain string.
+   * Returns an empty string for responses.
+   */
   @inlinable
   public var url : String {
     switch head {
