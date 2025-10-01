@@ -38,7 +38,7 @@ public extension BasicAuthModule {
   #if canImport(Foundation) // `String.Encoding.utf8`, provide alternative!
   /**
    * Extract HTTP Basic authentication credentials (name/pass) from the given
-   * ```IncomingMessage```.
+   * ``IncomingMessage``.
    *
    * - Parameters:
    *   - request:  The ``IncomingMessage`` containing the `Authorization`
@@ -81,7 +81,7 @@ public extension BasicAuthModule {
       throw BasicAuthError.differentAuthorization
     }
     
-    let payload = String(authString[authString.index(after: idx)])
+    let payload = String(authString[authString.index(after: idx)...])
           .trimmingCharacters(in: .whitespacesAndNewlines)
     
     guard let data = Data(base64Encoded: payload) else {
@@ -98,7 +98,7 @@ public extension BasicAuthModule {
     
     return Credentials(
       name: String(string[string.startIndex..<colIdx]),
-      pass: String(string[colIdx..<string.endIndex])
+      pass: String(string[string.index(after: colIdx)..<string.endIndex])
     )
   }
   #endif // canImport(Foundation)
