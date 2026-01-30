@@ -47,10 +47,10 @@ final class WebSocketConnection: ChannelInboundHandler {
         ws.log.error("Received continuation?")
       
       case .text:
-        handleInput(frame.unmaskedData, in: context)
-      
+        handleTextInput(frame.unmaskedData)
+
       case .binary:
-        handleInput(frame.unmaskedData, in: context)
+        handleBinaryInput(frame.unmaskedData)
         
       case .pong:
         ws.emitPong()
@@ -60,11 +60,17 @@ final class WebSocketConnection: ChannelInboundHandler {
     }
   }
 
-  private func handleInput(_ bb: ByteBuffer,
-                           in context: ChannelHandlerContext)
-  {
-    let data = bb.getData(at: bb.readerIndex, length: bb.readableBytes)!
-    ws.processIncomingData(data)
+  private func handleTextInput(_ bb: ByteBuffer) {
+    guard let data = bb.getData(at: bb.readerIndex, length: bb.readableBytes)
+    else { return }
+    let text = bb.getString(at: bb.readerIndex, length: bb.readableBytes) ?? ""
+    ws.processIncomingText(text, data: data)
+  }
+
+  private func handleBinaryInput(_ bb: ByteBuffer) {
+    guard let data = bb.getData(at: bb.readerIndex, length: bb.readableBytes)
+    else { return }
+    ws.processIncomingBinary(data)
   }
   
   private func pong(in context: ChannelHandlerContext, frame: WebSocketFrame) {
@@ -96,7 +102,9 @@ final class WebSocketConnection: ChannelInboundHandler {
                              frame: WebSocketFrame)
   {
     if awaitingClose {
-      return context.close(promise: nil)
+      context.close(promise: nil)
+      ws.handleRemoteClose()
+      return
     }
     
     var data          = frame.unmaskedData
@@ -106,6 +114,11 @@ final class WebSocketConnection: ChannelInboundHandler {
                                        data: closeDataCode)
     _ = context.write(wrapOutboundOut(closeFrame)).map { () in
       context.close(promise: nil)
+      self.ws.handleRemoteClose()
     }
+  }
+
+  func channelInactive(context: ChannelHandlerContext) {
+    ws.handleRemoteClose()
   }
 }

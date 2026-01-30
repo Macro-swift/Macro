@@ -62,19 +62,39 @@ import NIOWebSocket
  *
  */
 open class WebSocket: ErrorEmitter {
-  
-  enum WebSocketError: Swift.Error {
+
+  // MARK: - Types
+
+  /**
+   * WebSocket connection ready state, matching the Node.js ws library.
+   *
+   * - `connecting`: The connection is not yet open.
+   * - `open`: The connection is open and ready to communicate.
+   * - `closing`: The connection is in the process of closing.
+   * - `closed`: The connection is closed.
+   */
+  public enum ReadyState: Int, Sendable {
+    case connecting = 0
+    case open       = 1
+    case closing    = 2
+    case closed     = 3
+  }
+
+  public enum WebSocketError: Swift.Error {
     case connectionNotOpen
     case upgradeFailed       (status: Int?)
     case invalidURL          (String)
     case unsupportedURLScheme(URL)
     case missingPortInURL    (URL)
   }
-  
-  open                var log     : Logger
-  public private(set) var channel : Channel?
 
-  public var isConnected : Bool { return channel != nil }
+  // MARK: - Properties
+
+  open                var log        : Logger
+  public private(set) var channel    : Channel?
+  public private(set) var readyState : ReadyState = .connecting
+
+  public var isConnected : Bool { return readyState == .open && channel != nil }
 
   private var didRetain = false
 
@@ -85,8 +105,9 @@ open class WebSocket: ErrorEmitter {
    */
   @usableFromInline
   init(_ channel: Channel?, log: Logger? = nil) {
-    self.channel = channel
-    self.log     = log ?? .init(label: "μ.ws")
+    self.channel    = channel
+    self.log        = log ?? .init(label: "μ.ws")
+    self.readyState = channel != nil ? .open : .connecting
     super.init()
     
     if channel != nil, !didRetain { didRetain = true; core.retain() }
@@ -143,6 +164,7 @@ open class WebSocket: ErrorEmitter {
 
   private var _closeListeners   = EventListenerSet<Void>()
   private var _messageListeners = EventListenerSet<( Any )>()
+  private var _textListeners    = EventListenerSet<String>()
   private var _dataListeners    = EventListenerSet<Data>()
   private var _pongListeners    = EventListenerSet<Void>()
   private var _openListeners    = EventListenerSet<WebSocket>()
@@ -162,6 +184,18 @@ open class WebSocket: ErrorEmitter {
   @discardableResult
   public func onMessage(execute: @escaping ( Any ) -> Void) -> Self {
     _messageListeners.add(execute)
+    return self
+  }
+
+  /**
+   * Register a listener for text messages.
+   *
+   * Unlike the generic `onMessage`, this directly provides the raw text
+   * string without JSON parsing.
+   */
+  @discardableResult
+  public func onText(execute: @escaping ( String ) -> Void) -> Self {
+    _textListeners.add(execute)
     return self
   }
 
@@ -190,23 +224,100 @@ open class WebSocket: ErrorEmitter {
   func emitMessage(_ message: Any) {
     _messageListeners.emit(message)
   }
+  func emitText(_ text: String) {
+    _textListeners.emit(text)
+  }
   func emitPong() {
     _pongListeners.emit()
   }
   func emitOpen() {
+    readyState = .open
     _openListeners.emit(self)
   }
 
-  func close() {
+  /**
+   * Close the WebSocket connection gracefully.
+   *
+   * Sends a close frame with the optional status code and reason, then closes
+   * the underlying channel.
+   *
+   * - Parameters:
+   *   - code: Optional close status code (default: 1000 for normal closure).
+   *   - reason: Optional close reason string (max 123 bytes).
+   */
+  public func close(code: UInt16 = 1000, reason: String = "") {
+    guard readyState == .open || readyState == .connecting else { return }
+    readyState = .closing
+
+    guard let channel = channel else {
+      readyState = .closed
+      _closeListeners.emit( () )
+      cleanupListeners()
+      return
+    }
+
+    // Build close frame with code and reason
+    var data = channel.allocator.buffer(capacity: 2 + reason.utf8.count)
+    data.writeInteger(code)
+    if !reason.isEmpty {
+      // Limit reason to 123 bytes per WebSocket spec
+      data.writeBytes(reason.utf8.prefix(123))
+    }
+
+    let frame = WebSocketFrame(fin: true, opcode: .connectionClose, data: data)
+    channel.writeAndFlush(frame).whenComplete { [weak self] _ in
+      self?.finishClose()
+    }
+  }
+
+  /**
+   * Immediately terminate the connection without sending a close frame.
+   *
+   * Use this for hard disconnects when you don't need a graceful shutdown.
+   */
+  public func terminate() {
+    guard readyState != .closed else { return }
+    readyState = .closed
+
+    channel?.close(mode: .all, promise: nil)
+    channel = nil
+
     _closeListeners.emit( () )
-    guard channel != nil else { return }
+    cleanupListeners()
+
+    if didRetain { didRetain = false; core.release() }
+  }
+
+  private func finishClose() {
+    guard readyState != .closed else { return }
+    readyState = .closed
+
+    channel?.close(mode: .all, promise: nil)
+    channel = nil
+
+    _closeListeners.emit( () )
+    cleanupListeners()
+
+    if didRetain { didRetain = false; core.release() }
+  }
+
+  private func cleanupListeners() {
     _messageListeners.removeAll()
     _dataListeners   .removeAll()
     _closeListeners  .removeAll()
-    
-    // TBD: This probably needs to be smarter, send FIN packets and such.
-    channel?.close(mode: .all, promise: nil)
+    _openListeners   .removeAll()
+    _pongListeners   .removeAll()
+  }
+
+  /// Called by `WebSocketConnection` when remote closes the connection.
+  func handleRemoteClose() {
+    guard readyState != .closed else { return }
+    readyState = .closed
+
     channel = nil
+
+    _closeListeners.emit( () )
+    cleanupListeners()
 
     if didRetain { didRetain = false; core.release() }
   }
@@ -214,17 +325,77 @@ open class WebSocket: ErrorEmitter {
   
   // MARK: - Sending Data
 
+  /**
+   * Send a ping frame to the remote peer.
+   *
+   * The remote should respond with a pong frame, which will trigger the
+   * `onPong` listeners.
+   *
+   * - Parameter data: Optional payload data for the ping (max 125 bytes).
+   */
+  public func ping(_ data: Data? = nil) {
+    guard let channel = channel, readyState == .open else {
+      return emit(error: WebSocketError.connectionNotOpen)
+    }
+
+    var buffer: ByteBuffer
+    if let data = data {
+      buffer = channel.allocator.buffer(capacity: min(data.count, 125))
+      buffer.writeBytes(data.prefix(125))
+    }
+    else {
+      buffer = channel.allocator.buffer(capacity: 0)
+    }
+
+    let frame = WebSocketFrame(fin: true, opcode: .ping, data: buffer)
+    channel.writeAndFlush(frame).whenFailure(self.emit(error:))
+  }
+
+  /**
+   * Send a text message (raw string, not JSON encoded).
+   *
+   * - Parameter text: The text string to send.
+   */
+  public func send(text: String) {
+    send(binary: Data(text.utf8), opcode: .text)
+  }
+
+  /**
+   * Send binary data.
+   *
+   * - Parameter binary: The binary data to send.
+   */
+  public func send(binary data: Data,
+                   opcode: WebSocketOpcode = .binary)
+  {
+    guard let channel = channel, readyState == .open else {
+      return emit(error: WebSocketError.connectionNotOpen)
+    }
+
+    var buffer = channel.allocator.buffer(capacity: data.count)
+    buffer.writeBytes(data)
+
+    let frame = WebSocketFrame(fin: true, opcode: opcode, data: buffer)
+    channel.writeAndFlush(frame).whenFailure(self.emit(error:))
+  }
+
+  /**
+   * Send an Encodable value as JSON.
+   */
   @inlinable
   public func send<T: Encodable>(_ message: T) {
     do {
       let data = try JSONEncoder().encode(message)
-      send(data)
+      send(binary: data, opcode: .text)
     }
     catch {
       emit(error: error)
     }
   }
 
+  /**
+   * Send a JSON-serializable object.
+   */
   @inlinable
   public func send(_ message: Any) {
     do {
@@ -235,31 +406,19 @@ open class WebSocket: ErrorEmitter {
       #endif
       let data = try JSONSerialization.data(withJSONObject: message,
                                             options: opts)
-      send(data)
+      send(binary: data, opcode: .text)
     }
     catch {
       emit(error: error)
     }
   }
 
-  @usableFromInline
-  func send(_ data: Data) {
-    guard let channel = channel else {
-      return emit(error: WebSocketError.connectionNotOpen)
-    }
-    
-    var buffer = channel.allocator.buffer(capacity: data.count)
-    buffer.writeBytes(data)
-    
-    let frame = WebSocketFrame(fin: true, opcode: .text, data: buffer)
-    channel.writeAndFlush(frame)
-           .whenFailure(self.emit(error:))
-  }
   
   
   // MARK: - Receiving Data
-  
-  func processIncomingData(_ data: Data) {
+
+  func processIncomingText(_ text: String, data: Data) {
+    _textListeners.emit(text)
     _dataListeners.emit(data)
     
     if !_messageListeners.isEmpty {
@@ -276,6 +435,10 @@ open class WebSocket: ErrorEmitter {
         emit(error: error)
       }
     }
+  }
+
+  func processIncomingBinary(_ data: Data) {
+    _dataListeners.emit(data)
   }
   
   

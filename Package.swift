@@ -51,11 +51,12 @@ let package = Package(
             ],
             exclude: [ "README.md" ]),
     .target(name: "ws",
-            dependencies: [ 
+            dependencies: [
               .product(name: "NIO", package: "swift-nio"),
               .product(name: "NIOWebSocket", package: "swift-nio"),
               "MacroCore", "http"
-            ]),
+            ],
+            exclude: [ "README.md" ]),
     
     // This is the Umbrella Target
     .target(name: "Macro", dependencies: [ "MacroCore", "xsys", "http", "fs" ],
@@ -66,6 +67,6 @@ let package = Package(
 
     .target(name: "MacroTestUtilities", dependencies: [ "Macro" ]),
 
-    .testTarget(name: "MacroTests", dependencies: [ "MacroTestUtilities" ])
+    .testTarget(name: "MacroTests", dependencies: [ "MacroTestUtilities", "ws" ])
   ]
 )
