@@ -43,19 +43,29 @@ import Atomics
  * protocol messages.
  *
  * You don't usually create those objects directly, but rather using the
- * `http.createServer` global function, like so:
- *
- *     http.createServer { req, res in
- *       res.writeHead(200, [ "Content-Type": "text/html" ])
- *       res.end("<h1>Hello World</h1>")
- *     }
- *     .listen(1337)
+ * ``http/createServer(handler:)`` global function, like so:
+ * ```swift
+ * http.createServer { req, res in
+ *   res.writeHead(200, [ "Content-Type": "text/html" ])
+ *   res.end("<h1>Hello World</h1>")
+ * }
+ * .listen(1337)
+ * ```
+ * 
+ * Each server instance has an associated, unique, id.
+ * Each HTTP request (``http/IncomingMessage``) gets assigned an own transaction
+ * id.
+ * 
+ * The server retains the Macro runloop when it starts to listen, and releases
+ * it when it is getting deallocated.
  *
  * Supported events:
- *
- *   onRequest (req, res)
- *   - req: `http.IncomingMessage`
- *   - res: `http.ServerResponse`
+ * - ``Server/onRequest(execute:)``
+ *   - req: ``http/IncomingMessage``
+ *   - res: ``http/ServerResponse``
+ * - ``Server/onCheckContinue(execute:)``
+ * - ``Server/onCheckExpectation(execute:)``
+ * - ``Server/onListening(execute:)``
  */
 open class Server: ErrorEmitter, CustomStringConvertible {
   
@@ -66,17 +76,21 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   public  var log       : Logger
   private var didRetain = false
   private let txID      = Atomics.ManagedAtomic<Int>(0)
+
   public  let lock      = NIOLock()
 
   /**
    * The initializer for `Server`. This is intended for subclasses. Framework
-   * users should use
-   *
-   *     http.createServer { req, res in
+   * users should use:
+   * ```swift
+   * http.createServer { req, res in
    *       ...
-   *     }
-   *
+   * }
+   * ```
    * instead.
+   * 
+   * - Parameters:
+   *   - log: A Logger object to use.
    */
   public init(log: Logger = .init(label: "μ.http")) {
     self.id  = Server.serverID.wrappingIncrementThenLoad(ordering: .relaxed)

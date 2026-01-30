@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2025 ZeeZide GmbH. All rights reserved.
 //
 
 import NIO
@@ -18,15 +18,14 @@ public extension MacroCore {
     // Node says that tick() is special in that it runs before IO events. Is the
     // same true for NIO?
     
-    let module = MacroCore.shared
-    module.retain() // TBD: expensive? Do in here?
+    retain() // TBD: expensive? Do in here?
     
     let loop = eventLoop
             ?? MultiThreadedEventLoopGroup.currentEventLoop
-            ?? module.eventLoopGroup.next()
+            ?? eventLoopGroup.next()
     loop.execute {
       execute()
-      module.release()
+      self.release()
     }
   }
 
@@ -40,16 +39,15 @@ public extension MacroCore {
     // TODO: in JS this also allows for a set of arguments to be passed to the
     //       callback (but who uses this facility?)
     
-    let module = MacroCore.shared
-    module.retain() // TBD: expensive? Do in here?
+    retain() // TBD: expensive? Do in here?
     
     let loop = eventLoop
             ?? MultiThreadedEventLoopGroup.currentEventLoop
-            ?? module.eventLoopGroup.next()
+            ?? eventLoopGroup.next()
     
     loop.scheduleTask(in: .milliseconds(Int64(milliseconds))) {
       execute()
-      module.release()
+      self.release()
     }
   }
   

@@ -27,22 +27,65 @@ public extension PathModule {
   @inlinable
   static func basename(_ path: String) -> String {
     // TODO: this doesn't deal proper with trailing slashes
+    let slashASCII : Int32 = 47 /* / */
     return path.withCString { cs in
-      let sp = rindex(cs, 47 /* / */)
-      guard sp != nil else { return path }
-      let bn = sp! + 1
-      return String(cString: bn)
+      let sp = rindex(cs, slashASCII)
+      guard let sp2 = sp else { return path }
+      return String(cString: sp2 + 1)
     }
+  }
+  @inlinable
+  static func basename(_ path: String, _ dropExtension: String) -> String {
+    let base = basename(path)
+    guard base.hasSuffix(dropExtension) else { return base }
+    return String(base.dropLast(dropExtension.count))
   }
   
   @inlinable
   static func dirname(_ path: String) -> String {
     // TODO: this doesn't deal proper with trailing slashes
     return path.withCString { cs in
-      let sp = UnsafePointer<CChar>(rindex(cs, 47 /* / */))
-      guard sp != nil else { return path }
-      let len = sp! - cs
+      let slashASCII : Int32 = 47 /* / */
+      let sp = UnsafePointer<CChar>(rindex(cs, slashASCII))
+      guard let sp2 = sp else { return path }
+      let len = sp2 - cs
       return String.fromCString(cs, length: len)!
+    }
+  }
+  
+  /**
+   * Returns the last extension in the path.
+   * 
+   * Behaviour:
+   * - "home"        => ""
+   * - "folder/home" => ""
+   * - ".gitignore"  => ""  // leading dot, not an extension
+   * - "archive."    => "." // trailing dot, extension
+   */
+  @inlinable
+  static func extname(_ path: String) -> String {
+    // TODO: this doesn't deal proper with trailing slashes
+    return path.withCString { cs in
+      let dotASCII   : Int32 = 46 /* . */
+      let slashASCII : Int32 = 47 /* / */
+
+      guard let dotPtr = UnsafePointer<CChar>(rindex(cs, dotASCII)) else {
+        return "" // no dot => ""
+      }
+      if let slashPtr = UnsafePointer<CChar>(rindex(cs, slashASCII)) {
+        assert(dotPtr != slashPtr)
+        
+        if slashPtr > dotPtr { // no dot in basename
+          return String(cString: slashPtr + 1)          
+        }
+        if slashPtr + 1 == dotPtr { // leading dot, not an extension
+          return ""
+        }
+      }
+      else { // no slash, only dot
+        if cs == dotPtr { return "" } // leading dot, not an extension
+      }
+      return String(cString: dotPtr)
     }
   }
     

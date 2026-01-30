@@ -25,8 +25,9 @@ import Atomics
 /**
  * The core maintains the NIO EventLoop's and the runtime of the server.
  * Access the shared instance using:
- *
- *     MacroCore.shared
+ * ```swift
+ * MacroCore.shared
+ * ```
  *
  * Attributes like `eventLoopGroup` _can_ be changed and hence configured at
  * will if you do it early on.
@@ -35,7 +36,7 @@ public final class MacroCore {
   
   public static let shared = MacroCore()
   
-  public var allocator : ByteBufferAllocator
+  public let allocator : ByteBufferAllocator
   
   @usableFromInline
   internal let emptyByteBuffer : ByteBuffer
@@ -213,6 +214,9 @@ public final class MacroCore {
     }
   }
 }
+#if swift(>=5.9) && canImport(_Concurrency)
+extension MacroCore: @unchecked Sendable {}
+#endif
 
 extension MacroCore: CustomStringConvertible {
   

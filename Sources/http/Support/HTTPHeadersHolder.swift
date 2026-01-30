@@ -15,6 +15,42 @@ public protocol HTTPMutableHeadersHolder: HTTPHeadersHolder {
   var headers : HTTPHeaders { get set }
 }
 
+// MARK: - Express API
+
+public extension HTTPHeadersHolder {
+  
+  /**
+   * Returns the value of a header, or nil if the header is empty.
+   * 
+   * If there are multiple headers w/ the same name, their value is joined
+   * by ", ", e.g.:
+   * ```http
+   * Accept: text/html
+   * Accept: application/json
+   * ```
+   * will result in this:
+   * ```swift
+   * > req.get("accept")
+   * "text/html, application/json
+   * ```
+   */
+  @inlinable
+  func header(_ headerName: String) -> String? {
+    let values = headers[headerName]
+    guard !values.isEmpty else { return nil }
+    return headers[headerName].joined(separator: ", ")
+  }
+  
+  /**
+   * Aliased for ``header(_:)``.
+   */
+  @inlinable
+  func get(_ headerName: String) -> String? {
+    return header(headerName)
+  }
+}
+
+
 // MARK: - Node API
 
 public extension HTTPHeadersHolder {
