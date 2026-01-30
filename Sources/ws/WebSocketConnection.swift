@@ -7,10 +7,12 @@
 //
 
 import struct   NIO.ByteBuffer
+import struct   NIO.ByteBufferAllocator
 import struct   NIO.NIOAny
 import protocol NIO.ChannelInboundHandler
 import class    NIO.ChannelHandlerContext
 import struct   NIOWebSocket.WebSocketFrame
+import struct   NIOWebSocket.WebSocketOpcode
 
 final class WebSocketConnection: ChannelInboundHandler {
   
@@ -18,8 +20,10 @@ final class WebSocketConnection: ChannelInboundHandler {
   public typealias OutboundOut = WebSocketFrame
   
   let ws : WebSocket
-  private var awaitingClose = false
-  
+  private var awaitingClose    = false
+  private var fragmentBuffer   : ByteBuffer?
+  private var fragmentOpcode   : WebSocketOpcode?
+
   init(_ ws: WebSocket) {
     self.ws = ws
   }
@@ -43,21 +47,107 @@ final class WebSocketConnection: ChannelInboundHandler {
         self.pong(in: context, frame: frame)
       
       case .continuation:
-        // TBD: what do we need to do here?
-        ws.log.error("Received continuation?")
-      
+        handleContinuation(context: context, frame: frame)
+
       case .text:
-        handleTextInput(frame.unmaskedData)
+        handleTextFrame(context: context, frame: frame)
 
       case .binary:
-        handleBinaryInput(frame.unmaskedData)
-        
+        handleBinaryFrame(context: context, frame: frame)
+
       case .pong:
         ws.emitPong()
       
       default:
         self.closeOnError(in: context)
     }
+  }
+
+  // MARK: - Fragment Handling
+
+  private func handleTextFrame(context: ChannelHandlerContext,
+                               frame: WebSocketFrame)
+  {
+    if frame.fin {
+      // Complete message in single frame
+      if fragmentBuffer != nil {
+        // Protocol error: received new text frame while fragment in progress
+        closeOnError(in: context)
+        return
+      }
+      handleTextInput(frame.unmaskedData)
+    }
+    else {
+      // Start of fragmented message
+      startFragment(opcode: .text, data: frame.unmaskedData,
+                    allocator: context.channel.allocator)
+    }
+  }
+
+  private func handleBinaryFrame(context: ChannelHandlerContext,
+                                 frame: WebSocketFrame)
+  {
+    if frame.fin {
+      // Complete message in single frame
+      if fragmentBuffer != nil {
+        // Protocol error: received new binary frame while fragment in progress
+        closeOnError(in: context)
+        return
+      }
+      handleBinaryInput(frame.unmaskedData)
+    }
+    else {
+      // Start of fragmented message
+      startFragment(opcode: .binary, data: frame.unmaskedData,
+                    allocator: context.channel.allocator)
+    }
+  }
+
+  private func handleContinuation(context: ChannelHandlerContext,
+                                  frame: WebSocketFrame)
+  {
+    guard fragmentBuffer != nil, fragmentOpcode != nil else {
+      // Protocol error: continuation without initial fragment
+      closeOnError(in: context)
+      return
+    }
+
+    appendToFragment(data: frame.unmaskedData)
+
+    if frame.fin {
+      // Final fragment - deliver complete message
+      guard let buffer = finishFragment(), let opcode = fragmentOpcode else {
+        return
+      }
+      fragmentOpcode = nil
+
+      switch opcode {
+        case .text   : handleTextInput(buffer)
+        case .binary : handleBinaryInput(buffer)
+        default      : break
+      }
+    }
+  }
+
+  private func startFragment(opcode: WebSocketOpcode, data: ByteBuffer,
+                             allocator: ByteBufferAllocator)
+  {
+    var buffer = allocator.buffer(capacity: data.readableBytes)
+    var mutableData = data
+    buffer.writeBuffer(&mutableData)
+    fragmentBuffer = buffer
+    fragmentOpcode = opcode
+  }
+
+  private func appendToFragment(data: ByteBuffer) {
+    var mutableData = data
+    fragmentBuffer?.writeBuffer(&mutableData)
+  }
+
+  private func finishFragment() -> ByteBuffer? {
+    let buffer = fragmentBuffer
+    fragmentBuffer = nil
+    return buffer
   }
 
   private func handleTextInput(_ bb: ByteBuffer) {
@@ -119,6 +209,8 @@ final class WebSocketConnection: ChannelInboundHandler {
   }
 
   func channelInactive(context: ChannelHandlerContext) {
+    fragmentBuffer = nil
+    fragmentOpcode = nil
     ws.handleRemoteClose()
   }
 }

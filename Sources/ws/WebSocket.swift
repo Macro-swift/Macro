@@ -466,25 +466,29 @@ open class WebSocket: ErrorEmitter {
     public typealias InboundIn   = HTTPClientResponsePart
     public typealias OutboundOut = HTTPClientRequestPart
 
-    var ws   : WebSocket?
-    var path : String
-    
-    init(path: String, ws: WebSocket) {
-      self.path = path
-      self.ws   = ws
+    var ws         : WebSocket?
+    var path       : String
+    var host       : String
+    var requestKey : String
+
+    init(path: String, host: String, requestKey: String, ws: WebSocket) {
+      self.path       = path
+      self.host       = host
+      self.requestKey = requestKey
+      self.ws         = ws
     }
     
     public func channelActive(context: ChannelHandlerContext) {
+      let headers: HTTPHeaders = [
+        "Host"                  : host,
+        "Upgrade"               : "websocket",
+        "Connection"            : "Upgrade",
+        "Sec-WebSocket-Key"     : requestKey,
+        "Sec-WebSocket-Version" : "13"
+      ]
       let req = HTTPRequestHead(version : .init(major: 1, minor: 1),
-                                method  : .GET, uri: path, headers: [
-                                  "Content-Type"   : "application/octet-stream",
-                                  "Content-Length" : "0"
-                                ])
+                                method  : .GET, uri: path, headers: headers)
       context.write(self.wrapOutboundOut(.head(req)), promise: nil)
-      
-      let body = HTTPClientRequestPart.body(.byteBuffer(ByteBuffer()))
-      context.write(self.wrapOutboundOut(body), promise: nil)
-      
       context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
     }
     
@@ -521,9 +525,24 @@ open class WebSocket: ErrorEmitter {
                                    ChannelHandler ) -> ClientBootstrap
   
   /// This could later be used to register custom bootstraps for say TLS.
-  static var schemeToBootstrap : [String : WebSocketBootstrap ] = [
+  static var schemeToBootstrap : [ String : WebSocketBootstrap ] = [
     "ws": makePlainClientBootstrap
   ]
+
+  /**
+   * Generate a random 16-byte key and base64 encode it per RFC 6455.
+   */
+  private static func generateRequestKey() -> String {
+    var data = Data()
+    data.reserveCapacity(16)
+    withUnsafeBytes(of: UInt64.random(in: .min ... .max)) {
+      data.append(contentsOf: $0)
+    }
+    withUnsafeBytes(of: UInt64.random(in: .min ... .max)) {
+      data.append(contentsOf: $0)
+    }
+    return data.base64EncodedString()
+  }
   
   func bootstrapForURL(_ url: URL) -> ClientBootstrap? {
     guard let scheme = url.scheme?.lowercased() else {
@@ -534,24 +553,36 @@ open class WebSocket: ErrorEmitter {
       log.warn("Unsupported WebSocket scheme '\(scheme)' in URL:", url)
       return nil
     }
-    
-    return bootstrap(url, self,
-                     HTTPHandler(path: url.path, ws: self),
-                     WebSocketConnection(self))
+
+    let requestKey = WebSocket.generateRequestKey()
+    let host       = hostHeaderValue(from: url)
+    let path       = url.path.isEmpty ? "/" : url.path
+    let httpHandler = HTTPHandler(path: path, host: host, requestKey: requestKey,
+                                  ws: self)
+    return bootstrap(url, self, httpHandler, WebSocketConnection(self))
+  }
+
+  /**
+   * Generate the Host header value from a URL (host:port, omitting default
+   * ports).
+   */
+  private func hostHeaderValue(from url: URL) -> String {
+    guard let host = url.host else { return "" }
+    guard let port = url.port else { return host }
+    let defaultPort = defaultPortForScheme(url.scheme)
+    if port == defaultPort { return host }
+    return "\(host):\(port)"
   }
   
   static func makePlainClientBootstrap(url         : URL, for ws: WebSocket,
                                        httpHandler : RemovableChannelHandler,
-                                       wsHandler   : ChannelHandler )
+                                       wsHandler   : ChannelHandler)
               -> ClientBootstrap
   {
-    // TODO: Ask Cory what the requestKey is and how to calculate it :-)
-    // It's binary but doesn't seem to be the WebSocket GUID mentioned
-    // (258EAFA5-E914-47DA-95CA-C5AB0DC85B11):
-    // 39 f4 b4 c0 36 93 e4 da 31 17 68 2a 9b b6 63 d9 8b 5e b7 33
-    // Well, there is:
-    // https://stackoverflow.com/questions/18265128/what-is-sec-websocket-key-for
-    let requestKey = "OfS0wDaT5NoxF2gqm7Zj2YtetzM="
+    guard let handler = httpHandler as? HTTPHandler else {
+      fatalError("Expected HTTPHandler")
+    }
+    let requestKey = handler.requestKey
     let bootstrap = ClientBootstrap(group: MacroCore.shared.fallbackEventLoop())
       .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
       .channelInitializer { channel in
@@ -560,19 +591,13 @@ open class WebSocket: ErrorEmitter {
           upgradePipelineHandler: { channel, _ in
             channel.pipeline
                    .addHandler(wsHandler, name: WebSocket.webSocketHandlerName)
-              .always { result in
-print("UPGRADE ADDING:", channel.pipeline, result)
-              }
           }
         )
         
         let config = NIOHTTPClientUpgradeConfiguration(
           upgraders: [ upgrader ],
           completionHandler: { _ in
-            _ = channel.pipeline.removeHandler(httpHandler) //, promise: nil)
-              .always { result in
-                print("DID COMPLETE:", channel.pipeline, result)
-              }
+            _ = channel.pipeline.removeHandler(httpHandler)
           }
         )
 
