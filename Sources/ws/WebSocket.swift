@@ -32,34 +32,35 @@ import NIOWebSocket
  *
  * This is used for both, client initiated sockets and server initiated ones.
  *
- * It also acts as a namespace for the `WebSocket.Server` class.
+ * It also acts as a namespace for the ``WebSocket/Server`` class.
  *
  * Client Example:
+ * ```swift
+ * import ws
  *
- *     import ws
- *
- *     let ws = WebSocket("ws://echo.websocket.org/")
- *     ws.onOpen { ws in
- *       console.log("Connection available ...")
- *       ws.send("Hello!")
- *     }
- *     ws.onMessage { message in
- *       console.log("Received:", message)
- *     }
+ * let ws = WebSocket("ws://echo.websocket.org/")
+ * ws.onOpen { ws in
+ *   console.log("Connection available ...")
+ *   ws.send("Hello!")
+ * }
+ * ws.onMessage { message in
+ *   console.log("Received:", message)
+ * }
+ * ```
  *
  * Server Example:
+ * ```swift
+ * import ws
  *
- *     import ws
+ * let wss = WebSocket.Server(port: 8080)
+ * wss.onConnection { ws in
+ *   ws.onMessage { message in
+ *     console.log("Received:", message)
+ *   }
  *
- *     let wss = WebSocket.Server(port: 8080)
- *     wss.onConnection { ws in
- *       ws.onMessage { message in
- *         console.log("Received:", message)
- *       }
- *
- *       ws.send("Hello!")
- *     }
- *
+ *   ws.send("Hello!")
+ * }
+ * ```
  */
 open class WebSocket: ErrorEmitter {
 
