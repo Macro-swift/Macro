@@ -14,6 +14,18 @@ import class     Foundation.JSONSerialization
 import struct    Logging.Logger
 import class     MacroCore.ErrorEmitter
 import enum      MacroCore.EventListenerSet
+import class     MacroCore.MacroCore
+import func      MacroCore.nextTick
+import protocol  NIO.Channel
+import struct    NIO.ByteBuffer
+import class     NIO.ChannelHandlerContext
+import protocol  NIO.ChannelHandler
+import protocol  NIO.ChannelInboundHandler
+import struct    NIO.ChannelOptions
+import struct    NIO.NIOAny
+import protocol  NIO.RemovableChannelHandler
+import class     NIO.ClientBootstrap
+import class     NIO.EventLoopFuture
 import struct    NIOConcurrencyHelpers.NIOLock
 import typealias NIOHTTP1.NIOHTTPClientUpgradeConfiguration
 import typealias NIOHTTP1.HTTPClientResponsePart
@@ -22,11 +34,9 @@ import struct    NIOHTTP1.HTTPHeaders
 import struct    NIOHTTP1.HTTPRequestHead
 import struct    NIOHTTP1.HTTPResponseHead
 import struct    NIOHTTP1.HTTPVersion
-
-// during dev
-import MacroCore
-import NIO
-import NIOWebSocket
+import class     NIOWebSocket.NIOWebSocketClientUpgrader
+import struct    NIOWebSocket.WebSocketFrame
+import struct    NIOWebSocket.WebSocketOpcode
 
 /**
  * A WebSocket connection.
