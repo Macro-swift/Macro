@@ -172,7 +172,7 @@ final class WebSocketConnection: ChannelInboundHandler {
     }
     
     let responseFrame = WebSocketFrame(fin: true, opcode: .pong, data: frameData)
-    context.write(self.wrapOutboundOut(responseFrame), promise: nil)
+    context.writeAndFlush(self.wrapOutboundOut(responseFrame), promise: nil)
   }
   
   private func closeOnError(in context: ChannelHandlerContext) {
