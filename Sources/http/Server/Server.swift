@@ -69,13 +69,14 @@ import Atomics
  */
 open class Server: ErrorEmitter, CustomStringConvertible {
   
+  public  static let defaultBacklog = 512
   private static let serverID = Atomics.ManagedAtomic<Int>(0)
 
   public  let id        : Int
-  public  let log       : Logger
+  public  var log       : Logger
   private var didRetain = false
   private let txID      = Atomics.ManagedAtomic<Int>(0)
-  
+
   public  let lock      = NIOLock()
 
   /**
@@ -106,23 +107,23 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   @discardableResult
   open func listen(_ port      : Int?   = nil,
                    _ host      : String = "localhost",
-                   backlog     : Int  = 512,
+                   backlog     : Int    = Server.defaultBacklog,
                    onListening : ( ( Server ) -> Void)? = nil) -> Self
   {
     addDefaultListener(onListening)
-    listen(backlog: backlog) { bootstrap in
+    listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
       // TBD: does 0 trigger the wildcard port?
       return bootstrap.bind(host: host, port: port ?? 0)
     }
     return self
   }
   @discardableResult
-  open func listen(unixSocket : String = "express.socket",
-                   backlog    : Int    = 256,
+  open func listen(unixSocket  : String = "express.socket",
+                   backlog     : Int    = Server.defaultBacklog,
                    onListening : ( ( Server ) -> Void)? = nil) -> Self
   {
     addDefaultListener(onListening)
-    listen(backlog: backlog) { bootstrap in
+    listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
       return bootstrap.bind(unixDomainSocketPath: unixSocket)
     }
     return self
@@ -140,12 +141,16 @@ open class Server: ErrorEmitter, CustomStringConvertible {
       listener(server)
     }
   }
-
-  private func listen(backlog: Int,
-                      bind: ( ServerBootstrap ) -> EventLoopFuture<Channel>)
+  
+  /**
+   * Listen with a specific SwiftNIO `ServerBootstrap` setup,
+   * provided by the user.
+   *
+   * This is a low level method, intended for internal use primarily.
+   */
+  open func listen(bootstrap: ServerBootstrap,
+                   bind: ( ServerBootstrap ) -> EventLoopFuture<Channel>)
   {
-    let bootstrap = createServerBootstrap(backlog)
-    
     didRetain = true
     core.retain()
 
@@ -343,7 +348,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
       }
     }
   }
-
+  
   private func createServerBootstrap(_ backlog : Int) -> ServerBootstrap {
     let reuseAddrOpt = ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET),
                                              SO_REUSEADDR)

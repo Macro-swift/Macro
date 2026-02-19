@@ -12,6 +12,7 @@ let package = Package(
     .library(name: "xsys",               targets: [ "xsys"               ]),
     .library(name: "http",               targets: [ "http"               ]),
     .library(name: "fs",                 targets: [ "fs"                 ]),
+    .library(name: "ws",                 targets: [ "ws"                 ]),
     .library(name: "MacroTestUtilities", targets: [ "MacroTestUtilities" ])
   ],
   
@@ -49,6 +50,14 @@ let package = Package(
               "MacroCore", "xsys"
             ],
             exclude: [ "README.md" ]),
+    .target(name: "ws",
+            dependencies: [
+              .product(name: "NIO",                   package: "swift-nio"),
+              .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
+              .product(name: "NIOWebSocket",          package: "swift-nio"),
+              "MacroCore", "http"
+            ],
+            exclude: [ "README.md" ]),
     
     // This is the Umbrella Target
     .target(name: "Macro", dependencies: [ "MacroCore", "xsys", "http", "fs" ],
@@ -59,6 +68,6 @@ let package = Package(
 
     .target(name: "MacroTestUtilities", dependencies: [ "Macro" ]),
 
-    .testTarget(name: "MacroTests", dependencies: [ "MacroTestUtilities" ])
+    .testTarget(name: "MacroTests", dependencies: [ "MacroTestUtilities", "ws" ])
   ]
 )
