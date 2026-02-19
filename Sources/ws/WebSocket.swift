@@ -14,6 +14,7 @@ import class     Foundation.JSONSerialization
 import struct    Logging.Logger
 import class     MacroCore.ErrorEmitter
 import enum      MacroCore.EventListenerSet
+import struct    NIOConcurrencyHelpers.NIOLock
 import typealias NIOHTTP1.NIOHTTPClientUpgradeConfiguration
 import typealias NIOHTTP1.HTTPClientResponsePart
 import typealias NIOHTTP1.HTTPClientRequestPart
@@ -91,11 +92,17 @@ open class WebSocket: ErrorEmitter {
 
   // MARK: - Properties
 
+  public              let lock       = NIOLock()
   open                var log        : Logger
   public private(set) var channel    : Channel?
   public private(set) var readyState : ReadyState = .connecting
 
-  public var isConnected : Bool { return readyState == .open && channel != nil }
+  public var isConnected : Bool {
+    lock.lock()
+    let result = readyState == .open && channel != nil
+    lock.unlock()
+    return result
+  }
 
   private var didRetain = false
 
@@ -232,7 +239,9 @@ open class WebSocket: ErrorEmitter {
     _pongListeners.emit()
   }
   func emitOpen() {
+    lock.lock()
     readyState = .open
+    lock.unlock()
     _openListeners.emit(self)
   }
 
@@ -247,15 +256,21 @@ open class WebSocket: ErrorEmitter {
    *   - reason: Optional close reason string (max 123 bytes).
    */
   public func close(code: UInt16 = 1000, reason: String = "") {
-    guard readyState == .open || readyState == .connecting else { return }
+    lock.lock()
+    guard readyState == .open || readyState == .connecting else {
+      lock.unlock()
+      return
+    }
     readyState = .closing
 
     guard let channel = channel else {
       readyState = .closed
+      lock.unlock()
       _closeListeners.emit( () )
       cleanupListeners()
       return
     }
+    lock.unlock()
 
     // Build close frame with code and reason
     var data = channel.allocator.buffer(capacity: 2 + reason.utf8.count)
@@ -277,50 +292,41 @@ open class WebSocket: ErrorEmitter {
    * Use this for hard disconnects when you don't need a graceful shutdown.
    */
   public func terminate() {
-    guard readyState != .closed else { return }
-    readyState = .closed
-
-    channel?.close(mode: .all, promise: nil)
-    channel = nil
-
-    _closeListeners.emit( () )
-    cleanupListeners()
-
-    if didRetain { didRetain = false; core.release() }
+    transitionToClosed(closeChannel: true)
   }
 
   private func finishClose() {
-    guard readyState != .closed else { return }
+    transitionToClosed(closeChannel: true)
+  }
+
+  /// Called by `WebSocketConnection` when remote closes.
+  func handleRemoteClose() {
+    transitionToClosed(closeChannel: false)
+  }
+
+  private func transitionToClosed(closeChannel: Bool) {
+    lock.lock()
+    guard readyState != .closed else { lock.unlock(); return }
     readyState = .closed
+    let ch      = channel
+    channel     = nil
+    let release = didRetain
+    if didRetain { didRetain = false }
+    lock.unlock()
 
-    channel?.close(mode: .all, promise: nil)
-    channel = nil
-
+    if closeChannel { ch?.close(mode: .all, promise: nil) }
     _closeListeners.emit( () )
     cleanupListeners()
-
-    if didRetain { didRetain = false; core.release() }
+    if release { core.release() }
   }
 
   private func cleanupListeners() {
     _messageListeners.removeAll()
+    _textListeners   .removeAll()
     _dataListeners   .removeAll()
     _closeListeners  .removeAll()
     _openListeners   .removeAll()
     _pongListeners   .removeAll()
-  }
-
-  /// Called by `WebSocketConnection` when remote closes the connection.
-  func handleRemoteClose() {
-    guard readyState != .closed else { return }
-    readyState = .closed
-
-    channel = nil
-
-    _closeListeners.emit( () )
-    cleanupListeners()
-
-    if didRetain { didRetain = false; core.release() }
   }
   
   
@@ -335,9 +341,12 @@ open class WebSocket: ErrorEmitter {
    * - Parameter data: Optional payload data for the ping (max 125 bytes).
    */
   public func ping(_ data: Data? = nil) {
+    lock.lock()
     guard let channel = channel, readyState == .open else {
+      lock.unlock()
       return emit(error: WebSocketError.connectionNotOpen)
     }
+    lock.unlock()
 
     var buffer: ByteBuffer
     if let data = data {
@@ -369,9 +378,12 @@ open class WebSocket: ErrorEmitter {
   public func send(binary data: Data,
                    opcode: WebSocketOpcode = .binary)
   {
+    lock.lock()
     guard let channel = channel, readyState == .open else {
+      lock.unlock()
       return emit(error: WebSocketError.connectionNotOpen)
     }
+    lock.unlock()
 
     var buffer = channel.allocator.buffer(capacity: data.count)
     buffer.writeBytes(data)
@@ -453,8 +465,10 @@ open class WebSocket: ErrorEmitter {
         }
         
       case .success(let channel):
+        lock.lock()
         assert(self.channel == nil)
         self.channel = channel
+        lock.unlock()
     }
   }
 

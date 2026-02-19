@@ -52,8 +52,9 @@ let package = Package(
             exclude: [ "README.md" ]),
     .target(name: "ws",
             dependencies: [
-              .product(name: "NIO", package: "swift-nio"),
-              .product(name: "NIOWebSocket", package: "swift-nio"),
+              .product(name: "NIO",                   package: "swift-nio"),
+              .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
+              .product(name: "NIOWebSocket",          package: "swift-nio"),
               "MacroCore", "http"
             ],
             exclude: [ "README.md" ]),
