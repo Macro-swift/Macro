@@ -316,7 +316,9 @@ open class WebSocket: ErrorEmitter {
 
     if closeChannel { ch?.close(mode: .all, promise: nil) }
     _closeListeners.emit( () )
-    cleanupListeners()
+    // Deferred to avoid exclusive access violations when close
+    // is called from within a listener callback (e.g. onText).
+    nextTick { [self] in cleanupListeners() }
     if release { core.release() }
   }
 
