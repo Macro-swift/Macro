@@ -156,19 +156,170 @@ final class WebSocketTests: XCTestCase {
     XCTAssertEqual(client.readyState, .closed)
   }
 
+  // MARK: - Integration Tests
+
+  private func startServer(
+    onConnection: @escaping ( WebSocket ) -> Void,
+    onListening:  @escaping ( Int ) -> Void
+  ) -> WebSocket.Server
+  {
+    let server = WebSocket.Server(port: 0)
+    server.onConnection(execute: onConnection)
+    server.onListening { srv in
+      guard let port = srv.listenAddresses.first?.port
+      else {
+        XCTFail("Server has no listen address")
+        return
+      }
+      onListening(port)
+    }
+    return server
+  }
+
+  func testClientServerTextMessage() {
+    let connected       = expectation(description: "Connected")
+    let messageReceived = expectation(description: "Message received")
+
+    let server = startServer(
+      onConnection: { ws in
+        ws.onText { text in
+          XCTAssertEqual(text, "Hello Server")
+          ws.send(text: "Hello Client")
+        }
+      },
+      onListening: { port in
+        let client = WebSocket("ws://localhost:\(port)/")
+        client.onOpen { ws in
+          connected.fulfill()
+          ws.send(text: "Hello Server")
+        }
+        client.onText { text in
+          XCTAssertEqual(text, "Hello Client")
+          messageReceived.fulfill()
+        }
+      }
+    )
+    _ = server
+
+    waitForExpectations(timeout: 5)
+  }
+
+  func testClientServerEcho() {
+    let allReceived = expectation(description: "All echoed")
+    let messages    = [ "one", "two", "three" ]
+
+    let server = startServer(
+      onConnection: { ws in
+        ws.onText { text in
+          ws.send(text: text)
+        }
+      },
+      onListening: { port in
+        var received = [ String ]()
+        let client = WebSocket("ws://localhost:\(port)/")
+        client.onOpen { ws in
+          for msg in messages { ws.send(text: msg) }
+        }
+        client.onText { text in
+          received.append(text)
+          if received.count == messages.count {
+            XCTAssertEqual(received, messages)
+            allReceived.fulfill()
+          }
+        }
+      }
+    )
+    _ = server
+
+    waitForExpectations(timeout: 5)
+  }
+
+  func testClientServerClose() {
+    let clientClosed = expectation(description: "Client closed")
+    let serverClosed = expectation(description: "Server closed")
+
+    let server = startServer(
+      onConnection: { ws in
+        ws.onText { _ in
+          ws.close()
+        }
+        ws.onClose {
+          serverClosed.fulfill()
+        }
+      },
+      onListening: { port in
+        let client = WebSocket("ws://localhost:\(port)/")
+        client.onOpen { ws in
+          ws.send(text: "trigger close")
+        }
+        client.onClose {
+          clientClosed.fulfill()
+        }
+      }
+    )
+    _ = server
+
+    waitForExpectations(timeout: 5)
+  }
+
+  func testClientServerPingPong() {
+    let pongReceived = expectation(description: "Pong received")
+
+    let server = startServer(
+      onConnection: { _ in },
+      onListening: { port in
+        let client = WebSocket("ws://localhost:\(port)/")
+        client.onOpen { ws in
+          ws.ping()
+        }
+        client.onPong {
+          pongReceived.fulfill()
+        }
+      }
+    )
+    _ = server
+
+    waitForExpectations(timeout: 5)
+  }
+
+  func testServerSendsOnConnection() {
+    let received = expectation(description: "Greeting received")
+
+    let server = startServer(
+      onConnection: { ws in
+        ws.send(text: "Welcome!")
+      },
+      onListening: { port in
+        let client = WebSocket("ws://localhost:\(port)/")
+        client.onText { text in
+          XCTAssertEqual(text, "Welcome!")
+          received.fulfill()
+        }
+      }
+    )
+    _ = server
+
+    waitForExpectations(timeout: 5)
+  }
+
   // MARK: - All Tests
 
   static var allTests = [
-    ( "testReadyStateValues",        testReadyStateValues        ),
-    ( "testInitialReadyState",       testInitialReadyState       ),
-    ( "testServerCreation",          testServerCreation          ),
-    ( "testServerListenAddress",     testServerListenAddress     ),
-    ( "testInvalidURL",              testInvalidURL              ),
-    ( "testSendWhenNotConnected",    testSendWhenNotConnected    ),
-    ( "testPingWhenNotConnected",    testPingWhenNotConnected    ),
-    ( "testCloseWhenNotConnected",   testCloseWhenNotConnected   ),
+    ( "testReadyStateValues",          testReadyStateValues          ),
+    ( "testInitialReadyState",         testInitialReadyState         ),
+    ( "testServerCreation",            testServerCreation            ),
+    ( "testServerListenAddress",       testServerListenAddress       ),
+    ( "testInvalidURL",                testInvalidURL                ),
+    ( "testSendWhenNotConnected",      testSendWhenNotConnected      ),
+    ( "testPingWhenNotConnected",      testPingWhenNotConnected      ),
+    ( "testCloseWhenNotConnected",     testCloseWhenNotConnected     ),
     ( "testTerminateWhenNotConnected", testTerminateWhenNotConnected ),
-    ( "testDoubleClose",             testDoubleClose             ),
-    ( "testDoubleTerminate",         testDoubleTerminate         ),
+    ( "testDoubleClose",               testDoubleClose               ),
+    ( "testDoubleTerminate",           testDoubleTerminate           ),
+    ( "testClientServerTextMessage",   testClientServerTextMessage   ),
+    ( "testClientServerEcho",          testClientServerEcho          ),
+    ( "testClientServerClose",         testClientServerClose         ),
+    ( "testClientServerPingPong",      testClientServerPingPong      ),
+    ( "testServerSendsOnConnection",   testServerSendsOnConnection   ),
   ]
 }
