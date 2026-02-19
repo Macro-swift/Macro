@@ -483,28 +483,25 @@ open class WebSocket: ErrorEmitter {
     public typealias InboundIn   = HTTPClientResponsePart
     public typealias OutboundOut = HTTPClientRequestPart
 
-    var ws         : WebSocket?
-    var path       : String
-    var host       : String
-    var requestKey : String
+    var ws   : WebSocket?
+    var path : String
+    var host : String
 
-    init(path: String, host: String, requestKey: String, ws: WebSocket) {
-      self.path       = path
-      self.host       = host
-      self.requestKey = requestKey
-      self.ws         = ws
+    init(path: String, host: String, ws: WebSocket) {
+      self.path = path
+      self.host = host
+      self.ws   = ws
     }
     
     public func channelActive(context: ChannelHandlerContext) {
-      let headers: HTTPHeaders = [
-        "Host"                  : host,
-        "Upgrade"               : "websocket",
-        "Connection"            : "Upgrade",
-        "Sec-WebSocket-Key"     : requestKey,
-        "Sec-WebSocket-Version" : "13"
-      ]
+      // Only set Host here; the NIO client upgrade handler adds
+      // Connection, Upgrade, Sec-WebSocket-Key, and
+      // Sec-WebSocket-Version automatically. Duplicating them
+      // causes the server to reject the upgrade.
+      let headers: HTTPHeaders = [ "Host": host ]
       let req = HTTPRequestHead(version : .init(major: 1, minor: 1),
-                                method  : .GET, uri: path, headers: headers)
+                                method  : .GET, uri: path,
+                                headers : headers)
       context.write(self.wrapOutboundOut(.head(req)), promise: nil)
       context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
     }
@@ -537,9 +534,10 @@ open class WebSocket: ErrorEmitter {
   }
   
   // API: TBD
-  typealias WebSocketBootstrap = ( URL, WebSocket,
-                                   RemovableChannelHandler,
-                                   ChannelHandler ) -> ClientBootstrap
+  typealias WebSocketBootstrap =
+    ( URL, WebSocket, String,
+      RemovableChannelHandler,
+      ChannelHandler ) -> ClientBootstrap
   
   /// This could later be used to register custom bootstraps for say TLS.
   static var schemeToBootstrap : [ String : WebSocketBootstrap ] = [
@@ -571,12 +569,13 @@ open class WebSocket: ErrorEmitter {
       return nil
     }
 
-    let requestKey = WebSocket.generateRequestKey()
-    let host       = hostHeaderValue(from: url)
-    let path       = url.path.isEmpty ? "/" : url.path
-    let httpHandler = HTTPHandler(path: path, host: host, requestKey: requestKey,
+    let requestKey  = WebSocket.generateRequestKey()
+    let host        = hostHeaderValue(from: url)
+    let path        = url.path.isEmpty ? "/" : url.path
+    let httpHandler = HTTPHandler(path: path, host: host,
                                   ws: self)
-    return bootstrap(url, self, httpHandler, WebSocketConnection(self))
+    return bootstrap(url, self, requestKey,
+                     httpHandler, WebSocketConnection(self))
   }
 
   /**
@@ -591,15 +590,12 @@ open class WebSocket: ErrorEmitter {
     return "\(host):\(port)"
   }
   
-  static func makePlainClientBootstrap(url         : URL, for ws: WebSocket,
+  static func makePlainClientBootstrap(url         : URL, for ws : WebSocket,
+                                       requestKey  : String,
                                        httpHandler : RemovableChannelHandler,
                                        wsHandler   : ChannelHandler)
               -> ClientBootstrap
   {
-    guard let handler = httpHandler as? HTTPHandler else {
-      fatalError("Expected HTTPHandler")
-    }
-    let requestKey = handler.requestKey
     let bootstrap = ClientBootstrap(group: MacroCore.shared.fallbackEventLoop())
       .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
       .channelInitializer { channel in
