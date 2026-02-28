@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2025 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 /**
@@ -80,7 +80,6 @@ public extension EnvironmentKey {
   }
 }
 
-#if swift(>=5.1)
 /**
  * A dictionary which can hold values assigned to `EnvironmentKey`s.
  *
@@ -104,12 +103,6 @@ public struct EnvironmentValues {
   @usableFromInline
   var values = [ ObjectIdentifier : ( loggingKey: String, value: Any ) ]()
 }
-#else
-public struct EnvironmentValues { // 5.0 compat, no @frozen
-  @usableFromInline
-  var values = [ ObjectIdentifier : ( loggingKey: String, value: Any ) ]()
-}
-#endif
 
 public extension EnvironmentValues {
 
