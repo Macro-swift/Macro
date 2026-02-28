@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Heß.
-//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 import struct   Logging.Logger
@@ -29,7 +29,7 @@ import protocol MacroCore.EnvironmentValuesHolder
  *
  * This isn't usually created directly, but passed inas an argument in a
  * middleware function, e.g. it is the `req` argument in this case:
- * ```
+ * ```swift
  * http.createServer { req, res in
  *   req.log.info("got message:", req.method)
  * }
@@ -41,10 +41,20 @@ import protocol MacroCore.EnvironmentValuesHolder
  *   - ReadableStreamBase
  *     - ReadableByteStream
  *       * IncomingMessage
+ *       
+ * Async/Await: This is marked `@unchecked Sendable`. The class itself is *NOT*
+ * actually thread safe. But it is also not assumed to be accessed by multiple
+ * tasks/threads at the same time.
  */
-open class IncomingMessage: ReadableByteStream, CustomStringConvertible {
+open class IncomingMessage: ReadableByteStream, CustomStringConvertible,
+                            @unchecked Sendable
+{
+  // Async/Await: I don't like the `@unchecked Sendable`, but this seems an OK
+  // compromise to get forward w/ async/await. Middleware will usually operate
+  // one after each other, not actually in parallel, so this should usually work
+  // fine.
   
-  public enum IncomingType {
+  public enum IncomingType: Sendable {
     case request (HTTPRequestHead)
     case response(HTTPResponseHead)
     
@@ -411,3 +421,8 @@ public extension IncomingMessage {
     }
   }
 }
+
+#if compiler(>=6.2)
+extension IncomingMessage              : SendableMetatype {}
+extension IncomingMessage.IncomingType : SendableMetatype {}
+#endif

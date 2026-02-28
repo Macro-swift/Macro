@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 import protocol NIO.Channel
@@ -24,12 +24,13 @@ import struct   MacroCore.Buffer
  * This is a `WritableByteStream`.
  *
  * Example:
- *
- *     app.use { req, res, next in
- *       res.writeHead(200, [ "Content-Type": "text/html" ])
- *       res.write("<h1>Hello Client: \(req.url)</h1>")
- *       res.end()
- *     }
+ * ```swift
+ * app.use { req, res, next in
+ *   res.writeHead(200, [ "Content-Type": "text/html" ])
+ *   res.write("<h1>Hello Client: \(req.url)</h1>")
+ *   res.end()
+ * }
+ * ```
  * 
  * Make sure to call `end` to close the connection properly.
  *
@@ -40,8 +41,18 @@ import struct   MacroCore.Buffer
  *       OutgoingMessage
  *       * ServerResponse
  *         ClientRequest
+ *       
+ * Async/Await: This is marked `@unchecked Sendable`. The class itself is *NOT*
+ * actually thread safe. But it is also not assumed to be accessed by multiple
+ * tasks/threads at the same time.
  */
-open class ServerResponse: OutgoingMessage, CustomStringConvertible {
+open class ServerResponse: OutgoingMessage, CustomStringConvertible,
+                           @unchecked Sendable
+{
+  // Async/Await: I don't like the `@unchecked Sendable`, but this seems an OK
+  // compromise to get forward w/ async/await. Middleware will usually operate
+  // one after each other, not actually in parallel, so this should usually work
+  // fine.
 
   public var version = HTTPVersion(major: 1, minor: 1)
   public var status  = HTTPResponseStatus.ok
@@ -318,3 +329,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible {
     return ms
   }
 }
+
+#if compiler(>=6.2)
+extension ServerResponse : SendableMetatype {}
+#endif
