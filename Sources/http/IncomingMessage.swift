@@ -47,14 +47,14 @@ import protocol MacroCore.EnvironmentValuesHolder
  * tasks/threads at the same time.
  */
 open class IncomingMessage: ReadableByteStream, CustomStringConvertible,
-                            @unchecked Sendable, SendableMetatype
+                            @unchecked Sendable
 {
   // Async/Await: I don't like the `@unchecked Sendable`, but this seems an OK
   // compromise to get forward w/ async/await. Middleware will usually operate
   // one after each other, not actually in parallel, so this should usually work
   // fine.
   
-  public enum IncomingType: Sendable, SendableMetatype {
+  public enum IncomingType: Sendable {
     case request (HTTPRequestHead)
     case response(HTTPResponseHead)
     
@@ -421,3 +421,8 @@ public extension IncomingMessage {
     }
   }
 }
+
+#if compiler(>=6.2)
+extension IncomingMessage              : SendableMetatype {}
+extension IncomingMessage.IncomingType : SendableMetatype {}
+#endif

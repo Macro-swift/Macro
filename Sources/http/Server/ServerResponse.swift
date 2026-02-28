@@ -47,7 +47,7 @@ import struct   MacroCore.Buffer
  * tasks/threads at the same time.
  */
 open class ServerResponse: OutgoingMessage, CustomStringConvertible,
-                           @unchecked Sendable, SendableMetatype
+                           @unchecked Sendable
 {
   // Async/Await: I don't like the `@unchecked Sendable`, but this seems an OK
   // compromise to get forward w/ async/await. Middleware will usually operate
@@ -329,3 +329,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     return ms
   }
 }
+
+#if compiler(>=6.2)
+extension ServerResponse : SendableMetatype {}
+#endif
