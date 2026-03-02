@@ -3,40 +3,16 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
-import struct    Foundation.URL
-import struct    Foundation.Data
-import class     Foundation.JSONEncoder
-import class     Foundation.JSONDecoder
-import class     Foundation.JSONSerialization
-import struct    Logging.Logger
-import class     MacroCore.ErrorEmitter
-import enum      MacroCore.EventListenerSet
-import class     MacroCore.MacroCore
-import func      MacroCore.nextTick
-import protocol  NIO.Channel
-import struct    NIO.ByteBuffer
-import class     NIO.ChannelHandlerContext
-import protocol  NIO.ChannelHandler
-import protocol  NIO.ChannelInboundHandler
-import struct    NIO.ChannelOptions
-import struct    NIO.NIOAny
-import protocol  NIO.RemovableChannelHandler
-import class     NIO.ClientBootstrap
-import class     NIO.EventLoopFuture
-import struct    NIOConcurrencyHelpers.NIOLock
-import typealias NIOHTTP1.NIOHTTPClientUpgradeConfiguration
-import typealias NIOHTTP1.HTTPClientResponsePart
-import typealias NIOHTTP1.HTTPClientRequestPart
-import struct    NIOHTTP1.HTTPHeaders
-import struct    NIOHTTP1.HTTPRequestHead
-import struct    NIOHTTP1.HTTPResponseHead
-import struct    NIOHTTP1.HTTPVersion
-import class     NIOWebSocket.NIOWebSocketClientUpgrader
-import struct    NIOWebSocket.WebSocketFrame
-import struct    NIOWebSocket.WebSocketOpcode
+import Foundation
+import Logging
+import MacroCore
+import NIO
+import NIOConcurrencyHelpers
+import NIOHTTP1
+import NIOWebSocket
 
 /**
  * A WebSocket connection.
@@ -625,7 +601,8 @@ open class WebSocket: ErrorEmitter {
         )
 
         return channel.pipeline
-          .addHTTPClientHandlers(withClientUpgrade: config)
+          .addHTTPClientHandlers(leftOverBytesStrategy: .forwardBytes,
+                                 withClientUpgrade: config)
           .flatMap {
             channel.pipeline
                    .addHandler(httpHandler, name: WebSocket.httpHandlerName)
