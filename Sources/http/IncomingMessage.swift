@@ -6,20 +6,10 @@
 //  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
-import struct   Logging.Logger
-import protocol NIO.Channel
-import struct   NIOHTTP1.HTTPRequestHead
-import struct   NIOHTTP1.HTTPResponseHead
-import enum     NIOHTTP1.HTTPMethod
-import struct   NIOHTTP1.HTTPVersion
-import struct   NIOHTTP1.HTTPHeaders
-import enum     NIOHTTP1.HTTPResponseStatus
-import struct   MacroCore.Buffer
-import class    MacroCore.ErrorEmitter
-import class    MacroCore.ReadableByteStream
-import func     MacroCore.nextTick
-import struct   MacroCore.EnvironmentValues
-import protocol MacroCore.EnvironmentValuesHolder
+import Logging
+import NIO
+import NIOHTTP1
+import MacroCore
 
 /**
  * Represents an incoming HTTP message.
@@ -37,10 +27,10 @@ import protocol MacroCore.EnvironmentValuesHolder
  *
  * Hierarchy:
  *
- * - ErrorEmitter
- *   - ReadableStreamBase
- *     - ReadableByteStream
- *       * IncomingMessage
+ * - ``ErrorEmitter``
+ *   - ``ReadableStreamBase``
+ *     - ``ReadableByteStream``
+ *       * ``IncomingMessage``
  *       
  * Async/Await: This is marked `@unchecked Sendable`. The class itself is *NOT*
  * actually thread safe. But it is also not assumed to be accessed by multiple
@@ -113,7 +103,7 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible,
   public private(set) var socket : NIO.Channel?
 
   /**
-   * Use `EnvironmentKey`s to store extra information alongside requests.
+   * Use ``EnvironmentKey``s to store extra information alongside requests.
    * This is similar to using a Node/Express `locals` dictionary (or attaching
    * directly properties to a request), but typesafe.
    *
@@ -121,24 +111,25 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible,
    * or some extra data a custom bodyParser parsed.
    *
    * Example:
-   *
-   *     enum LoginUserEnvironmentKey: EnvironmentKey {
-   *       static let defaultValue = ""
-   *     }
+   * ```swift
+   * enum LoginUserEnvironmentKey: EnvironmentKey {
+   *   static let defaultValue = ""
+   * }
+   * ```
    *
    * In addition to the key definition, one usually declares an accessor to the
-   * respective environment holder, for example the `IncomingMessage`:
+   * respective environment holder, for example the ``IncomingMessage``:
+   * ```swift
+   * extension IncomingMessage {
    *
-   *     extension IncomingMessage {
-   *
-   *       var loginUser : String {
-   *         set { self[LoginUserEnvironmentKey.self] = newValue }
-   *         get { self[LoginUserEnvironmentKey.self] }
-   *       }
-   *     }
-   *
+   *   var loginUser : String {
+   *     set { self[LoginUserEnvironmentKey.self] = newValue }
+   *     get { self[LoginUserEnvironmentKey.self] }
+   *   }
+   * }
+   * ```
    */
-  public var environment = MacroCore.EnvironmentValues.empty
+  public var environment = EnvironmentValues.empty
   
   @available(*, deprecated, message: "Please use the regular `log` w/ `.error`")
   @inlinable
@@ -290,9 +281,20 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible,
    */
   @inlinable
   public var url : String {
-    switch head {
-      case .request(let request) : return request.uri
-      case .response(_)          : return ""
+    get {
+      switch head {
+        case .request(let request) : return request.uri
+        case .response(_)          : return ""
+      }
+    }
+    set {
+      switch head {
+        case .request(var request):
+          request.uri = newValue
+          head = .request(request)
+        case .response: // TBD: Could be the content-location header?
+          assertionFailure("Attempt to set the URL of a response?")
+      }
     }
   }
   

@@ -3,30 +3,30 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 /**
  * Superclass for readable streams.
  *
- * Note: This does not conform to `ReadableStreamType` yet, because this base
+ * Note: This does NOT conform to ``ReadableStreamType`` yet, because this base
  *       class does not implement the buffer in a generic way.
  *
  * If a byte stream is being implemented, consider using the
- * `ReadableByteStream` base class.
+ * ``ReadableByteStream`` base class.
  *
  * ## Subclassing
  *
- * - `readableLength` MUST be overridden
- * - the subclass should to conform to `ReadableStreamType`
+ * - ``readableLength`` MUST be overridden
+ * - the subclass should to conform to ``ReadableStreamType``
  * - the `onData` setup functions need to be implemented
  *
  * Hierarchy:
  *
- * - ErrorEmitter
- *   * ReadableStreamBase
- *     - ReadableByteStream
- *       - IncomingMessage
+ * - ``ErrorEmitter``
+ *   * ``ReadableStreamBase``
+ *     - ``ReadableByteStream``
+ *       - ``IncomingMessage``
  */
 open class ReadableStreamBase<ReadablePayload>: ErrorEmitter {
 

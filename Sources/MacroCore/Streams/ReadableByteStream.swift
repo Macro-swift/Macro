@@ -3,18 +3,18 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 /**
- * A `Buffer` based stream. This buffers the data until it is read.
+ * A ``Buffer`` based stream. This buffers the data until it is read.
  *
  * Hierarchy:
  *
- * - ErrorEmitter
- *   - ReadableStreamBase
- *     * ReadableByteStream
- *       - IncomingMessage
+ * - ``ErrorEmitter``
+ *   - ``ReadableStreamBase``
+ *     * ``ReadableByteStream``
+ *       - ``IncomingMessage``
  */
 open class ReadableByteStream: ReadableStreamBase<Buffer>,
                                ReadableStreamType,
@@ -84,8 +84,7 @@ open class ReadableByteStream: ReadableStreamBase<Buffer>,
   
   
   @usableFromInline
-  internal func _emitDataIfAppropriate(execute: ( Buffer ) -> Void) -> Bool
-  {
+  internal func _emitDataIfAppropriate(execute: ( Buffer ) -> Void) -> Bool {
     guard let buffer = self.readableBuffer, !buffer.isEmpty else {
       return false
     }
