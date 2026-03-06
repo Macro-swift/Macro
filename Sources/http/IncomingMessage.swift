@@ -27,10 +27,10 @@ import MacroCore
  *
  * Hierarchy:
  *
- * - ErrorEmitter
- *   - ReadableStreamBase
- *     - ReadableByteStream
- *       * IncomingMessage
+ * - ``ErrorEmitter``
+ *   - ``ReadableStreamBase``
+ *     - ``ReadableByteStream``
+ *       * ``IncomingMessage``
  *       
  * Async/Await: This is marked `@unchecked Sendable`. The class itself is *NOT*
  * actually thread safe. But it is also not assumed to be accessed by multiple
@@ -281,9 +281,20 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible,
    */
   @inlinable
   public var url : String {
-    switch head {
-      case .request(let request) : return request.uri
-      case .response(_)          : return ""
+    get {
+      switch head {
+        case .request(let request) : return request.uri
+        case .response(_)          : return ""
+      }
+    }
+    set {
+      switch head {
+        case .request(var request):
+          request.uri = newValue
+          head = .request(request)
+        case .response: // TBD: Could be the content-location header?
+          assertionFailure("Attempt to set the URL of a response?")
+      }
     }
   }
   
