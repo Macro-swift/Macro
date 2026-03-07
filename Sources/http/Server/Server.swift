@@ -108,7 +108,8 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   open func listen(_ port      : Int?   = nil,
                    _ host      : String = "localhost",
                    backlog     : Int    = Server.defaultBacklog,
-                   onListening : ( ( Server ) -> Void)? = nil) -> Self
+                   onListening : (@Sendable ( Server ) -> Void)? = nil)
+            -> Self
   {
     addDefaultListener(onListening)
     listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
@@ -120,7 +121,8 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   @discardableResult
   open func listen(unixSocket  : String = "express.socket",
                    backlog     : Int    = Server.defaultBacklog,
-                   onListening : ( ( Server ) -> Void)? = nil) -> Self
+                   onListening : (@Sendable ( Server ) -> Void)? = nil)
+            -> Self
   {
     addDefaultListener(onListening)
     listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
@@ -129,17 +131,15 @@ open class Server: ErrorEmitter, CustomStringConvertible {
     return self
   }
   
-  private func addDefaultListener(_ listener: ( ( Server ) -> Void)?) {
+  private func addDefaultListener(_ listener: (@Sendable ( Server ) -> Void)?) {
     guard let listener = listener else { return }
-    
-    // essentially emulate `once`
-    var pendingServer : Server? = self
-    onListening { eventServer in
-      guard let server = pendingServer else { return }
-      pendingServer = nil
-      assert(eventServer === server)
-      listener(server)
+    let isListening = lock.withLock {
+      let token = _listeningListeners.once(listener)
+      let isListening = !_channels.isEmpty
+      if isListening { _listeningListeners.removeListener(token) }
+      return isListening
     }
+    if isListening { listener(self) }
   }
   
   /**
@@ -244,7 +244,8 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   }
   
   @discardableResult
-  public func onListening(execute: @escaping ( Server ) -> Void) -> Self {
+  public func onListening(execute: @escaping @Sendable (Server) -> Void) -> Self
+  {
     lock.withLockVoid { _listeningListeners.add(execute) }
     if listening { execute(self) }
     return self
