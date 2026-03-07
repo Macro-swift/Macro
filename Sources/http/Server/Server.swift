@@ -171,10 +171,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
    * Returns true if the server is listening on some socket/channel.
    */
   public var listening : Bool {
-    lock.lock()
-    let flag = !_channels.isEmpty
-    lock.unlock()
-    return flag
+    return lock.withLock { return !_channels.isEmpty }
   }
   
   /**
@@ -182,10 +179,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
    * server is not yet listening on anything.
    */
   public var listenAddresses : [ SocketAddress ] {
-    lock.lock()
-    let addresses = _channels.compactMap { $0.localAddress }
-    lock.unlock()
-    return addresses
+    return lock.withLock { return _channels.compactMap { $0.localAddress } }
   }
 
   private var _channels = [ Channel ]()
@@ -224,54 +218,43 @@ open class Server: ErrorEmitter, CustomStringConvertible {
     EventListenerSet<Server>()
 
   private var hasRequestListeners : Bool {
-    lock.lock()
-    let isEmpty = _requestListeners.isEmpty
-    lock.unlock()
-    return !isEmpty
+    return !lock.withLock { return _requestListeners.isEmpty }
   }
 
   @discardableResult
   public func onRequest(execute:
                 @escaping ( IncomingMessage, ServerResponse ) -> Void) -> Self
   {
-    lock.lock()
-    _requestListeners.add(execute)
-    lock.unlock()
+    lock.withLockVoid { _requestListeners.add(execute) }
     return self
   }
   @discardableResult
   public func onCheckContinue(execute:
                 @escaping ( IncomingMessage, ServerResponse ) -> Void) -> Self
   {
-    lock.lock()
-    _continueListeners.add(execute)
-    lock.unlock()
+    lock.withLockVoid { _continueListeners.add(execute) }
     return self
   }
   @discardableResult
   public func onCheckExpectation(execute:
                 @escaping ( IncomingMessage, ServerResponse ) -> Void) -> Self
   {
-    lock.lock()
-    _expectListeners.add(execute)
-    lock.unlock()
+    lock.withLockVoid { _expectListeners.add(execute)}
     return self
   }
   
   @discardableResult
   public func onListening(execute: @escaping ( Server ) -> Void) -> Self {
-    lock.lock()
-    _listeningListeners.add(execute)
-    lock.unlock()
+    lock.withLockVoid { _listeningListeners.add(execute) }
     if listening { execute(self) }
     return self
   }
 
   private func emitContinue(request: IncomingMessage, response: ServerResponse)
   {
-    lock.lock()
-    var listeners = _continueListeners // Note: No `once` support!
-    lock.unlock()
+    var listeners = lock.withLock {
+      return _continueListeners // Note: No `once` support!
+    }
     if listeners.isEmpty { // Note: This does NOT work w/ NIO 2.12.0
       response.writeContinue()
     }
@@ -282,9 +265,9 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   private func emitExpect(request: IncomingMessage, response: ServerResponse)
               -> Bool
   {
-    lock.lock()
-    var listeners = _expectListeners // Note: No `once` support!
-    lock.unlock()
+    var listeners = lock.withLock {
+      return _expectListeners // Note: No `once` support!
+    }
     if listeners.isEmpty {
       response.status = .expectationFailed
       response.end()
@@ -303,9 +286,9 @@ open class Server: ErrorEmitter, CustomStringConvertible {
                -> Bool
   {
     // aka onRequest
-    lock.lock()
-    var listeners = _requestListeners // Note: No `once` support!
-    lock.unlock()
+    var listeners = lock.withLock {
+      return _requestListeners // Note: No `once` support!
+    }
     guard !listeners.isEmpty else { return false }
     
     listeners.emit(( request, response ))
