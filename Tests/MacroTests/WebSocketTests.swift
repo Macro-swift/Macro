@@ -51,16 +51,13 @@ final class WebSocketTests: XCTestCase {
 
   func testServerListenAddress() {
     let expectation = self.expectation(description: "Server listening")
-    var actualPort: Int?
 
     let server = WebSocket.Server(port: 0)
-    server.onListening { srv in
-      actualPort = srv.listenAddresses.first?.port
-      expectation.fulfill()
-    }
+    server.onListening { _ in expectation.fulfill() }
 
     waitForExpectations(timeout: 5)
 
+    let actualPort = server.listenAddresses.first?.port
     XCTAssertNotNil(actualPort)
     if let port = actualPort {
       XCTAssertGreaterThan(port, 0)
