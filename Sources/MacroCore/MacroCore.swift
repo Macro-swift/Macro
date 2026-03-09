@@ -118,19 +118,6 @@ public final class MacroCore {
   public final func retain(filename: String? = #file, line: Int? = #line,
                            function: String? = #function) -> Self
   {
-    // Here we detect whether we are being called from an async context on the
-    // main thread. If that's the case, the main thread already has a runloop
-    // registered and we may not call dispatchMain in our atexit handler.
-    if #available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *) {
-      if !hasMainLoop.load(ordering: .relaxed) {
-        withUnsafeCurrentTask { task in
-          if task != nil /* async context */, Thread.isMainThread {
-            hasMainLoop.store(true, ordering: .relaxed)
-          }
-        }
-      }
-    }
-
     let newValue = workCount.wrappingIncrementThenLoad(ordering: .relaxed)
     
     if debugRetain {
@@ -242,6 +229,15 @@ public final class MacroCore {
       .compareExchange(expected: false, desired: true, ordering: .relaxed)
     
     guard !wasRegistered else { return }
+
+    // Probe: if the main queue is already being drained
+    // (e.g. by Swift's async main executor), this block
+    // runs before the atexit handler and sets the flag.
+    // For sync main it runs after dispatchMain() — harmless.
+    DispatchQueue.main.async {
+      MacroCore.shared.hasMainLoop.store(true, ordering: .relaxed)
+    }
+
     atexit {
       if !wasInExit {
         wasInExit = true
