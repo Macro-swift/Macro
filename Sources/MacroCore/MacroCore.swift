@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2022 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 #if os(Windows)
@@ -17,6 +17,7 @@
   import func Darwin.atexit
 #endif
 
+import Foundation
 import Dispatch
 import NIO
 import NIOConcurrencyHelpers
@@ -96,7 +97,19 @@ public final class MacroCore {
   fileprivate let workCount         = Atomics.ManagedAtomic<Int>(0)
   fileprivate let exitDelayInMS     : Int64 = 100
   fileprivate let didRegisterAtExit = Atomics.ManagedAtomic<Bool>(false)
-  
+
+  /**
+   * Set when the process already has a running dispatch main loop (e.g. Swift
+   * async main). Auto-detected or set explicitly via `didStartMainLoop()`.
+   */
+  public let hasMainLoop = Atomics.ManagedAtomic<Bool>(false)
+
+  /**
+   * Signalled by `release()` when workCount reaches 0
+   * during atexit. Only non-nil while atexit waits.
+   */
+  private let _atexitSemaphore = NIOLockedValueBox<DispatchSemaphore?>(nil)
+
   public var retainDebugMap : [ String : Int ] = [:]
   
   /// make sure the process stays alive, balance with release
@@ -105,6 +118,19 @@ public final class MacroCore {
   public final func retain(filename: String? = #file, line: Int? = #line,
                            function: String? = #function) -> Self
   {
+    // Here we detect whether we are being called from an async context on the
+    // main thread. If that's the case, the main thread already has a runloop
+    // registered and we may not call dispatchMain in our atexit handler.
+    if #available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *) {
+      if !hasMainLoop.load(ordering: .relaxed) {
+        withUnsafeCurrentTask { task in
+          if task != nil /* async context */, Thread.isMainThread {
+            hasMainLoop.store(true, ordering: .relaxed)
+          }
+        }
+      }
+    }
+
     let newValue = workCount.wrappingIncrementThenLoad(ordering: .relaxed)
     
     if debugRetain {
@@ -147,6 +173,7 @@ public final class MacroCore {
               "\(function as Optional)")
       }
       maybeTerminate()
+      _ = _atexitSemaphore.withLockedValue { $0?.signal() }
     }
   }
   
@@ -190,6 +217,15 @@ public final class MacroCore {
   }
 
   
+  /**
+   * Tell MacroCore that a dispatch main loop is already
+   * running. The atexit handler will block on a semaphore
+   * instead of calling `dispatchMain()`.
+   */
+  public func didStartMainLoop() {
+    hasMainLoop.store(true, ordering: .relaxed)
+  }
+
   // Use atexit to invoke dispatchMain. Bad hack, never do that at home!!
   //
   // Without this hack all Macro tools would have to call
@@ -209,7 +245,25 @@ public final class MacroCore {
     atexit {
       if !wasInExit {
         wasInExit = true
-        MacroCore.shared.run()
+
+        if !MacroCore.shared.hasMainLoop.load(ordering: .relaxed) {
+          // Sync main — start the dispatch loop
+          // unconditionally (may have GCD work;
+          // maybeTerminate() handles exit-when-idle).
+          MacroCore.shared.run() // never returns
+        }
+
+        // Async main — can't call dispatchMain().
+        // Block until pending NIO work drains.
+        let wc = MacroCore.shared.workCount.load(ordering: .relaxed)
+        guard wc > 0 else { return }
+        let sem = DispatchSemaphore(value: 0)
+        MacroCore.shared._atexitSemaphore.withLockedValue { $0 = sem }
+        // Re-check after installing (release may have
+        // fired between the load and the install).
+        if MacroCore.shared.workCount.load(ordering: .relaxed) > 0 {
+          sem.wait()
+        }
       }
     }
   }
@@ -225,6 +279,7 @@ extension MacroCore: CustomStringConvertible {
     defer { ms += ">" }
     
     if wasInExit { ms += " was-in-exit" }
+    if hasMainLoop.load(ordering: .relaxed)       { ms += " has-main-loop" }
     if didRegisterAtExit.load(ordering: .relaxed) { ms += " did-reg-@exit" }
     else                                          { ms += " no-@exit"      }
 
