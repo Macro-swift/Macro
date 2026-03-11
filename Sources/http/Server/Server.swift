@@ -8,8 +8,10 @@
 
 #if os(Linux)
   import let Glibc.ECONNRESET
+  import let Glibc.EPIPE
 #else
   import let Darwin.ECONNRESET
+  import let Darwin.EPIPE
 #endif
 import class     MacroCore.ErrorEmitter
 import enum      MacroCore.EventListenerSet
@@ -543,18 +545,27 @@ open class Server: ErrorEmitter, CustomStringConvertible {
     }
     
     func errorCaught(context: ChannelHandlerContext, error: Error) {
-      if let ( id, request, response ) = transaction {
-        // HTTPParserError.invalidEOFState
-        server.log.error("HTTP error in TX \(id), closing connection: \(error)")
-        server.emitError(error, transaction: ( request, response ))
-        self.transaction = nil
+      
+      func isClientDisconnect(_ error: Error) -> Bool {
+        guard let e = error as? IOError else { return false }
+        // ECONNRESET: client reset the connection
+        // EPIPE: client closed before server finished writing
+        return e.errnoCode == ECONNRESET || e.errnoCode == EPIPE
       }
-      else { // We are not in a transaction. ECONNRESET is not an error.
-        assert(transaction == nil)
-        
-        if let error = error as? IOError, error.errnoCode == ECONNRESET {
-          server.log.trace("HTTP ECONNRESET, closing connection: \(error)")
-          // Do not emit ECONNRESET
+      
+      if let ( id, request, response ) = transaction {
+        self.transaction = nil
+        if isClientDisconnect(error) {
+          server.log.warning("HTTP client disconnect in TX \(id): \(error)")
+        }
+        else {
+          server.log.error("HTTP error in TX \(id), closing: \(error)")
+          server.emitError(error, transaction: ( request, response ))
+        }
+      }
+      else { // We are not in a transaction. disconnect is not an error.
+        if isClientDisconnect(error) {
+          server.log.trace("HTTP client disconnect, closing: \(error)")
         }
         else {
           server.log.error("HTTP error, closing connection: \(error)")
