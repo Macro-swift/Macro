@@ -301,7 +301,7 @@ final class WebSocketTests: XCTestCase {
 
   // MARK: - All Tests
 
-  static var allTests = [
+  static let allTests = [
     ( "testReadyStateValues",          testReadyStateValues          ),
     ( "testInitialReadyState",         testInitialReadyState         ),
     ( "testServerCreation",            testServerCreation            ),

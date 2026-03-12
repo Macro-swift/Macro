@@ -140,7 +140,7 @@ final class CollectionTests: XCTestCase {
     print("TOOK:", -start.timeIntervalSinceNow)
   }
 
-  static var allTests = [
+  static let allTests = [
     ( "testByteBufferSearch"              , testByteBufferSearch              ),
     ( "testByteBufferSearchNoMatch"       , testByteBufferSearchNoMatch       ),
     ( "testByteBufferSearchEmpty"         , testByteBufferSearchEmpty         ),
