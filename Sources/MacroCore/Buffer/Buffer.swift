@@ -73,6 +73,11 @@ public struct Buffer: Codable, Hashable, Sendable {
   {
     byteBuffer = allocator.buffer(capacity: capacity)
   }
+
+  @inlinable
+  public init() {
+    byteBuffer = MacroCore.shared.allocator.buffer(capacity: 1024)
+  }
   
   @inlinable public var isEmpty : Bool { return byteBuffer.readableBytes < 1 }
   @inlinable public var count   : Int  { return byteBuffer.readableBytes }
@@ -315,6 +320,21 @@ public extension Buffer {
     var buffer = Buffer(capacity: size)
     for sub in buffers { buffer.append(contentsOf: sub)}
     return buffer
+  }
+}
+
+extension Buffer: ExpressibleByStringLiteral {
+
+  @inlinable
+  public init(stringLiteral value: String) { self.init(value) }
+}
+
+extension Buffer: ExpressibleByArrayLiteral {
+
+  @inlinable
+  public init(arrayLiteral elements: UInt8...) {
+    self.init(capacity: elements.count)
+    append(contentsOf: elements)
   }
 }
 
