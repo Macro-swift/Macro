@@ -55,6 +55,15 @@ extension Buffer {
     bb.writeBytes(rawSpan)
     self.init(bb)
   }
+
+@available(macOS 26.0, iOS 26.0, tvOS 26.0, watchOS 26.0, visionOS 26.0, *)
+extension Buffer {
+
+  /// Initialize the Buffer with the UTF-8 bytes of a `UTF8Span`.
+  @inlinable
+  public init(_ utf8Span: UTF8Span) {
+    self.init(utf8Span.span)
+  }
 }
 
 #endif // compiler(>=6.2) && hasFeature(Lifetimes)
