@@ -349,6 +349,13 @@ extension Buffer: Collection {
   public var endIndex   : Int { return count }
 }
 
+extension Buffer: BidirectionalCollection {
+  @inlinable
+  public func index(before i: Int) -> Int { i - 1 }
+}
+
+extension Buffer: RandomAccessCollection {}
+
 extension Buffer: CustomStringConvertible {
   
   @inlinable
