@@ -104,11 +104,26 @@ final class BufferTests: XCTestCase {
     }
   }
 
-  static var allTests = [
-    ( "testIndexOf"     , testIndexOf     ),
-    ( "testLastIndexOf" , testLastIndexOf ),
-    ( "testSlice"       , testSlice       ),
-    ( "testJSON"        , testJSON        ),
-    ( "testDescription" , testDescription )
+  func testStringLiteral() {
+    let buf: Buffer = "Hello"
+    XCTAssertEqual(buf.count, 5)
+    XCTAssertEqual(buf[0], 0x48) // 'H'
+    XCTAssertEqual(buf[4], 0x6F) // 'o'
+  }
+
+  func testArrayLiteral() {
+    let buf: Buffer = [ 0x48, 0x65, 0x6C, 0x6C, 0x6F ]
+    XCTAssertEqual(buf.count, 5)
+    XCTAssertEqual(try buf.toString(), "Hello")
+  }
+
+  static let allTests = [
+    ( "testIndexOf"      , testIndexOf      ),
+    ( "testLastIndexOf"  , testLastIndexOf  ),
+    ( "testSlice"        , testSlice        ),
+    ( "testJSON"         , testJSON         ),
+    ( "testDescription"  , testDescription  ),
+    ( "testStringLiteral", testStringLiteral),
+    ( "testArrayLiteral" , testArrayLiteral )
   ]
 }

@@ -92,7 +92,7 @@ final class AgentTests: XCTestCase {
     waitForExpectations(timeout: 20, handler: nil)
   }
   
-  static var allTests = [
+  static let allTests = [
     ( "testSimpleGet"  , testSimpleGet  ),
     ( "testSimplePost" , testSimplePost )
   ]

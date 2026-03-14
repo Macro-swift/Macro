@@ -73,6 +73,11 @@ public struct Buffer: Codable, Hashable, Sendable {
   {
     byteBuffer = allocator.buffer(capacity: capacity)
   }
+
+  @inlinable
+  public init() {
+    byteBuffer = MacroCore.shared.allocator.buffer(capacity: 1024)
+  }
   
   @inlinable public var isEmpty : Bool { return byteBuffer.readableBytes < 1 }
   @inlinable public var count   : Int  { return byteBuffer.readableBytes }
@@ -318,6 +323,21 @@ public extension Buffer {
   }
 }
 
+extension Buffer: ExpressibleByStringLiteral {
+
+  @inlinable
+  public init(stringLiteral value: String) { self.init(value) }
+}
+
+extension Buffer: ExpressibleByArrayLiteral {
+
+  @inlinable
+  public init(arrayLiteral elements: UInt8...) {
+    self.init(capacity: elements.count)
+    append(contentsOf: elements)
+  }
+}
+
 extension Buffer: Collection {
   
   @inlinable
@@ -328,6 +348,13 @@ extension Buffer: Collection {
   @inlinable
   public var endIndex   : Int { return count }
 }
+
+extension Buffer: BidirectionalCollection {
+  @inlinable
+  public func index(before i: Int) -> Int { i - 1 }
+}
+
+extension Buffer: RandomAccessCollection {}
 
 extension Buffer: CustomStringConvertible {
   

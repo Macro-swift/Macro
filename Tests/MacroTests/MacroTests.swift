@@ -58,7 +58,7 @@ final class MacroBaseTests: XCTestCase {
     XCTAssertEqual(try res.writableBuffer?.toString() ?? "", "Hello World")
   }
 
-  static var allTests = [
+  static let allTests = [
     ( "testDirname"         , testDirname         ),
     ( "testBasename"        , testBasename        ),
     ( "testTestResponse"    , testTestResponse    ),

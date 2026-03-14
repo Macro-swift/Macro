@@ -38,7 +38,7 @@ final class PathTests: XCTestCase {
     XCTAssertEqual(path.extname("image.gif")   , ".gif")
   }
 
-  static var allTests = [
+  static let allTests = [
     ( "testBasename"         , testBasename         ),
     ( "testBasenameWithDrop" , testBasenameWithDrop ),
     ( "testDirname"          , testDirname          ),

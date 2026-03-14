@@ -34,7 +34,7 @@ final class ByteBufferTests: XCTestCase {
     XCTAssertEqual(bb.readableBytesView.startIndex , 1)
   }
 
-  static var allTests = [
+  static let allTests = [
     ( "testByteBufferAssumptions" , testByteBufferAssumptions )
   ]
 }
