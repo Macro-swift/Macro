@@ -42,14 +42,10 @@ public extension WritableStreamType where WritablePayload == Buffer {
   }
   
   @inlinable
-  func end(_ string: String, _ encoding: String.Encoding = .utf8) {
-    do {
-      write(try Buffer.from(string, encoding)) { self.end() }
-    }
-    catch {
-      emit(error: error)
-    }
+  func end(_ string: String) {
+    write(Buffer(string)) { self.end() }
   }
+  
   @inlinable
   func end(_ string: String, _ encoding: String) {
     do {
