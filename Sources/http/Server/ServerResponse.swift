@@ -18,10 +18,10 @@ import struct   MacroCore.Buffer
 
 /**
  * An object representing the response an HTTP server sends out to the client.
- * It is created by the `http.Server` object when an HTTP transaction is
+ * It is created by the ``http/Server`` object when an HTTP transaction is
  * started.
  *
- * This is a `WritableByteStream`.
+ * This is a ``WritableByteStream``.
  *
  * Example:
  * ```swift
@@ -32,15 +32,14 @@ import struct   MacroCore.Buffer
  * }
  * ```
  * 
- * Make sure to call `end` to close the connection properly.
+ * Make sure to call ``end()`` to close the connection properly.
  *
  * Hierarchy:
- *
- *   WritableStreamBase
- *     WritableByteStreamBase
- *       OutgoingMessage
- *       * ServerResponse
- *         ClientRequest
+ * - ``WritableStreamBase``
+ *   - ``WritableByteStreamBase``
+ *     - ``OutgoingMessage``
+ *       - **`ServerResponse`**
+ *       - ``ClientRequest``
  *       
  * Async/Await: This is marked `@unchecked Sendable`. The class itself is *NOT*
  * actually thread safe. But it is also not assumed to be accessed by multiple
@@ -61,11 +60,13 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   private var corkCount      = 0
   open    var writableBuffer : Buffer?
 
+  @inlinable
   public convenience init(channel: Channel,
                           log: Logger = .init(label: "μ.http"))
   {
     self.init(unsafeChannel: channel, log: log)
   }
+  @inlinable
   override public init(unsafeChannel channel: Channel?, log: Logger) {
     super.init(unsafeChannel: channel, log: log)
   }

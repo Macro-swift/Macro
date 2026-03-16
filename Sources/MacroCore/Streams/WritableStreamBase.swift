@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 /**
@@ -17,7 +17,7 @@
  *
  * ## Subclassing
  *
- * - the subclass should to conform to `WritableStreamType`
+ * - the subclass should to conform to ``WritableStreamType``
  */
 open class WritableStreamBase<WritablePayload>: ErrorEmitter {
 
@@ -26,14 +26,10 @@ open class WritableStreamBase<WritablePayload>: ErrorEmitter {
   public var drainListeners        = EventListenerSet<Void>()
   
   open var writableEnded : Bool {
-    get {
-      fatalError("subclass responsibility \(#function)")
-    }
+    fatalError("subclass responsibility \(#function)")
   }
   open var writableFinished : Bool {
-    get {
-      fatalError("subclass responsibility \(#function)")
-    }
+    fatalError("subclass responsibility \(#function)")
   }
   open var writableCorked : Bool { return false }
   open var writable       : Bool { return !writableFinished }

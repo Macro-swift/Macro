@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 /**
@@ -14,8 +14,8 @@
  *
  * Hierarchy:
  * 
- *   WritableStreamBase
- *     WritableByteStreamBase
+ * - ``WritableStreamBase``
+ *   - ``WritableByteStream``
  */
 open class WritableByteStream: WritableStreamBase<Buffer> {
 
