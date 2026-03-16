@@ -161,17 +161,28 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
         setHeader("Content-Length", buffer.count)
       }
     }
+    assert(!writableCorked, "Writable still corked?")
+    
     if !headersSent { primaryWriteHead() }
 
     if let channel = socket {
       state = .isEnding
-      if writableBuffer != nil {
-        return flush() // this will recurse
+      if let buffer = writableBuffer {
+        writableBuffer = nil
+        channel.writeAndFlush(HTTPServerResponsePart
+                                .body(.byteBuffer(buffer.byteBuffer)))
+               .whenComplete { result in
+                 switch result {
+                   case .success(_): break
+                   case .failure(let error): self.handleError(error)
+                 }
+               }
       }
       channel.writeAndFlush(HTTPServerResponsePart.end(nil))
              .whenComplete { result in
-               if case .failure(let error) = result {
-                 self.handleError(error)
+               switch result {
+                 case .success(_): break
+                 case .failure(let error): self.handleError(error)
                }
                self.state = .finished
                self.finishListeners.emit()
