@@ -42,14 +42,10 @@ public extension WritableStreamType where WritablePayload == Buffer {
   }
   
   @inlinable
-  func end(_ string: String, _ encoding: String.Encoding = .utf8) {
-    do {
-      write(try Buffer.from(string, encoding)) { self.end() }
-    }
-    catch {
-      emit(error: error)
-    }
+  func end(_ string: String) {
+    write(Buffer(string)) { self.end() }
   }
+  
   @inlinable
   func end(_ string: String, _ encoding: String) {
     do {
@@ -61,18 +57,19 @@ public extension WritableStreamType where WritablePayload == Buffer {
   }
 }
 
-import struct Foundation.Data
-
 public extension WritableStreamType where WritablePayload == Buffer {
   
   @inlinable
   @discardableResult
-  func write(_ data: Data, whenDone: @escaping () -> Void = {}) -> Bool {
+  func write<T>(_ data: T, whenDone: @escaping () -> Void = {}) -> Bool 
+    where T: Collection, T.Element == UInt8
+  {
     return write(Buffer(data), whenDone: whenDone)
   }
   
   @inlinable
-  func end(_ data: Data) {
-    write(Buffer(data)) { self.end() }
+  func end<T>(_ data: T) where T: Collection, T.Element == UInt8 {
+    if data.isEmpty { end() }
+    else { write(Buffer(data)) { self.end() } }
   }
 }

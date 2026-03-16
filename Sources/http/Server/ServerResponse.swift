@@ -18,10 +18,10 @@ import struct   MacroCore.Buffer
 
 /**
  * An object representing the response an HTTP server sends out to the client.
- * It is created by the `http.Server` object when an HTTP transaction is
+ * It is created by the ``http/Server`` object when an HTTP transaction is
  * started.
  *
- * This is a `WritableByteStream`.
+ * This is a ``WritableByteStream``.
  *
  * Example:
  * ```swift
@@ -32,15 +32,14 @@ import struct   MacroCore.Buffer
  * }
  * ```
  * 
- * Make sure to call `end` to close the connection properly.
+ * Make sure to call ``end()`` to close the connection properly.
  *
  * Hierarchy:
- *
- *   WritableStreamBase
- *     WritableByteStreamBase
- *       OutgoingMessage
- *       * ServerResponse
- *         ClientRequest
+ * - ``WritableStreamBase``
+ *   - ``WritableByteStreamBase``
+ *     - ``OutgoingMessage``
+ *       - **`ServerResponse`**
+ *       - ``ClientRequest``
  *       
  * Async/Await: This is marked `@unchecked Sendable`. The class itself is *NOT*
  * actually thread safe. But it is also not assumed to be accessed by multiple
@@ -61,11 +60,13 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   private var corkCount      = 0
   open    var writableBuffer : Buffer?
 
+  @inlinable
   public convenience init(channel: Channel,
                           log: Logger = .init(label: "μ.http"))
   {
     self.init(unsafeChannel: channel, log: log)
   }
+  @inlinable
   override public init(unsafeChannel channel: Channel?, log: Logger) {
     super.init(unsafeChannel: channel, log: log)
   }
@@ -145,21 +146,43 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   
   override open func end() {
     guard !writableEnded else { return }
-    if !headersSent { primaryWriteHead() }
-    
+
     if writableCorked {
+      // 2026-03-16: I'm not entirely sure this is a good idea. Does end'ing
+      //             a response really override corking behaviour?
+      // This thing is useful and was added to better support clients that do
+      // not support chunked encoding / need a content-length. 
+      // By corking we make them spool up content in memory and can then set the
+      // Content-Length.
       corkCount = 0
+      if !headersSent, let buffer = writableBuffer,
+         headers["Content-Length"].isEmpty
+      {
+        setHeader("Content-Length", buffer.count)
+      }
     }
+    assert(!writableCorked, "Writable still corked?")
+    
+    if !headersSent { primaryWriteHead() }
 
     if let channel = socket {
       state = .isEnding
-      if writableBuffer != nil {
-        return flush() // this will recurse
+      if let buffer = writableBuffer {
+        writableBuffer = nil
+        channel.writeAndFlush(HTTPServerResponsePart
+                                .body(.byteBuffer(buffer.byteBuffer)))
+               .whenComplete { result in
+                 switch result {
+                   case .success(_): break
+                   case .failure(let error): self.handleError(error)
+                 }
+               }
       }
       channel.writeAndFlush(HTTPServerResponsePart.end(nil))
              .whenComplete { result in
-               if case .failure(let error) = result {
-                 self.handleError(error)
+               switch result {
+                 case .success(_): break
+                 case .failure(let error): self.handleError(error)
                }
                self.state = .finished
                self.finishListeners.emit()
@@ -257,15 +280,17 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
       return true
     }
     
-    if !headersSent { primaryWriteHead() }
-    
     if writableCorked {
       // TBD: would probably better to couple the whenDone with the buffers?
       if writableBuffer != nil { writableBuffer?.append(bytes) }
       else                     { writableBuffer = bytes        }
       whenDone(nil)
+      // This returns false if the high water mark has been hit, so that the
+      // callsite knows that backpressure should be applied.
       return (writableBuffer?.count ?? 0) < writableHighWaterMark
     }
+
+    if !headersSent { primaryWriteHead() }
     
     guard let channel = socket else {
       handleError(WritableError.writableEnded)
@@ -287,6 +312,9 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     return true
   }
   
+  /// Version of ``write(_:whenDone:)-(_,(Error?)->Void)`` that doesn't care
+  /// about errors in the done closure (can still use `.onError`).
+  @inlinable
   @discardableResult
   override open func write(_ bytes: Buffer,
                            whenDone: @escaping () -> Void = {}) -> Bool

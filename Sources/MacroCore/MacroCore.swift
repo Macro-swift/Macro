@@ -230,10 +230,9 @@ public final class MacroCore {
     
     guard !wasRegistered else { return }
 
-    // Probe: if the main queue is already being drained
-    // (e.g. by Swift's async main executor), this block
-    // runs before the atexit handler and sets the flag.
-    // For sync main it runs after dispatchMain() — harmless.
+    // Probe: if the main queue is already setup (e.g. by Swift's async main
+    // executor), this block runs before the atexit handler and sets the flag.
+    // For sync main it runs after dispatchMain().
     DispatchQueue.main.async {
       MacroCore.shared.hasMainLoop.store(true, ordering: .relaxed)
     }
@@ -243,20 +242,20 @@ public final class MacroCore {
         wasInExit = true
 
         if !MacroCore.shared.hasMainLoop.load(ordering: .relaxed) {
-          // Sync main — start the dispatch loop
-          // unconditionally (may have GCD work;
+          // Sync main: start the dispatch loop unconditionally (may have GCD
+          // work pending).
           // maybeTerminate() handles exit-when-idle).
           MacroCore.shared.run() // never returns
         }
 
-        // Async main — can't call dispatchMain().
+        // Async main => calling dispatchMain() will trap on a precondition.
         // Block until pending NIO work drains.
         let wc = MacroCore.shared.workCount.load(ordering: .relaxed)
         guard wc > 0 else { return }
         let sem = DispatchSemaphore(value: 0)
         MacroCore.shared._atexitSemaphore.withLockedValue { $0 = sem }
-        // Re-check after installing (release may have
-        // fired between the load and the install).
+        // Re-check after installing (release may have fired between the load
+        // and the install).
         if MacroCore.shared.workCount.load(ordering: .relaxed) > 0 {
           sem.wait()
         }

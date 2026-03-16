@@ -68,7 +68,7 @@ public struct Buffer: Codable, Hashable, Sendable {
   }
 
   @inlinable
-  public init(capacity  : Int = 1024,
+  public init(capacity  : Int = 0,
               allocator : ByteBufferAllocator = MacroCore.shared.allocator)
   {
     byteBuffer = allocator.buffer(capacity: capacity)
@@ -76,7 +76,7 @@ public struct Buffer: Codable, Hashable, Sendable {
 
   @inlinable
   public init() {
-    byteBuffer = MacroCore.shared.allocator.buffer(capacity: 1024)
+    byteBuffer = MacroCore.shared.allocator.buffer(capacity: 0)
   }
   
   @inlinable public var isEmpty : Bool { return byteBuffer.readableBytes < 1 }
