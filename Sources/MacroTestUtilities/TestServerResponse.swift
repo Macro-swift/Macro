@@ -48,9 +48,8 @@ open class TestServerResponse: ServerResponse, @unchecked Sendable {
         setHeader(name, value)
       }
     }
-    let head = HTTPResponseHead(version: version,
-                                status: status, headers: headers)
-    primaryWriteHead(head)
+    self.status = status
+    primaryWriteHead()
   }
   
   
