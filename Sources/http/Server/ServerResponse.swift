@@ -60,6 +60,8 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   private var corkCount      = 0
   open    var writableBuffer : Buffer?
 
+  private var willWriteHeadCallbacks = [ ( ServerResponse ) -> Void ]()
+
   @inlinable
   public convenience init(channel: Channel,
                           log: Logger = .init(label: "μ.http"))
@@ -97,41 +99,59 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   
   // MARK: - Emit Header
   
+  /**
+   * Register a one-shot callback that fires right before response headers are 
+   * sent. 
+   * 
+   * Similar to the Node.js `on-headers` package, but w/o monkey-patching :-)
+   *
+   * Example:
+   * ```swift
+   * res.onceWriteHead {
+   *   res.setHeader("X-Response-Time", "\(elapsed)ms")
+   * }
+   * ```
+   */
+  @discardableResult
+  public func onceWriteHead(execute: @escaping ( ServerResponse ) -> Void) 
+              -> Self 
+  {
+    willWriteHeadCallbacks.append(execute)
+    return self
+  }
+
   @usableFromInline
-  internal func primaryWriteHead(_ part: HTTPResponseHead) {
+  internal func primaryWriteHead() {
     assert(!headersSent)
     guard !headersSent else { return }
+
+    if !willWriteHeadCallbacks.isEmpty {
+      let cbs = willWriteHeadCallbacks
+      willWriteHeadCallbacks.removeAll()
+      for cb in cbs { cb(self) }
+    }
+    let head = HTTPResponseHead(version: version,
+                                status: status, headers: headers)
     headersSent = true
     
     if let channel = socket {
-      channel.writeAndFlush(HTTPServerResponsePart.head(part))
+      channel.writeAndFlush(HTTPServerResponsePart.head(head))
              .whenFailure(handleError)
     }
     else {
-      version = part.version
-      status  = part.status
-      headers = part.headers
+      version = head.version
+      status  = head.status
+      headers = head.headers
     }
-  }
-  @usableFromInline
-  internal func primaryWriteHead() {
-    let head = HTTPResponseHead(version: version,
-                                status: status, headers: headers)
-    primaryWriteHead(head)
   }
 
   @inlinable
   open func writeHead(_ status: HTTPResponseStatus = .ok,
                       headers: HTTPHeaders = [:])
   {
-    if !headers.isEmpty {
-      for ( name, value ) in headers {
-        setHeader(name, value)
-      }
-    }
-    let head = HTTPResponseHead(version: version,
-                                status: status, headers: headers)
-    primaryWriteHead(head)
+    for ( name, value ) in headers { setHeader(name, value) }
+    self.status = status
+    primaryWriteHead()
   }
   
   
@@ -198,6 +218,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   private func _clearListenersOnFinish() {
     finishListeners.removeAll()
     errorListeners .removeAll()
+    willWriteHeadCallbacks.removeAll()
   }
   
   
