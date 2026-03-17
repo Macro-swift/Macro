@@ -3,7 +3,7 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Hess on 21/07/16.
-//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
 #if os(Windows)
@@ -49,9 +49,11 @@ public protocol timeval_any {
 #if !os(Windows)
 public extension timeval_any {
 
+  @inlinable
   var componentsInUTC : xsys.struct_tm {
     return time_t(seconds).componentsInUTC
   }
+  @inlinable
   var componentsInLocalTime : xsys.struct_tm {
     return time_t(seconds).componentsInLocalTime
   }
@@ -60,13 +62,14 @@ public extension timeval_any {
 
 extension time_t : timeval_any {
   
+  @inlinable
   public init(seconds: Int, milliseconds: Int = 0) {
     assert(milliseconds == 0) // just print a warning, the user should know
     self = seconds
   }
   
-  public var seconds      : Int { return self }
-  public var milliseconds : Int { return self * 1000 }
+  @inlinable public var seconds      : Int { return self }
+  @inlinable public var milliseconds : Int { return self * 1000 }
 }
 
 
@@ -78,10 +81,9 @@ extension timeval : timeval_any {
     return now
   }
 
+  @inlinable
   public init(_ ts: timespec) {
-    #if swift(>=4.1)
-      self.init()
-    #endif
+    self.init()
     tv_sec  = ts.seconds
 #if os(Linux)
     tv_usec = ts.tv_nsec / 1000
@@ -90,10 +92,9 @@ extension timeval : timeval_any {
 #endif
   }
   
+  @inlinable
   public init(seconds: Int, milliseconds: Int = 0) {
-    #if swift(>=4.1)
-      self.init()
-    #endif
+    self.init()
     tv_sec  = seconds + (milliseconds / 1000)
 #if os(Linux)
     tv_usec = (milliseconds % 1000) * 1000
@@ -102,11 +103,13 @@ extension timeval : timeval_any {
 #endif
   }
   
+  @inlinable
   public var seconds : Int {
     // TBD: rounding on tv_usec?
     return Int(tv_sec)
   }
   
+  @inlinable
   public var milliseconds : Int {
     return (tv_sec * 1000) + (Int(tv_usec) / 1000)
   }
@@ -115,29 +118,30 @@ extension timeval : timeval_any {
 
 extension timespec : timeval_any {
   
+  @inlinable
   public static var now : timespec { return timespec(timeval.now) }
 
+  @inlinable
   public init(_ tv: timeval) {
-    #if swift(>=4.1)
-      self.init()
-    #endif
+    self.init()
     tv_sec  = tv.seconds
     tv_nsec = Int(tv.tv_usec) * 1000
   }
   
+  @inlinable
   public init(seconds: Int, milliseconds: Int = 0) {
-    #if swift(>=4.1)
-      self.init()
-    #endif
+    self.init()
     tv_sec  = seconds + (milliseconds / 1000)
     tv_nsec = (milliseconds % 1000) * 1000000
   }
   
+  @inlinable
   public var seconds : Int {
     // TBD: rounding on tv_nsec?
     return tv_sec
   }
   
+  @inlinable
   public var milliseconds : Int {
     return (tv_sec * 1000) + (tv_nsec / 1000000)
   }

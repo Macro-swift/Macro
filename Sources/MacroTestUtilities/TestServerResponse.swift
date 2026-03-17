@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 import struct Logging.Logger
@@ -19,7 +19,7 @@ public let MacroTestLogger = Logger(label: "μ.tests")
 /**
  * A ServerResponse for testing purposes. Doesn't write to an actual Channel.
  */
-open class TestServerResponse: ServerResponse {
+open class TestServerResponse: ServerResponse, @unchecked Sendable {
   
   public var continueCount  = 0
   public var writtenContent = Buffer()
@@ -33,16 +33,10 @@ open class TestServerResponse: ServerResponse {
   // MARK: - Emit Header
   
   @usableFromInline
-  internal func primaryWriteHead(_ part: HTTPResponseHead) {
+  internal func primaryWriteHead() {
     assert(!headersSent)
     guard !headersSent else { return }
     headersSent = true
-  }
-  @usableFromInline
-  internal func primaryWriteHead() {
-    let head = HTTPResponseHead(version: version,
-                                status: status, headers: headers)
-    primaryWriteHead(head)
   }
   
   @inlinable

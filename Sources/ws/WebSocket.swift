@@ -6,7 +6,7 @@
 //  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
-import Foundation
+import Foundation // URL
 import Logging
 import MacroCore
 import NIO
@@ -72,8 +72,8 @@ open class WebSocket: ErrorEmitter {
     case connectionNotOpen
     case upgradeFailed       (status: Int?)
     case invalidURL          (String)
-    case unsupportedURLScheme(URL)
-    case missingPortInURL    (URL)
+    case unsupportedURLScheme(String)
+    case missingPortInURL    (String)
   }
 
   // MARK: - Properties
@@ -116,7 +116,7 @@ open class WebSocket: ErrorEmitter {
     
     guard let bootstrap = bootstrapForURL(url) else {
       nextTick {
-        self.emit(error: WebSocketError.unsupportedURLScheme(url))
+        self.emit(error:WebSocketError.unsupportedURLScheme(url.absoluteString))
       }
       return
     }
@@ -125,7 +125,7 @@ open class WebSocket: ErrorEmitter {
     if let host = url.host {
       guard let port = url.port ?? defaultPortForScheme(url.scheme) else {
         nextTick {
-          self.emit(error: WebSocketError.missingPortInURL(url))
+          self.emit(error: WebSocketError.missingPortInURL(url.absoluteString))
         }
         return
       }
@@ -324,11 +324,23 @@ open class WebSocket: ErrorEmitter {
    * Send a ping frame to the remote peer.
    *
    * The remote should respond with a pong frame, which will trigger the
-   * `onPong` listeners.
-   *
-   * - Parameter data: Optional payload data for the ping (max 125 bytes).
+   * ``onPong(execute:)`` listeners.
    */
-  public func ping(_ data: Data? = nil) {
+  @inlinable
+  public func ping() {
+    self.ping([UInt8]())
+  }
+
+  /**
+   * Send a ping frame to the remote peer.
+   *
+   * The remote should respond with a pong frame, which will trigger the
+   * ``onPong(execute:)`` listeners.
+   *
+   * - Parameters:
+   *   - data: Optional payload data for the ping (max 125 bytes).
+   */
+  public func ping<C>(_ data: C) where C: Collection, C.Element == UInt8 {
     lock.lock()
     guard let channel = channel, readyState == .open else {
       lock.unlock()
@@ -336,16 +348,11 @@ open class WebSocket: ErrorEmitter {
     }
     lock.unlock()
 
-    var buffer: ByteBuffer
-    if let data = data {
-      buffer = channel.allocator.buffer(capacity: min(data.count, 125))
-      buffer.writeBytes(data.prefix(125))
-    }
-    else {
-      buffer = channel.allocator.buffer(capacity: 0)
-    }
-
-    let frame = WebSocketFrame(fin: true, opcode: .ping, data: buffer)
+    var buffer = channel.allocator.buffer(
+      capacity: min(data.count, 125))
+    buffer.writeBytes(data.prefix(125))
+    let frame = WebSocketFrame(fin: true, opcode: .ping,
+                               data: buffer)
     channel.writeAndFlush(frame).whenFailure(self.emit(error:))
   }
 
@@ -354,8 +361,9 @@ open class WebSocket: ErrorEmitter {
    *
    * - Parameter text: The text string to send.
    */
-  public func send(text: String) {
-    send(binary: Data(text.utf8), opcode: .text)
+  @inlinable
+  public func send(text: String, opcode: WebSocketOpcode = .text) {
+    send(binary: text.utf8, opcode: opcode)
   }
 
   /**
@@ -363,8 +371,8 @@ open class WebSocket: ErrorEmitter {
    *
    * - Parameter binary: The binary data to send.
    */
-  public func send(binary data: Data,
-                   opcode: WebSocketOpcode = .binary)
+  public func send<C>(binary data: C, opcode: WebSocketOpcode = .binary)
+    where C: Collection, C.Element == UInt8
   {
     lock.lock()
     guard let channel = channel, readyState == .open else {
@@ -376,7 +384,8 @@ open class WebSocket: ErrorEmitter {
     var buffer = channel.allocator.buffer(capacity: data.count)
     buffer.writeBytes(data)
 
-    let frame = WebSocketFrame(fin: true, opcode: opcode, data: buffer)
+    let frame = WebSocketFrame(fin: true, opcode: opcode,
+                               data: buffer)
     channel.writeAndFlush(frame).whenFailure(self.emit(error:))
   }
 

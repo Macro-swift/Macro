@@ -3,7 +3,7 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Heß on 6/8/16.
-//  Copyright © 2016-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
 #if os(Windows)
@@ -15,11 +15,10 @@
 #endif
 
 #if canImport(Foundation)
-  import struct Foundation.URL
-  import class  Foundation.FileManager
+  import Foundation // URL/FileManager
 #endif
 
-public enum PathModule {}
+public enum PathModule: Hashable, Sendable {}
 public typealias path = PathModule
 
 public extension PathModule {
@@ -138,8 +137,154 @@ public extension PathModule {
       }
       let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
       return buildPath(cwd, with: components)
+    }
+  #endif
+
+  /**
+   * Normalizes a path, resolving `..` and `.` segments and collapsing repeated 
+   * separators.
+   *
+   * Example:
+   * ```swift
+   * path.normalize("/foo/bar//baz/../quux")
+   * // => "/foo/bar/quux"
+   * ```
+   */
+  @inlinable
+  static func normalize(_ p: String) -> String {
+    guard !p.isEmpty else { return "." }
+    #if canImport(Foundation)
+      let isAbs = p.hasPrefix("/")
+      let url = URL(fileURLWithPath: p).standardized
+      var result = url.path
+      if result.isEmpty { result = isAbs ? "/" : "." }
+      return result
+    #else
+    assertionFailure("normalize is disabled for this target")
+      return p // fallback: return as-is
+    #endif
+  }
+
+  /**
+   * Returns `true` if the path is absolute (starts with `/` on POSIX, or a 
+   * drive letter on Windows).
+   */
+  @inlinable
+  static func isAbsolute(_ p: String) -> Bool {
+    #if os(Windows)
+      if p.count >= 3 {
+        let c = p.utf8
+        let i = c.startIndex
+        let second = c.index(after: i)
+        let third  = c.index(after: second)
+        if c[second] == 58 /* : */ && (c[third] == 47 || c[third] == 92) {
+          return true 
+        }
+      }
+      return p.hasPrefix("\\") || p.hasPrefix("/")
+    #else
+      return p.hasPrefix("/")
+    #endif
+  }
+
+  #if canImport(Foundation)
+  /**
+   * Returns the relative path from `from` to `to`.
+   *
+   * Example:
+   * ```swift
+   * path.relative(from: "/data/test", to: "/data/impl/file")
+   * // => "../impl/file"
+   * ```
+   */
+  static func relative(_ from: String, _ to: String) -> String {
+    let fromComps = normalize(from)
+      .split(separator: "/", omittingEmptySubsequences: true)
+    let toComps = normalize(to)
+      .split(separator: "/", omittingEmptySubsequences: true)
+
+    var common = 0
+    let limit  = min(fromComps.count, toComps.count)
+    while common < limit && fromComps[common] == toComps[common] {
+      common += 1
+    }
+
+    let ups = fromComps.count - common
+    var result = ""
+    for _ in 0..<ups {
+      if !result.isEmpty { result += "/" }
+      result += ".."
+    }
+    for i in common..<toComps.count {
+      if !result.isEmpty { result += "/" }
+      result += toComps[i]
+    }
+    return result.isEmpty ? "." : result
   }
   #endif
+
+  /**
+   * Components returned by ``parse(_:)``.
+   */
+  struct ParsedPath: Hashable, Sendable {
+
+    /// Root of the path (`"/"` or `""`)
+    public var root : String
+    /// Directory portion
+    public var dir  : String
+    /// Filename with extension
+    public var base : String
+    /// Filename without extension
+    public var name : String
+    /// File extension (including leading dot)
+    public var ext  : String
+
+    @inlinable
+    public init(root: String, dir: String, base: String, name: String, 
+                ext: String)
+    {
+      self.root = root
+      self.dir  = dir
+      self.base = base
+      self.ext  = ext
+      self.name = name
+    }
+
+    /**
+     * Parses a path into its components.
+     *
+     * Example:
+     * ```swift
+     * let p = path.parse("/home/user/file.txt")
+     * // p.root => "/", p.dir => "/home/user"
+     * // p.base => "file.txt", p.ext => ".txt"
+     * // p.name => "file"
+     * ```
+     */
+    @inlinable
+    public init(path p: String) {
+      let root = p.hasPrefix("/") ? "/" : "" // TODO: Windows drive letters?
+      let dir  = dirname(p)
+      let base = basename(p)
+      let ext  = extname(p)
+      let name = ext.isEmpty ? base : String(base.dropLast(ext.count))
+      self.init(root: root, dir: dir, base: base, name: name, ext: ext)
+    }
+  }
+
+  /**
+   * Parses a path into its components.
+   *
+   * Example:
+   * ```swift
+   * let p = path.parse("/home/user/file.txt")
+   * // p.root => "/", p.dir => "/home/user"
+   * // p.base => "file.txt", p.ext => ".txt"
+   * // p.name => "file"
+   * ```
+   */
+  @inlinable
+  static func parse(_ p: String) -> ParsedPath { ParsedPath(path: p) }
 }
 
 

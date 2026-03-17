@@ -3,7 +3,7 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Hess on 31/05/16.
-//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
 #if os(Windows)
@@ -15,7 +15,8 @@
   public typealias timeval  = Glibc.timeval
 
   public extension timespec {
-    
+
+    @inlinable    
     static func monotonic() -> timespec {
       var ts = timespec()
       clock_gettime(CLOCK_MONOTONIC, &ts)
@@ -31,14 +32,14 @@
 
   public extension timespec {
     
+    @inlinable    
     init(_ mts: mach_timespec_t) {
-      #if swift(>=4.1)
-        self.init()
-      #endif
+      self.init()
       tv_sec  = __darwin_time_t(mts.tv_sec)
       tv_nsec = Int(mts.tv_nsec)
     }
     
+    @inlinable    
     static func monotonic() -> timespec {
       var cclock = clock_serv_t()
       var mts    = mach_timespec_t()
@@ -54,6 +55,7 @@
 
 #if !os(Windows)
 
+@inlinable    
 public func -(left: timespec, right: timespec) -> timespec {
   var result = timespec()
   
@@ -69,6 +71,7 @@ public func -(left: timespec, right: timespec) -> timespec {
   return result
 }
 
+@inlinable    
 public func -(left: timeval, right: timeval) -> timeval {
   var result = timeval()
   
@@ -85,6 +88,7 @@ public func -(left: timeval, right: timeval) -> timeval {
 }
 
 extension timespec {
+  @inlinable    
   public var description : String {
     switch ( tv_sec, tv_nsec ) {
       case ( 0, 0 ): return "timespec()"
@@ -96,6 +100,7 @@ extension timespec {
 }
 
 extension timeval {
+  @inlinable    
   public var description : String {
     switch ( tv_sec, tv_usec ) {
       case ( 0, 0 ): return "timeval()"
