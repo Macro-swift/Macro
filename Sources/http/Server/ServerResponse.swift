@@ -236,15 +236,15 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
    */
   @inlinable
   public var statusMessage : String {
-    set { status = HTTPResponseStatus(statusCode   : statusCode,
-                                      reasonPhrase : newValue) }
+    set {
+      status = HTTPResponseStatus(statusCode: statusCode, reasonPhrase:newValue) 
+    }
     get { return status.reasonPhrase }
   }
   
   @inlinable
-  open func writeHead(_ statusCode: Int,
-                      _ statusMessage : String?,
-                      _ headers       : [ String : Any ] = [ : ])
+  open func writeHead(_ statusCode: Int, _ statusMessage : String?,
+                      _ headers: [ String : Any ] = [ : ])
   {
     assert(!headersSent)
     guard !headersSent else { return }
@@ -253,16 +253,12 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     if let s = statusMessage { self.statusMessage = s }
      
     // merge in headers
-    for ( key, value ) in headers {
-      setHeader(key, value)
-    }
+    for ( key, value ) in headers { setHeader(key, value) }
     
     primaryWriteHead()
   }
   @inlinable
-  public func writeHead(_ statusCode : Int,
-                        _ headers    : [ String : Any ] = [ : ])
-  {
+  public func writeHead(_ statusCode: Int, _ headers: [ String : Any ] = [:]) {
     writeHead(statusCode, nil, headers)
   }
   
