@@ -7,13 +7,22 @@
 //
 
 import XCTest
+import NIOCore
 import NIOPosix
 import Macro6
 @testable import MacroCore
 
-@MainActor
+private func assertOnMainActor() {
+  #if canImport(Darwin)
+  XCTAssertTrue(Thread.isMainThread)
+  #else
+  MainActor.assertIsolated()
+  #endif
+}
+
+// Note: Tests are `nonisolated` because `@MainActor` on XCTestCase
+// subclasses doesn't work with XCTest test discovery on Linux.
 final class MainActorNextTickTests: XCTestCase {
-  // We test
 
   override class func setUp() {
     disableAtExitHandler()
@@ -22,49 +31,47 @@ final class MainActorNextTickTests: XCTestCase {
 
   // MARK: - @MainActor nextTick
 
-  func testMainActorNextTick() {
-    XCTAssertTrue(Thread.isMainThread)
-    let exp = expectation(description: "MainActor nextTick fires")
-    nextTick { @MainActor in // isolate closure to main actor
-      XCTAssertNil(MultiThreadedEventLoopGroup.currentEventLoop)
-      XCTAssertTrue(Thread.isMainThread)
-      exp.fulfill()
+  nonisolated func testMainActorNextTick() async {
+    await withCheckedContinuation { continuation in
+      nextTick { @MainActor in
+        XCTAssertNil(MultiThreadedEventLoopGroup.currentEventLoop)
+        assertOnMainActor()
+        continuation.resume()
+      }
     }
-    waitForExpectations(timeout: 2)
   }
 
-  func testMainActorNextTickOnEventLoop() {
-    XCTAssertTrue(Thread.isMainThread)
-    let exp  = expectation(description: "MainActor nextTick on loop")
+  nonisolated func testMainActorNextTickOnEventLoop() async {
     let loop = MacroCore.shared.eventLoopGroup.next()
-    nextTick(on: loop) { @MainActor in // isolate closure to main actor
-      XCTAssertNil(MultiThreadedEventLoopGroup.currentEventLoop)
-      XCTAssertTrue(Thread.isMainThread)
-      exp.fulfill()      
+    await withCheckedContinuation { continuation in
+      nextTick(on: loop) { @MainActor in
+        XCTAssertNil(MultiThreadedEventLoopGroup.currentEventLoop)
+        assertOnMainActor()
+        continuation.resume()
+      }
     }
-    waitForExpectations(timeout: 2)
   }
 
   // MARK: - @MainActor setTimeout
 
-  func testMainActorSetTimeout() {
-    let exp = expectation(description: "MainActor setTimeout fires")
-    setTimeout(10) { @MainActor in 
-      XCTAssertNil(MultiThreadedEventLoopGroup.currentEventLoop)
-      XCTAssertTrue(Thread.isMainThread)
-      exp.fulfill()      
+  nonisolated func testMainActorSetTimeout() async {
+    await withCheckedContinuation { continuation in
+      setTimeout(10) { @MainActor in
+        XCTAssertNil(MultiThreadedEventLoopGroup.currentEventLoop)
+        assertOnMainActor()
+        continuation.resume()
+      }
     }
-    waitForExpectations(timeout: 2)
   }
 
-  func testMainActorSetTimeoutOnEventLoop() {
-    let exp  = expectation(description: "MainActor setTimeout on loop")
+  nonisolated func testMainActorSetTimeoutOnEventLoop() async {
     let loop = MacroCore.shared.eventLoopGroup.next()
-    setTimeout(on: loop, 10) { @MainActor in
-      XCTAssertNil(MultiThreadedEventLoopGroup.currentEventLoop)
-      XCTAssertTrue(Thread.isMainThread)
-      exp.fulfill()      
+    await withCheckedContinuation { continuation in
+      setTimeout(on: loop, 10) { @MainActor in
+        XCTAssertNil(MultiThreadedEventLoopGroup.currentEventLoop)
+        assertOnMainActor()
+        continuation.resume()
+      }
     }
-    waitForExpectations(timeout: 2)
   }
 }
