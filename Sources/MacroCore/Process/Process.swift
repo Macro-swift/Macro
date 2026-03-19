@@ -22,7 +22,9 @@ import NIO
 public enum process {}
 
 public extension process {
-  static let nextTick = MacroCore.nextTick
+  static let nextTick :
+    (EventLoop?, @escaping () -> Void) -> Void
+    = { MacroCore.shared.nextTick(on: $0, $1) }
 }
 
 public extension process { // File System
