@@ -396,6 +396,11 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           
           let response = ServerResponse(channel: context.channel, log: log)
           response.version = head.version
+
+          // remember the time the response object got created.
+          // The Date header will be set on header flush if sendDate is on and
+          // the the header is missing.
+          response.date = time_t.now
           
           if head.version.major == 1 {
             let connectionHeaderCount = head

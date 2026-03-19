@@ -15,6 +15,9 @@ import enum     NIOHTTP1.HTTPServerResponsePart
 import struct   Logging.Logger
 import enum     MacroCore.WritableError
 import struct   MacroCore.Buffer
+import protocol MacroCore.EnvironmentKey
+import struct   MacroCore.EnvironmentValues
+import xsys
 
 /**
  * An object representing the response an HTTP server sends out to the client.
@@ -124,6 +127,11 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   internal func primaryWriteHead() {
     assert(!headersSent)
     guard !headersSent else { return }
+    
+    if sendDate, getHeader("Date") == nil {
+      setHeader("Date", 
+                self.date.componentsInUTC.format("%a, %d %b %Y %H:%M:%S GMT"))
+    }
 
     if !willWriteHeadCallbacks.isEmpty {
       let cbs = willWriteHeadCallbacks
@@ -372,6 +380,32 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     }
 
     return ms
+  }
+}
+
+// MARK: - Date Environment Key
+
+/// Environment key holding the `time_t` when the response was created.
+enum DateEnvironmentKey: EnvironmentKey {
+  static let defaultValue : time_t = 0
+  static let loggingKey   = "date"
+}
+
+public extension ServerResponse {
+
+  /// The Unix timestamp (`time_t`) when the response was created.
+  var date : time_t {
+    set { self[DateEnvironmentKey.self] = newValue }
+    get {
+      let value = self[DateEnvironmentKey.self] 
+      if value == 0 {
+        assertionFailure("ServerResponse has no timestamp set?")
+        let newValue = time_t.now
+        self[DateEnvironmentKey.self] = newValue
+        return newValue
+      }
+      else { return value }
+    }
   }
 }
 
