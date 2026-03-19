@@ -399,7 +399,7 @@ public extension ServerResponse {
     get {
       let value = self[DateEnvironmentKey.self] 
       if value == 0 {
-        assertionFailure("ServerResponse has no timestamp set?")
+        assert(!sendDate, "ServerResponse has no timestamp set?")
         let newValue = time_t.now
         self[DateEnvironmentKey.self] = newValue
         return newValue

@@ -27,6 +27,7 @@ open class TestServerResponse: ServerResponse, @unchecked Sendable {
 
   public init() {
     super.init(unsafeChannel: nil, log: MacroTestLogger)
+    sendDate = false
   }
   
   
