@@ -6,11 +6,10 @@
 //  Copyright (C) 2026 ZeeZide GmbH. All rights reserved.
 //
 
-#if swift(>=6.0)
+import MacroCore
 import NIO
 
 public extension MacroCore {
-  // HH: Preserve MainActor isolation if enqueued there.
 
   @inlinable
   func nextTick(on eventLoop: EventLoop? = nil,
@@ -23,9 +22,10 @@ public extension MacroCore {
   }
 
   @inlinable
-  func setTimeout(on eventLoop: EventLoop? = nil, _ milliseconds: Int,
+  func setTimeout(on eventLoop: EventLoop? = nil,
+                  _ milliseconds: Int,
                   _ execute: @escaping @MainActor () -> Void)
-  { // TBD: This could just schedule on the mainActor if EL=nil?
+  {
     retain()
     setTimeout(on: eventLoop, milliseconds, {
       Task { @MainActor in execute(); self.release() }
@@ -34,17 +34,17 @@ public extension MacroCore {
 }
 
 @inlinable
-public func nextTick(on eventLoop : EventLoop? = nil,
+public func nextTick(on eventLoop: EventLoop? = nil,
                      _ execute: @escaping @MainActor () -> Void)
 {
   MacroCore.shared.nextTick(on: eventLoop, execute)
 }
 
 @inlinable
-public func setTimeout(on eventLoop : EventLoop? = nil, _ milliseconds: Int,
+public func setTimeout(on eventLoop: EventLoop? = nil,
+                       _ milliseconds: Int,
                        _ execute: @escaping @MainActor () -> Void)
 {
-  MacroCore.shared.setTimeout(on: eventLoop, milliseconds, execute)
+  MacroCore.shared.setTimeout(on: eventLoop, milliseconds,
+                              execute)
 }
-
-#endif

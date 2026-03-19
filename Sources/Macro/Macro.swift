@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 @_exported import func     MacroCore.nextTick
@@ -60,4 +60,8 @@ public var env  : [ String : String ] { return process.env  }
   
   public typealias Data = Foundation.Data
   public typealias Date = Foundation.Date
+#endif
+
+#if canImport(Macro6)
+@_exported import Macro6
 #endif
