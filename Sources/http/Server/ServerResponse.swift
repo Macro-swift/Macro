@@ -15,6 +15,9 @@ import enum     NIOHTTP1.HTTPServerResponsePart
 import struct   Logging.Logger
 import enum     MacroCore.WritableError
 import struct   MacroCore.Buffer
+import protocol MacroCore.EnvironmentKey
+import struct   MacroCore.EnvironmentValues
+import xsys
 
 /**
  * An object representing the response an HTTP server sends out to the client.
@@ -124,6 +127,11 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   internal func primaryWriteHead() {
     assert(!headersSent)
     guard !headersSent else { return }
+    
+    if sendDate, getHeader("Date") == nil {
+      setHeader("Date", 
+                self.date.componentsInUTC.format("%a, %d %b %Y %H:%M:%S GMT"))
+    }
 
     if !willWriteHeadCallbacks.isEmpty {
       let cbs = willWriteHeadCallbacks
@@ -236,15 +244,15 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
    */
   @inlinable
   public var statusMessage : String {
-    set { status = HTTPResponseStatus(statusCode   : statusCode,
-                                      reasonPhrase : newValue) }
+    set {
+      status = HTTPResponseStatus(statusCode: statusCode, reasonPhrase:newValue) 
+    }
     get { return status.reasonPhrase }
   }
   
   @inlinable
-  open func writeHead(_ statusCode: Int,
-                      _ statusMessage : String?,
-                      _ headers       : [ String : Any ] = [ : ])
+  open func writeHead(_ statusCode: Int, _ statusMessage : String?,
+                      _ headers: [ String : Any ] = [ : ])
   {
     assert(!headersSent)
     guard !headersSent else { return }
@@ -253,16 +261,12 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     if let s = statusMessage { self.statusMessage = s }
      
     // merge in headers
-    for ( key, value ) in headers {
-      setHeader(key, value)
-    }
+    for ( key, value ) in headers { setHeader(key, value) }
     
     primaryWriteHead()
   }
   @inlinable
-  public func writeHead(_ statusCode : Int,
-                        _ headers    : [ String : Any ] = [ : ])
-  {
+  public func writeHead(_ statusCode: Int, _ headers: [ String : Any ] = [:]) {
     writeHead(statusCode, nil, headers)
   }
   
@@ -376,6 +380,32 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     }
 
     return ms
+  }
+}
+
+// MARK: - Date Environment Key
+
+/// Environment key holding the `time_t` when the response was created.
+enum DateEnvironmentKey: EnvironmentKey {
+  static let defaultValue : time_t = 0
+  static let loggingKey   = "date"
+}
+
+public extension ServerResponse {
+
+  /// The Unix timestamp (`time_t`) when the response was created.
+  var date : time_t {
+    set { self[DateEnvironmentKey.self] = newValue }
+    get {
+      let value = self[DateEnvironmentKey.self] 
+      if value == 0 {
+        assert(!sendDate, "ServerResponse has no timestamp set?")
+        let newValue = time_t.now
+        self[DateEnvironmentKey.self] = newValue
+        return newValue
+      }
+      else { return value }
+    }
   }
 }
 

@@ -38,6 +38,7 @@ final class MacroBaseTests: XCTestCase {
   
   func testResponseCorking() throws {
     let res = http.ServerResponse(unsafeChannel: nil, log: MacroTestLogger)
+    res.sendDate = false
     XCTAssertFalse(res.writableEnded)
     
     res.cork()

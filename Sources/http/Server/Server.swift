@@ -3,40 +3,22 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2025 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
-#if os(Linux)
-  import let Glibc.ECONNRESET
-  import let Glibc.EPIPE
-#else
-  import let Darwin.ECONNRESET
-  import let Darwin.EPIPE
+#if canImport(Glibc)
+  import Glibc  // ECONNRESET,EPIPE
+#elseif canImport(Darwin)
+  import Darwin // ECONNRESET,EPIPE
 #endif
-import class     MacroCore.ErrorEmitter
-import enum      MacroCore.EventListenerSet
-import class     MacroCore.MacroCore
-import struct    MacroCore.Buffer
-import struct    Logging.Logger
-import struct    NIOCore.IOError
-import struct    NIO.NIOAny
-import class     NIO.EventLoopFuture
-import class     NIO.ServerBootstrap
-import protocol  NIO.Channel
-import struct    NIO.ChannelOptions
-import protocol  NIO.ChannelInboundHandler
-import class     NIO.ChannelHandlerContext
-import protocol  NIO.RemovableChannelHandler
-import struct    NIO.SocketOptionLevel
-import enum      NIO.SocketAddress
-import let       NIO.SOL_SOCKET
-import let       NIO.SO_REUSEADDR
-import let       NIO.IPPROTO_TCP
-import let       NIO.TCP_NODELAY
-import enum      NIOHTTP1.HTTPServerRequestPart
-import typealias NIOHTTP1.NIOHTTPServerUpgradeConfiguration
-import struct    NIOConcurrencyHelpers.NIOLock
+import MacroCore // ErrorEmitter,EventListenerSet,MacroCore,Buffer
+import Logging   // Logger
+import NIOCore   // IOError
+import NIO       // NIOAny,EventLoopFuture,ServerBootstrap,Channel,...
+import NIOHTTP1  // HTTPServerRequestPart,NIOHTTPServerUpgradeConfiguration
+import NIOConcurrencyHelpers // NIOLock
 import Atomics
+import xsys
 
 /**
  * http.Server
@@ -180,7 +162,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
    * Returns the socket addresses the server is listening on. Empty when the
    * server is not yet listening on anything.
    */
-  public var listenAddresses : [ SocketAddress ] {
+  public var listenAddresses : [ NIOCore.SocketAddress ] {
     return lock.withLock { return _channels.compactMap { $0.localAddress } }
   }
 
@@ -336,9 +318,9 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   }
   
   private func createServerBootstrap(_ backlog : Int) -> ServerBootstrap {
-    let reuseAddrOpt = ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET),
-                                             SO_REUSEADDR)
-    let noDelayOp    = ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY)
+    let reuseAddrOpt = ChannelOptions.socket(SocketOptionLevel(xsys.SOL_SOCKET),
+                                             xsys.SO_REUSEADDR)
+    let noDelayOp    = ChannelOptions.socket(xsys.IPPROTO_TCP, TCP_NODELAY)
     
     let upgrade      = upgradeConfiguration
     
@@ -375,8 +357,6 @@ open class Server: ErrorEmitter, CustomStringConvertible {
 
     typealias InboundIn = HTTPServerRequestPart
     
-    // TODO: Assign request ID and other logging metadata!
-    
     private let server      : Server
     private var transaction : ( id       : Int,
                                 request  : IncomingMessage,
@@ -412,11 +392,15 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           log[metadataKey: "request-id"] = "\(id)"
           
           // TBD:  Should the ServerResponse know its IncomingMessage?
-          let request  = IncomingMessage(head, socket: context.channel,
-                                         log: log)
+          let request  = IncomingMessage(head, socket: context.channel, log:log)
           
           let response = ServerResponse(channel: context.channel, log: log)
           response.version = head.version
+
+          // remember the time the response object got created.
+          // The Date header will be set on header flush if sendDate is on and
+          // the the header is missing.
+          response.date = time_t.now
           
           if head.version.major == 1 {
             let connectionHeaderCount = head
