@@ -24,6 +24,12 @@ import class http.ServerResponse
 
 final class KeepAliveTests: XCTestCase {
 
+  /// Box to shuttle a value out of a `@Sendable` closure.
+  private final class Ref<T>: @unchecked Sendable {
+    var value: T
+    init(_ v: T) { value = v }
+  }
+
   override class func setUp() {
     disableAtExitHandler()
     super.setUp()
@@ -39,11 +45,7 @@ final class KeepAliveTests: XCTestCase {
                -> Int
   {
     let listenExp = expectation(description: "listening")
-    #if compiler(>=5.10)
-    nonisolated(unsafe) var port = 0
-    #else
-    var port = 0
-    #endif
+    let portRef   = Ref(0)
 
     let server = http.createServer(handler: handler)
     server.options.keepAliveTimeout = keepAliveTimeout
@@ -51,13 +53,13 @@ final class KeepAliveTests: XCTestCase {
       if let addr = server.listenAddresses.first,
          let p = addr.port
       {
-        port = p
+        portRef.value = p
       }
       listenExp.fulfill()
     }
     waitForExpectations(timeout: 5)
-    XCTAssertNotEqual(port, 0, "Server did not start")
-    return port
+    XCTAssertNotEqual(portRef.value, 0, "Server did not start")
+    return portRef.value
   }
 
   @discardableResult
@@ -197,7 +199,11 @@ final class KeepAliveTests: XCTestCase {
     // the server to close the idle connection.
     let exp = expectation(description: "connection closed")
 
+    #if canImport(Darwin)
     let fd = socket(AF_INET, SOCK_STREAM, 0)
+    #else
+    let fd = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
+    #endif
     guard fd >= 0 else {
       XCTFail("Could not create socket")
       return
