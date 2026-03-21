@@ -60,7 +60,7 @@ public enum sockaddr_any {
       }
     }
     set {
-      let lPort = port != nil ? htons(CUnsignedShort(newValue!)) : 0
+      let lPort = newValue.map { htons(CUnsignedShort($0)) } ?? 0
       switch self {
         case .AF_INET (var addr): addr.sin_port  = lPort; self = .AF_INET(addr)
         case .AF_INET6(var addr): addr.sin6_port = lPort; self = .AF_INET6(addr)

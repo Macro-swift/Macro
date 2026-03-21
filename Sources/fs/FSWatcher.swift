@@ -186,12 +186,14 @@ public class FSRawWatcher: FSWatcherBase {
       // TBD: is the `else if` right? Or could it contain multiple? Probably!
       let flags : DispatchSource.FileSystemEvent = [ .write, .rename, .delete ]
   
-      src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd,
-                                                      eventMask: flags,queue: Q)
-      src!.setEventHandler {
-        // TODO
-        // MultiCrap dispatches `cb` on main queue
-        let changes = (self.src! as! DispatchSourceFileSystemObject).data
+      let source = DispatchSource.makeFileSystemObjectSource(
+        fileDescriptor: fd, eventMask: flags, queue: Q
+      )
+      src = source
+      source.setEventHandler {
+        guard let fsSource =
+          self.src as? DispatchSourceFileSystemObject else { return }
+        let changes = fsSource.data
         if changes.contains(.delete) {
           self.changeListeners.emit( ( .delete, nil ) )
         }
@@ -202,22 +204,23 @@ public class FSRawWatcher: FSWatcherBase {
           self.changeListeners.emit( ( .write, nil ) )
         }
         else {
-          assert(false, "unexpected change event: \(changes)")
+          assertionFailure("unexpected change event: \(changes)")
         }
       }
 
-      src!.setCancelHandler { [weak self] in
+      source.setCancelHandler { [weak self] in
         if let fd = self?.fd {
           _ = xsys.close(fd)
           self?.fd = nil
         }
       }
-      
-      src!.resume()
+
+      source.resume()
     }
     else {
-      let error = POSIXErrorCode(rawValue: xsys.errno)!
-      errorListeners.emit(error)
+      if let error = POSIXErrorCode(rawValue: xsys.errno) {
+        errorListeners.emit(error)
+      }
     }
   }
   

@@ -48,7 +48,7 @@ public extension PathModule {
       let sp = UnsafePointer<CChar>(rindex(cs, slashASCII))
       guard let sp2 = sp else { return path }
       let len = sp2 - cs
-      return String.fromCString(cs, length: len)!
+      return String.fromCString(cs, length: len) ?? path
     }
   }
   

@@ -10,7 +10,8 @@ public func allTests() -> [ XCTestCaseEntry ] {
     testCase(MacroBaseTests .allTests),
     testCase(AgentTests     .allTests),
     testCase(WebSocketTests .allTests),
-    testCase(NextTickTests  .allTests)
+    testCase(NextTickTests  .allTests),
+    testCase(KeepAliveTests.allTests)
   ]
 }
 #endif

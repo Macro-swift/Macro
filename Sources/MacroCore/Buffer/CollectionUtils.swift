@@ -48,7 +48,7 @@ extension Collection where Element : Equatable {
       return nil
     }
     guard matchLen > 0 else { return index }
-    let c0 = string.first!
+    guard let c0 = string.first else { return nil }
 
     // TBD: Is this too naive? There is probably some better algorithm for this.
     // TBD: Rather use `memmem`?
@@ -200,10 +200,9 @@ fileprivate func find(_ byte: UInt8, in bb: ByteBufferView) -> Int {
   // Perf: firstIndex(of:) is !2x slower than memchr (well, in Debug)
   assert(bb.count > 0)
   return bb.withUnsafeBytes { rbp in
-    guard let rb = rbp.baseAddress else { return -1 }
-    let idx = memchr(rb, Int32(byte), rbp.count)
+    guard let a = rbp.baseAddress else { return -1 }
+    let idx = memchr(a, Int32(byte), rbp.count)
     guard let ptr = idx else { return -1 }
-    let a : UnsafeRawPointer = rbp.baseAddress!
     let b = UnsafeRawPointer(ptr)
     assert(a <= b)
     return b - a

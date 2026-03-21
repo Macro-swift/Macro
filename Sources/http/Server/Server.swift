@@ -53,15 +53,65 @@ import xsys
  */
 open class Server: ErrorEmitter, CustomStringConvertible {
   
-  public  static let defaultBacklog = 512
   private static let serverID = Atomics.ManagedAtomic<Int>(0)
 
   public  let id        : Int
-  public  var log       : Logger
+  public  var options   : Options
   private var didRetain = false
   private let txID      = Atomics.ManagedAtomic<Int>(0)
-
   public  let lock      = NIOLock()
+
+  @inlinable
+  public  var log       : Logger { return options.log }
+
+  /**
+   * Configuration options for the HTTP server, mirrors
+   * Node.js `http.createServer(options)`.
+   */
+  public struct Options {
+
+    public  var log = Logger(label: "μ.http")
+
+    /**
+     * Milliseconds of inactivity before an idle connection is closed. Applies 
+     * before the first request and between keep-alive requests. 
+     * Set to 0 to disable, default is 5s.
+     */
+    public var keepAliveTimeout = 5_000
+
+    /// Enable TCP keep-alive probes on accepted connections (default: true).
+    public var keepAlive = true
+
+    /**
+     * Set `TCP_NODELAY` on connections to disable Nagle's algorithm. 
+     * (default true).
+     */
+    public var noDelay = true
+
+    @inlinable
+    public init() {}
+
+    /**
+     * Create options with explicit values.
+     *
+     * - Parameters:
+     *   - log:              Logger for server messages.
+     *   - keepAliveTimeout: Idle timeout in ms (0 = off).
+     *   - keepAlive:        Enable TCP keep-alive probes.
+     *   - noDelay:          Set `TCP_NODELAY` on sockets.
+     */
+    @inlinable
+    public init(log              : Logger = Logger(label: "μ.http"),
+                keepAliveTimeout : Int    = 5_000,
+                keepAlive        : Bool   = true,
+                noDelay          : Bool   = true)
+    {
+      self.log              = log
+      self.keepAliveTimeout = keepAliveTimeout
+      self.keepAlive        = keepAlive
+      self.noDelay          = noDelay
+    }
+  }
 
   /**
    * The initializer for `Server`. This is intended for subclasses. Framework
@@ -74,11 +124,12 @@ open class Server: ErrorEmitter, CustomStringConvertible {
    * instead.
    * 
    * - Parameters:
-   *   - log: A Logger object to use.
+   *   - options: Server configuration options.
+   *   - log:     A Logger object to use.
    */
-  public init(log: Logger = .init(label: "μ.http")) {
-    self.id  = Server.serverID.wrappingIncrementThenLoad(ordering: .relaxed)
-    self.log = log
+  public init(_ options: Options = Options()) {
+    self.id      = Server.serverID.wrappingIncrementThenLoad(ordering: .relaxed)
+    self.options = options
     super.init()
   }
   deinit {
@@ -91,12 +142,12 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   @discardableResult
   open func listen(_ port      : Int?   = nil,
                    _ host      : String = "localhost",
-                   backlog     : Int    = Server.defaultBacklog,
-                   onListening : (@Sendable ( Server ) -> Void)? = nil)
-            -> Self
+                   backlog     : Int    = 512,
+                   onListening : (@Sendable ( Server ) -> Void)? = nil) -> Self
   {
     addDefaultListener(onListening)
-    listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
+    listen(bootstrap: createServerBootstrap(backlog))
+    { bootstrap in
       // TBD: does 0 trigger the wildcard port?
       return bootstrap.bind(host: host, port: port ?? 0)
     }
@@ -104,9 +155,8 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   }
   @discardableResult
   open func listen(unixSocket  : String = "express.socket",
-                   backlog     : Int    = Server.defaultBacklog,
-                   onListening : (@Sendable ( Server ) -> Void)? = nil)
-            -> Self
+                   backlog     : Int    = 512,
+                   onListening : (@Sendable ( Server ) -> Void)? = nil) -> Self
   {
     addDefaultListener(onListening)
     listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
@@ -320,27 +370,54 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   private func createServerBootstrap(_ backlog : Int) -> ServerBootstrap {
     let reuseAddrOpt = ChannelOptions.socket(SocketOptionLevel(xsys.SOL_SOCKET),
                                              xsys.SO_REUSEADDR)
-    let noDelayOp    = ChannelOptions.socket(xsys.IPPROTO_TCP, TCP_NODELAY)
-    
-    let upgrade      = upgradeConfiguration
-    
+    let noDelayOp = ChannelOptions.socket(xsys.IPPROTO_TCP, TCP_NODELAY)
+    #if canImport(Darwin) // TBD: move to xsys?
+      let cSO_KEEPALIVE = Darwin.SO_KEEPALIVE
+    #elseif canImport(Glibc)
+      let cSO_KEEPALIVE = Glibc.SO_KEEPALIVE
+    #endif
+    let keepAliveOp = ChannelOptions.socket(SocketOptionLevel(xsys.SOL_SOCKET),
+                                            Int32(cSO_KEEPALIVE))
+
+    let upgrade = upgradeConfiguration
+    let opts    = options
+
     let bootstrap = ServerBootstrap(group: core.eventLoopGroup)
       .serverChannelOption(ChannelOptions.backlog, value: Int32(backlog))
       .serverChannelOption(reuseAddrOpt, value: 1)
       
       .childChannelInitializer { channel in
+        let timeoutMS = opts.keepAliveTimeout
         return channel.pipeline
           .configureHTTPServerPipeline(withServerUpgrade: upgrade)
           .flatMap {
-            return channel.pipeline.addHandler(HTTPHandler(server: self),
-                                               name: Server.httpHandlerName)
+            guard timeoutMS > 0 else {
+              return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            let idle = 
+              IdleStateHandler(readTimeout: .milliseconds(Int64(timeoutMS)))
+            #if compiler(>=5.10)
+            nonisolated(unsafe) let h : ChannelHandler = idle
+            #else
+            let h : ChannelHandler = idle
+            #endif
+            return channel.pipeline
+              .addHandler(h, name: Server.idleHandlerName)
+              .flatMap {
+                channel.pipeline.addHandler(CloseOnIdleHandler(),
+                                            name: Server.closeOnIdleHandlerName)
+              }
+          }
+          .flatMap {
+            channel.pipeline.addHandler(HTTPHandler(server: self),
+                                        name: Server.httpHandlerName)
           }
       }
-      
-      .childChannelOption(noDelayOp,    value: 1)
+
       .childChannelOption(reuseAddrOpt, value: 1)
-      .childChannelOption(ChannelOptions.maxMessagesPerRead, // TBD
-                          value: 1)
+      .childChannelOption(noDelayOp,    value: opts.noDelay   ? 1 : 0)
+      .childChannelOption(keepAliveOp,  value: opts.keepAlive ? 1 : 0)
+      .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 1)
     return bootstrap
   }
   
@@ -350,23 +427,79 @@ open class Server: ErrorEmitter, CustomStringConvertible {
    * It is a low-level internal a user doesn't usually have to touch.
    */
   public static let httpHandlerName: String = "μ.http.server.handler"
-  
-  private final class HTTPHandler : ChannelInboundHandler,
-                                    RemovableChannelHandler
+  static let idleHandlerName        = "μ.http.idle"
+  static let closeOnIdleHandlerName = "μ.http.idle.close"
+
+  /// Closes the channel when an idle timeout fires.
+  /// Added to the pipeline alongside `IdleStateHandler` and removed after the 
+  /// first HTTP request arrives.
+  private final class CloseOnIdleHandler: ChannelInboundHandler, 
+                                          RemovableChannelHandler
+  {
+    typealias InboundIn = HTTPServerRequestPart
+
+    func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+      if event is IdleStateHandler.IdleStateEvent {
+        context.close(promise: nil)
+      }
+      else {
+        context.fireUserInboundEventTriggered(event)
+      }
+    }
+  }
+
+  private final class HTTPHandler: ChannelInboundHandler,
+                                   RemovableChannelHandler
   {
 
     typealias InboundIn = HTTPServerRequestPart
     
     private let server      : Server
     private var transaction : ( id       : Int,
-                                request  : IncomingMessage,
-                                response : ServerResponse )?
+                                 request  : IncomingMessage,
+                                 response : ServerResponse )?
     private var waitForEnd  = false
+    
+    private let idle  : ChannelHandler? // cache this, should be fine?
+    private let close : CloseOnIdleHandler?
 
     init(server: Server) {
       self.server = server
+      let keepAliveTimeoutMS = Int64(server.options.keepAliveTimeout)
+      if keepAliveTimeoutMS > 0 {
+        self.idle = 
+          IdleStateHandler(readTimeout: .milliseconds(keepAliveTimeoutMS))
+        self.close = CloseOnIdleHandler()
+      }
+      else { self.idle = nil; self.close = nil }
     }
-    
+
+    private func removeIdleHandlers(_ context: ChannelHandlerContext) {
+      guard idle != nil else { return }
+      context.pipeline.removeHandler(name: Server.idleHandlerName)
+                      .whenFailure { _ in }
+      context.pipeline.removeHandler(name: Server.closeOnIdleHandlerName)
+                      .whenFailure { _ in }
+    }
+
+    private func addIdleHandlers(_ context: ChannelHandlerContext) {
+      guard let idle = idle else { return }
+      #if compiler(>=5.10)
+      nonisolated(unsafe) let handler : ChannelHandler = idle
+      #else
+      let handler : ChannelHandler = idle
+      #endif
+      guard let close = self.close else { return }
+      context.pipeline
+        .addHandler(handler, name: Server.idleHandlerName, position: .first)
+        .flatMap {
+          context.pipeline.addHandler(close,
+                                      name: Server.closeOnIdleHandlerName,
+                                      position: .after(handler))
+        }
+        .whenFailure { _ in }
+    }
+
     final func channelRead(context: ChannelHandlerContext, data: NIOAny) {
       let log     = server.log
       let reqPart = unwrapInboundIn(data)
@@ -422,14 +555,26 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           self.transaction = ( id, request, response )
           self.waitForEnd  = false
           assert(!request.complete)
-          
+
+          // Remove idle timeout while request is being processed, we might
+          // take longer to produce responses than waiting for new data.
+          self.removeIdleHandlers(context)
+
           // The transaction ends when the response is done, not when the
           // request was read completely!
           response.onceFinish {
             guard let ( id, request, aresponse ) = self.transaction else {
               return
             }
-            guard aresponse === response else { return }
+            guard aresponse === response else { 
+              assertionFailure("Got incorrect response object?")
+              return 
+            }
+
+            // Re-add idle timeout for the keep-alive idle period (close if no 
+            // next request arrives within the timeout).
+            // TBD: What if the next data already arrived?
+            self.addIdleHandlers(context)
             
             // Consume rest of request if it wasn't read already
             if request.complete {

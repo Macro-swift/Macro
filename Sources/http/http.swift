@@ -35,11 +35,11 @@ public extension HTTPModule {
    */
   @inlinable
   @discardableResult
-  static func createServer(handler: (( IncomingMessage, ServerResponse )
-                                       -> Void)? = nil)
-              -> Server
+  static func createServer(_ options: Server.Options = Server.Options(),
+                           handler: (( IncomingMessage, ServerResponse )
+                                    -> Void)? = nil) -> Server
   {
-    return http.createServer(handler: handler)
+    return http.createServer(options, handler: handler)
   }
 }
 
@@ -63,11 +63,11 @@ public extension HTTPModule {
  */
 @inlinable
 @discardableResult
-public func createServer(handler: (( IncomingMessage, ServerResponse ) -> Void)?
-                         = nil)
-            -> Server
+public func createServer(_ options: Server.Options = Server.Options(),
+                         handler: (( IncomingMessage, ServerResponse )
+                                   -> Void)? = nil) -> Server
 {
-  let server = Server()
+  let server = Server(options)
   if let handler = handler { _ = server.onRequest(execute: handler) }
   return server
 }

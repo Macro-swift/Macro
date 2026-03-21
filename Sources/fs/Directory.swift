@@ -22,7 +22,7 @@ public func readdir(_ path: String,
 // TBD: should that be a stream? Maybe, but it may not be worth it
 public func readdirSync(_ path: String) throws -> [ String ] {
   guard let dir = xsys.opendir(path) else {
-    throw POSIXErrorCode(rawValue: xsys.errno)!
+    throw POSIXErrorCode(rawValue: xsys.errno) ?? .EINVAL
   }
   defer { _ = xsys.closedir(dir) }
   
@@ -36,7 +36,7 @@ public func readdirSync(_ path: String) throws -> [ String ] {
       // On Linux, only EBADF is documented.  macOS lists EFAULT, which
       // is equally implausible.  But it also mentions EIO, which might
       // just be possible enough to consider it.
-      throw POSIXErrorCode(rawValue: xsys.errno)!
+      throw POSIXErrorCode(rawValue: xsys.errno) ?? .EINVAL
     }
     
     var s : String? = nil

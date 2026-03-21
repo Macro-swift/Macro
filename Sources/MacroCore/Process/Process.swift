@@ -32,7 +32,9 @@ public extension process { // File System
   @inlinable
   static func chdir(path: String) throws {
     let rc = xsys.chdir(path)
-    guard rc == 0 else { throw POSIXErrorCode(rawValue: xsys.errno)! }
+    guard rc == 0 else {
+      throw POSIXErrorCode(rawValue: xsys.errno) ?? .EINVAL
+    }
   }
 
   @inlinable
@@ -150,7 +152,9 @@ public extension process { // Run Control
   @inlinable
   static func kill(_ pid: Int, _ signal: Int32 = xsys.SIGTERM) throws {
     let rc = xsys.kill(pid_t(pid), signal)
-    guard rc == 0 else { throw POSIXErrorCode(rawValue: xsys.errno)! }
+    guard rc == 0 else {
+      throw POSIXErrorCode(rawValue: xsys.errno) ?? .EINVAL
+    }
   }
   @inlinable
   static func kill(_ pid: Int, _ signal: String) throws {
