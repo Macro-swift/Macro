@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 import struct    Logging.Logger
@@ -24,17 +24,18 @@ extension WebSocket {
    * A WebSocket Server instance.
    *
    * Example:
+   * ```swift
+   * import ws
+   * 
+   * let wss = WebSocket.Server(port: 8080)
+   * wss.onConnection { ws in
+   *   ws.onMessage { message in
+   *     console.log("Received:", message)
+   *   }
    *
-   *     import ws
-   *     
-   *     let wss = WebSocket.Server(port: 8080)
-   *     wss.onConnection { ws in
-   *       ws.onMessage { message in
-   *         console.log("Received:", message)
-   *       }
-   *
-   *       ws.send("Hello!")
-   *     }
+   *   ws.send("Hello!")
+   * }
+   * ```
    */
   open class Server: http.Server {
     // This is going to be a little different to Node, this directly hooks up
@@ -43,22 +44,23 @@ extension WebSocket {
     // in Macro.
 
     /**
-     * Initialize _and_ start a WebSocket server.
+     * Initialize and start a WebSocket server.
      *
      * The server is started in the next tick, listeners can still be setup
      * after calling this initializer.
      *
      * Example:
-     *
-     *     let wss = WebSocket.Server(port: 8080)
+     * ```swift
+     * let wss = WebSocket.Server(port: 8080)
+     * ```
      *
      * The server rejects all HTTP requests.
      */
-    public init(port: Int, log: Logger = .init(label: "μ.ws")) {
-      super.init(log: log)
+    public init(port: Int, options: http.Server.Options) {
+      super.init(options)
       
       onRequest { req, res in
-        log.error("WebSocket server got HTTP request:", req)
+        options.log.error("WebSocket server got HTTP request:", req)
         res.writeHead(403)
         res.end()
       }
@@ -66,6 +68,22 @@ extension WebSocket {
       nextTick {
         self.listen(port)
       }
+    }
+    /**
+     * Initialize and start a WebSocket server.
+     *
+     * The server is started in the next tick, listeners can still be setup
+     * after calling this initializer.
+     *
+     * Example:
+     * ```swift
+     * let wss = WebSocket.Server(port: 8080)
+     * ```
+     *
+     * The server rejects all HTTP requests.
+     */
+    public convenience init(port: Int, log: Logger = .init(label: "μ.ws")) {
+      self.init(port: port, options: http.Server.Options(log: log))
     }
 
     private var _connectionListeners = EventListenerSet<( WebSocket )>()
@@ -123,11 +141,9 @@ extension WebSocket {
                                         upgradePipelineHandler: upgradeHandler)
     }()
     
-    private var combinedUpgradeConfiguration :
-                  NIOHTTPServerUpgradeConfiguration?
+    private var combinedUpgradeConfiguration: NIOHTTPServerUpgradeConfiguration?
     
-    override open var upgradeConfiguration : NIOHTTPServerUpgradeConfiguration?
-    {
+    override open var upgradeConfiguration: NIOHTTPServerUpgradeConfiguration? {
       set {
         if listening {
           log.warn("Setting new upgrade config,",
