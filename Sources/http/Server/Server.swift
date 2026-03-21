@@ -91,12 +91,12 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   @discardableResult
   open func listen(_ port      : Int?   = nil,
                    _ host      : String = "localhost",
-                   backlog     : Int    = Server.defaultBacklog,
-                   onListening : (@Sendable ( Server ) -> Void)? = nil)
-            -> Self
+                   backlog     : Int    = 512,
+                   onListening : (@Sendable ( Server ) -> Void)? = nil) -> Self
   {
     addDefaultListener(onListening)
-    listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
+    listen(bootstrap: createServerBootstrap(backlog))
+    { bootstrap in
       // TBD: does 0 trigger the wildcard port?
       return bootstrap.bind(host: host, port: port ?? 0)
     }
@@ -104,9 +104,8 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   }
   @discardableResult
   open func listen(unixSocket  : String = "express.socket",
-                   backlog     : Int    = Server.defaultBacklog,
-                   onListening : (@Sendable ( Server ) -> Void)? = nil)
-            -> Self
+                   backlog     : Int    = 512,
+                   onListening : (@Sendable ( Server ) -> Void)? = nil) -> Self
   {
     addDefaultListener(onListening)
     listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
