@@ -34,7 +34,11 @@ final class KeepAliveTests: XCTestCase {
                            = { _, res in res.writeHead(200); res.end() }) -> Int
   {
     let listenExp = expectation(description: "listening")
+    #if compiler(>=5.10)
     nonisolated(unsafe) var port = 0
+    #else
+    var port = 0
+    #endif
 
     let server = http.createServer(handler: handler)
     server.options.keepAliveTimeout = keepAliveTimeout

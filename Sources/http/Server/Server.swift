@@ -396,7 +396,11 @@ open class Server: ErrorEmitter, CustomStringConvertible {
             }
             let idle = 
               IdleStateHandler(readTimeout: .milliseconds(Int64(timeoutMS)))
-            nonisolated(unsafe) let h : ChannelHandler = idle // Meh :-)
+            #if compiler(>=5.10)
+            nonisolated(unsafe) let h : ChannelHandler = idle
+            #else
+            let h : ChannelHandler = idle
+            #endif
             return channel.pipeline
               .addHandler(h, name: Server.idleHandlerName)
               .flatMap {
@@ -480,7 +484,11 @@ open class Server: ErrorEmitter, CustomStringConvertible {
 
     private func addIdleHandlers(_ context: ChannelHandlerContext) {
       guard let idle = idle else { return }
-      nonisolated(unsafe) let handler : ChannelHandler = idle // Meh
+      #if compiler(>=5.10)
+      nonisolated(unsafe) let handler : ChannelHandler = idle
+      #else
+      let handler : ChannelHandler = idle
+      #endif
       let close = self.close!
       context.pipeline
         .addHandler(handler, name: Server.idleHandlerName, position: .first)
