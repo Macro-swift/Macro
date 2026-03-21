@@ -8,6 +8,9 @@
 
 import XCTest
 import Foundation
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
 @testable import http
 @testable import Macro
 @testable import MacroTestUtilities
@@ -28,10 +31,12 @@ final class KeepAliveTests: XCTestCase {
 
   // MARK: - Helpers
 
-  private func startServer(keepAliveTimeout: Int = 5_000,
-                           handler: @escaping 
+  private func startServer(host: String = "127.0.0.1",
+                           keepAliveTimeout: Int = 5_000,
+                           handler: @escaping
                              (IncomingMessage, ServerResponse) -> Void
-                           = { _, res in res.writeHead(200); res.end() }) -> Int
+                           = { _, res in res.writeHead(200); res.end() })
+               -> Int
   {
     let listenExp = expectation(description: "listening")
     #if compiler(>=5.10)
@@ -42,8 +47,10 @@ final class KeepAliveTests: XCTestCase {
 
     let server = http.createServer(handler: handler)
     server.options.keepAliveTimeout = keepAliveTimeout
-    server.listen(0) { server in
-      if let addr = server.listenAddresses.first, let p = addr.port {
+    server.listen(0, host) { server in
+      if let addr = server.listenAddresses.first,
+         let p = addr.port
+      {
         port = p
       }
       listenExp.fulfill()
@@ -54,7 +61,8 @@ final class KeepAliveTests: XCTestCase {
   }
 
   @discardableResult
-  private func request(_ url: URL, session: URLSession, method: String = "GET")
+  private func request(_ url: URL, session: URLSession,
+                       method: String = "GET")
                -> (Data, HTTPURLResponse)?
   {
     let exp      = expectation(description: "\(method) \(url)")
@@ -66,7 +74,9 @@ final class KeepAliveTests: XCTestCase {
     let task = session.dataTask(with: req) {
       data, response, error in
       reqError = error
-      if let data = data, let http = response as? HTTPURLResponse {
+      if let data = data,
+         let http = response as? HTTPURLResponse
+      {
         result = (data, http)
       }
       exp.fulfill()
@@ -83,14 +93,26 @@ final class KeepAliveTests: XCTestCase {
     return URLSession(configuration: config)
   }
 
+  private func makeURL(port: Int) -> URL {
+    guard let url = URL(string: "http://localhost:\(port)/") else {
+      XCTFail("Failed to create URL for port \(port)")
+      return URL(string: "http://localhost/")
+        ?? URL(fileURLWithPath: "/")
+    }
+    return url
+  }
+
   // MARK: - Tests
 
   static let allTests = [
-    ("testKeepAliveMultipleRequests"    , testKeepAliveMultipleRequests),
-    ("testConnectionSurvivesIdlePeriod" , testConnectionSurvivesIdlePeriod),
-    ("testConnectionCloseIsHonored"     , testConnectionCloseIsHonored),
-    ("testIdleConnectionClosedBeforeFirstRequest",
-     testIdleConnectionClosedBeforeFirstRequest)
+    ( "testKeepAliveMultipleRequests",
+      testKeepAliveMultipleRequests ),
+    ( "testConnectionSurvivesIdlePeriod",
+      testConnectionSurvivesIdlePeriod ),
+    ( "testConnectionCloseIsHonored",
+      testConnectionCloseIsHonored ),
+    ( "testIdleConnectionClosedBeforeFirstRequest",
+      testIdleConnectionClosedBeforeFirstRequest )
   ]
 
   func testKeepAliveMultipleRequests() {
@@ -98,15 +120,18 @@ final class KeepAliveTests: XCTestCase {
     let session = makeSession()
     defer { session.invalidateAndCancel() }
 
-    let url = URL(string: "http://localhost:\(port)/")!
+    let url = makeURL(port: port)
 
     for i in 0..<5 {
-      guard let (_, response) = request(url, session: session) else {
+      guard let (_, response) = request(url, session: session)
+      else {
         XCTFail("Request \(i) returned no result")
         return
       }
-      XCTAssertEqual(response.statusCode, 200, "Request \(i) status")
-      let conn = response.value(forHTTPHeaderField: "Connection") ?? ""
+      XCTAssertEqual(response.statusCode, 200,
+                     "Request \(i) status")
+      let conn =
+        response.value(forHTTPHeaderField: "Connection") ?? ""
       XCTAssertNotEqual(conn.lowercased(), "close",
                         "Request \(i) has Connection: close")
     }
@@ -117,22 +142,22 @@ final class KeepAliveTests: XCTestCase {
     let session = makeSession()
     defer { session.invalidateAndCancel() }
 
-    let url = URL(string: "http://localhost:\(port)/")!
+    let url = makeURL(port: port)
 
-    guard let (_, r1) = request(url, session: session) else { 
-      return XCTFail("First request failed") 
+    guard let (_, r1) = request(url, session: session) else {
+      return XCTFail("First request failed")
     }
     XCTAssertEqual(r1.statusCode, 200)
 
     // Wait 3 seconds (idle between requests)
     let idleExp = expectation(description: "idle wait")
-    DispatchQueue.global().asyncAfter(deadline: .now() + 3) { 
-      idleExp.fulfill() 
+    DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
+      idleExp.fulfill()
     }
     waitForExpectations(timeout: 5)
 
     guard let (_, r2) = request(url, session: session) else {
-      return XCTFail("Request after idle failed") 
+      return XCTFail("Request after idle failed")
     }
     XCTAssertEqual(r2.statusCode, 200)
   }
@@ -146,52 +171,66 @@ final class KeepAliveTests: XCTestCase {
     let session = makeSession()
     defer { session.invalidateAndCancel() }
 
-    let url = URL(string: "http://localhost:\(port)/")!
+    let url = makeURL(port: port)
 
-    guard let (_, r1) = request(url, session: session) else { 
-      return XCTFail("Request failed") 
+    guard let (_, r1) = request(url, session: session) else {
+      return XCTFail("Request failed")
     }
     XCTAssertEqual(r1.statusCode, 200)
 
     // Another request should still work (new connection)
-    guard let (_, r2) = request(url, session: session) else { 
-      return XCTFail("Second request failed") 
+    guard let (_, r2) = request(url, session: session) else {
+      return XCTFail("Second request failed")
     }
     XCTAssertEqual(r2.statusCode, 200)
   }
 
-  /// A connection that receives no data should be closed
-  /// by the server after `keepAliveTimeout` ms.
+  /**
+   * A connection that receives no data should be closed
+   * by the server after `keepAliveTimeout` ms.
+   */
   func testIdleConnectionClosedBeforeFirstRequest() {
     let timeoutMS = 2_000
     let port = startServer(keepAliveTimeout: timeoutMS)
 
-    // Open a raw TCP connection via InputStream, send
-    // nothing, and wait for the server to close it.
+    // Open a raw TCP socket, send nothing, and wait for
+    // the server to close the idle connection.
     let exp = expectation(description: "connection closed")
 
-    var inputStream  : InputStream?
-    var outputStream : OutputStream?
-    Stream.getStreamsToHost(withName: "localhost", port: port,
-                            inputStream: &inputStream,
-                            outputStream: &outputStream)
-    guard let input = inputStream else {
-      XCTFail("Could not create stream")
+    let fd = socket(AF_INET, SOCK_STREAM, 0)
+    guard fd >= 0 else {
+      XCTFail("Could not create socket")
       return
     }
-    input.open()
+
+    var addr = sockaddr_in()
+    addr.sin_family = sa_family_t(AF_INET)
+    addr.sin_port   = UInt16(port).bigEndian
+    addr.sin_addr   = in_addr(s_addr: UInt32(0x7f000001).bigEndian)
+    let rc = withUnsafePointer(to: &addr) { ptr in
+      ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+        connect(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+      }
+    }
+    guard rc == 0 else {
+      close(fd)
+      XCTFail("Could not connect to server")
+      return
+    }
 
     DispatchQueue.global().async {
       // Read until the server closes (returns 0 bytes)
       var buf = [ UInt8 ](repeating: 0, count: 1)
-      let n = input.read(&buf, maxLength: 1)
+      let n = recv(fd, &buf, 1, 0)
       // n <= 0 means server closed or error
-      XCTAssertLessThanOrEqual(n, 0, "Expected server to close idle connection")
-      input.close()
+      XCTAssertLessThanOrEqual(
+        n, 0, "Expected server to close idle connection")
+      close(fd)
       exp.fulfill()
     }
 
     // The server should close within timeout + margin
-    waitForExpectations(timeout: Double(timeoutMS) / 1000.0 + 3)
+    waitForExpectations(
+      timeout: Double(timeoutMS) / 1000.0 + 3)
   }
 }

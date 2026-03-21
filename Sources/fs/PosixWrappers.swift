@@ -59,20 +59,20 @@ public func lstat(_ path: String,
 @inlinable
 public func accessSync(_ path: String, mode: Int = F_OK) throws {
   let rc = xsys.access(path, Int32(mode))
-  if rc != 0 { throw POSIXErrorCode(rawValue: xsys.errno)! }
+  if rc != 0 { throw POSIXErrorCode(rawValue: xsys.errno) ?? .EINVAL }
 }
 
 @inlinable
 public func statSync(_ path: String) throws -> xsys.stat_struct {
   var info = xsys.stat_struct()
   let rc   = xsys.stat(path, &info)
-  if rc != 0 { throw POSIXErrorCode(rawValue: xsys.errno)! }
+  if rc != 0 { throw POSIXErrorCode(rawValue: xsys.errno) ?? .EINVAL }
   return info
 }
 @inlinable
 public func lstatSync(_ path: String) throws -> xsys.stat_struct {
   var info = xsys.stat_struct()
   let rc   = xsys.lstat(path, &info)
-  if rc != 0 { throw POSIXErrorCode(rawValue: xsys.errno)! }
+  if rc != 0 { throw POSIXErrorCode(rawValue: xsys.errno) ?? .EINVAL }
   return info
 }

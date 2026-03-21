@@ -67,12 +67,13 @@ open class ReadableByteStream: ReadableStreamBase<Buffer>,
   
   public func read(_ count: Int? = nil) -> Buffer {
     readPending = false
-    guard let buffer = readableBuffer else { return core.emptyBuffer }
-    
+    guard var buffer = readableBuffer else { return core.emptyBuffer }
+
     let readBuffer : Buffer
     if let count = count, count < buffer.count {
       guard count > 0 else { return core.emptyBuffer }
-      readBuffer = self.readableBuffer!.consumeFirst(count)
+      readBuffer = buffer.consumeFirst(count)
+      self.readableBuffer = buffer
     }
     else {
       readBuffer = buffer

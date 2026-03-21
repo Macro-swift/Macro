@@ -489,7 +489,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
       #else
       let handler : ChannelHandler = idle
       #endif
-      let close = self.close!
+      guard let close = self.close else { return }
       context.pipeline
         .addHandler(handler, name: Server.idleHandlerName, position: .first)
         .flatMap {
