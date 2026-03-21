@@ -175,12 +175,19 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   override open func end() {
     guard !writableEnded else { return }
 
-    if writableCorked {
-      // 2026-03-16: I'm not entirely sure this is a good idea. Does end'ing
-      //             a response really override corking behaviour?
-      // This thing is useful and was added to better support clients that do
-      // not support chunked encoding / need a content-length. 
-      // By corking we make them spool up content in memory and can then set the
+    if status == .noContent || status == .notModified {
+      if writableBuffer != nil {
+        log.warning("end() discarding buffered body for 204/304 status")
+        writableBuffer = nil
+      }
+      if writableCorked { corkCount = 0 }
+    }
+    else if writableCorked {
+      // 2026-03-16: I'm not entirely sure this is a good idea. Does end'ing a 
+      //             response really override corking behaviour?
+      // This thing is useful and was added to better support clients that do 
+      // not support chunked encoding / need a content-length.
+      // By corking we make them spool up content in memory and can then set the 
       // Content-Length.
       corkCount = 0
       if !headersSent, let buffer = writableBuffer,
@@ -323,6 +330,12 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
       return false
     }
     
+    if (status == .noContent || status == .notModified) && !bytes.isEmpty {
+      log.warning("write() called with 204/304 status, ignoring body")
+      whenDone(nil)
+      return true
+    }
+
     channel.writeAndFlush(HTTPServerResponsePart
                             .body(.byteBuffer(bytes.byteBuffer)))
            .whenComplete { result in
