@@ -44,6 +44,8 @@ import xsys
  * it when it is getting deallocated.
  *
  * Supported events:
+ * - ``Server/onConnection(execute:)``
+ *   - connection: ``Connection``
  * - ``Server/onRequest(execute:)``
  *   - req: ``http/IncomingMessage``
  *   - res: ``http/ServerResponse``
@@ -285,6 +287,8 @@ open class Server: ErrorEmitter, CustomStringConvertible {
     EventListenerSet<( IncomingMessage, ServerResponse )>()
   private var _listeningListeners =
     EventListenerSet<Server>()
+  private var _connectionListeners =
+    EventListenerSet<Connection>()
 
   private var hasRequestListeners : Bool {
     return !lock.withLock { return _requestListeners.isEmpty }
@@ -313,11 +317,28 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   }
   
   @discardableResult
+  public func onConnection(execute:
+                @escaping ( Connection ) -> Void) -> Self
+  {
+    lock.withLockVoid { _connectionListeners.add(execute) }
+    return self
+  }
+
+  @discardableResult
   public func onListening(execute: @escaping @Sendable (Server) -> Void) -> Self
   {
     lock.withLockVoid { _listeningListeners.add(execute) }
     if listening { execute(self) }
     return self
+  }
+
+  fileprivate func emitConnection(_ channel: NIOCore.Channel) {
+    var listeners = lock.withLock {
+      return _connectionListeners
+    }
+    if !listeners.isEmpty {
+      listeners.emit(Connection(channel))
+    }
   }
 
   private func emitContinue(request: IncomingMessage, response: ServerResponse)
@@ -515,6 +536,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
 
     func channelActive(context: ChannelHandlerContext) {
       connLog.trace("HTTP connection opened \(connectionID)")
+      server.emitConnection(context.channel)
       context.fireChannelActive()
     }
 
