@@ -59,6 +59,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   public  var options   : Options
   private var didRetain = false
   private let txID      = Atomics.ManagedAtomic<Int>(0)
+  private let connID    = Atomics.ManagedAtomic<Int>(0)
   public  let lock      = NIOLock()
 
   @inlinable
@@ -128,8 +129,12 @@ open class Server: ErrorEmitter, CustomStringConvertible {
    *   - log:     A Logger object to use.
    */
   public init(_ options: Options = Options()) {
-    self.id      = Server.serverID.wrappingIncrementThenLoad(ordering: .relaxed)
+    let id = Server.serverID.wrappingIncrementThenLoad(ordering: .relaxed)
+    self.id      = id
     self.options = options
+    #if false // I don't think we usually need this, one server
+    self.options.log[metadataKey: "svrid"] = "\(id)"
+    #endif
     super.init()
   }
   deinit {
@@ -453,25 +458,42 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   {
 
     typealias InboundIn = HTTPServerRequestPart
-    
-    private let server      : Server
-    private var transaction : ( id       : Int,
+
+    private let server       : Server
+    private let connectionID : Int
+    private var connLog      : Logger
+    private var transaction  : ( id       : Int,
                                  request  : IncomingMessage,
                                  response : ServerResponse )?
-    private var waitForEnd  = false
-    
+    private var waitForEnd   = false
+
     private let idle  : ChannelHandler? // cache this, should be fine?
     private let close : CloseOnIdleHandler?
 
     init(server: Server) {
       self.server = server
+      self.connectionID = server.connID
+        .wrappingIncrementThenLoad(ordering: .relaxed)
+      var log = server.log
+      log[metadataKey: "cid"] = "\(connectionID)"
+      self.connLog = log
       let keepAliveTimeoutMS = Int64(server.options.keepAliveTimeout)
       if keepAliveTimeoutMS > 0 {
-        self.idle = 
+        self.idle =
           IdleStateHandler(readTimeout: .milliseconds(keepAliveTimeoutMS))
         self.close = CloseOnIdleHandler()
       }
       else { self.idle = nil; self.close = nil }
+    }
+
+    func channelActive(context: ChannelHandlerContext) {
+      connLog.trace("HTTP connection opened \(connectionID)")
+      context.fireChannelActive()
+    }
+
+    func channelInactive(context: ChannelHandlerContext) {
+      connLog.trace("HTTP connection closed \(connectionID)")
+      context.fireChannelInactive()
     }
 
     private func removeIdleHandlers(_ context: ChannelHandlerContext) {
@@ -521,8 +543,9 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           }
 
           let id  = server.txID.wrappingIncrementThenLoad(ordering: .relaxed)
-          var log = Logger(label: "μ.http")
-          log[metadataKey: "request-id"] = "\(id)"
+          var log = self.connLog
+          log[metadataKey: "rid"] = "\(id)"
+          log.trace("request \(id) \(head.method) \(head.uri)")
           
           // TBD:  Should the ServerResponse know its IncomingMessage?
           let request  = IncomingMessage(head, socket: context.channel, log:log)
@@ -560,6 +583,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           // take longer to produce responses than waiting for new data.
           self.removeIdleHandlers(context)
 
+          let cid = self.connectionID
           // The transaction ends when the response is done, not when the
           // request was read completely!
           response.onceFinish {
@@ -571,19 +595,22 @@ open class Server: ErrorEmitter, CustomStringConvertible {
               return 
             }
 
-            // Re-add idle timeout for the keep-alive idle period (close if no 
+            log.trace("\(response.status.code) \(cid):\(id)")
+
+            // Re-add idle timeout for the keep-alive idle period (close if no
             // next request arrives within the timeout).
             // TBD: What if the next data already arrived?
             self.addIdleHandlers(context)
             
             // Consume rest of request if it wasn't read already
             if request.complete {
-              log.debug("finished HTTP transaction \(id)")
+              log.trace("finished HTTP transaction \(cid):\(id)")
               self.transaction = nil
               self.waitForEnd  = false
             }
             else {
-              log.debug("finished response, but request did not end yet \(id)")
+              log.trace(
+                "finished response, but request did not end yet \(cid):\(id)")
               self.waitForEnd  = true
               let autoReadOption = ChannelOptions.Types.AutoReadOption()
               // make sure we read the request
