@@ -38,7 +38,7 @@ final class KeepAliveTests: XCTestCase {
   // MARK: - Helpers
 
   private func startServer(host: String = "127.0.0.1",
-                           keepAliveTimeout: Int = 5_000,
+                           idleTimeout: Int = 5_000,
                            handler: @escaping
                              (IncomingMessage, ServerResponse) -> Void
                            = { _, res in res.writeHead(200); res.end() })
@@ -48,7 +48,7 @@ final class KeepAliveTests: XCTestCase {
     let portRef   = Ref(0)
 
     let server = http.createServer(handler: handler)
-    server.options.keepAliveTimeout = keepAliveTimeout
+    server.options.idleTimeout = idleTimeout
     server.listen(0, host) { server in
       if let addr = server.listenAddresses.first,
          let p = addr.port
@@ -189,11 +189,11 @@ final class KeepAliveTests: XCTestCase {
 
   /**
    * A connection that receives no data should be closed
-   * by the server after `keepAliveTimeout` ms.
+   * by the server after `idleTimeout` ms.
    */
   func testIdleConnectionClosedBeforeFirstRequest() {
-    let timeoutMS = 2_000
-    let port = startServer(keepAliveTimeout: timeoutMS)
+    let idleTimeoutMS = 2_000
+    let port = startServer(idleTimeout: idleTimeoutMS)
 
     // Open a raw TCP socket, send nothing, and wait for
     // the server to close the idle connection.
@@ -235,8 +235,8 @@ final class KeepAliveTests: XCTestCase {
       exp.fulfill()
     }
 
-    // The server should close within timeout + margin
+    // The server should close within idleTimeout + margin
     waitForExpectations(
-      timeout: Double(timeoutMS) / 1000.0 + 3)
+      timeout: Double(idleTimeoutMS) / 1000.0 + 3)
   }
 }
