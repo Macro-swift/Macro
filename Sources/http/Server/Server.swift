@@ -44,6 +44,8 @@ import xsys
  * it when it is getting deallocated.
  *
  * Supported events:
+ * - ``Server/onConnection(execute:)``
+ *   - connection: ``Connection``
  * - ``Server/onRequest(execute:)``
  *   - req: ``http/IncomingMessage``
  *   - res: ``http/ServerResponse``
@@ -59,31 +61,56 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   public  var options   : Options
   private var didRetain = false
   private let txID      = Atomics.ManagedAtomic<Int>(0)
+  private let connID    = Atomics.ManagedAtomic<Int>(0)
   public  let lock      = NIOLock()
 
   @inlinable
   public  var log       : Logger { return options.log }
 
-  /**
-   * Configuration options for the HTTP server, mirrors
-   * Node.js `http.createServer(options)`.
-   */
+  ///Configuration options for the HTTP server.
   public struct Options {
 
-    public  var log = Logger(label: "μ.http")
+    /// The base logger to use.
+    public var log = Logger(label: "μ.http")
 
     /**
-     * Milliseconds of inactivity before an idle connection is closed. Applies 
-     * before the first request and between keep-alive requests. 
-     * Set to 0 to disable, default is 5s.
+     * Close the connection when no data has been *read* for this many 
+     * milliseconds. 0 = disabled.
+     * 
+     * Careful: This also fires if a request was fully received and is being
+     * processed. If processing the request takes longer than the read timeout,
+     * the connection will be closed! Consider ``idleTimeout`` instead.
      */
-    public var keepAliveTimeout = 5_000
-
-    /// Enable TCP keep-alive probes on accepted connections (default: true).
-    public var keepAlive = true
+    public var readTimeout = 0
 
     /**
-     * Set `TCP_NODELAY` on connections to disable Nagle's algorithm. 
+     * Close the connection when no data has been *written* for this many 
+     * milliseconds. 0 = disabled.
+     */
+    public var writeTimeout = 0
+
+    /**
+     * Close the connection when neither a read nor a write has occurred for 
+     * this many milliseconds. This is the keep-alive idle timeout. Default 5s.
+     * Set to 0 to disable.
+     * 
+     * Careful: This also fires if a request was fully received and is being
+     * processed, but not response info was written yet. 
+     * If processing the request takes longer than the timeout, the connection 
+     * will be closed!
+     * So for long running requests that do not actively write, you may want to
+     * write 100-continues to keep things alive.
+     */
+    public var idleTimeout = 5_000
+
+    /**
+     * Enable `SO_KEEPALIVE` on the TCP socket so the OS sends periodic probes 
+     * to detect dead peers. Default is true.
+     */
+    public var tcpKeepAlive = true
+
+    /**
+     * Set `TCP_NODELAY` on connections to disable Nagle's algorithm 
      * (default true).
      */
     public var noDelay = true
@@ -95,21 +122,34 @@ open class Server: ErrorEmitter, CustomStringConvertible {
      * Create options with explicit values.
      *
      * - Parameters:
-     *   - log:              Logger for server messages.
-     *   - keepAliveTimeout: Idle timeout in ms (0 = off).
-     *   - keepAlive:        Enable TCP keep-alive probes.
-     *   - noDelay:          Set `TCP_NODELAY` on sockets.
+     *   - log:          Logger for server messages.
+     *   - readTimeout:  Read-idle timeout in ms (0 = off).
+     *   - writeTimeout: Write-idle timeout in ms (0 = off).
+     *   - idleTimeout:  All-idle timeout in ms (0 = off).
+     *   - tcpKeepAlive: Enable `SO_KEEPALIVE` on sockets.
+     *   - noDelay:      Set `TCP_NODELAY` on sockets.
      */
     @inlinable
-    public init(log              : Logger = Logger(label: "μ.http"),
-                keepAliveTimeout : Int    = 5_000,
-                keepAlive        : Bool   = true,
-                noDelay          : Bool   = true)
+    public init(log          : Logger = Logger(label: "μ.http"),
+                readTimeout  : Int    = 0,
+                writeTimeout : Int    = 0,
+                idleTimeout  : Int    = 15_000,
+                tcpKeepAlive : Bool   = true,
+                noDelay      : Bool   = true)
     {
-      self.log              = log
-      self.keepAliveTimeout = keepAliveTimeout
-      self.keepAlive        = keepAlive
-      self.noDelay          = noDelay
+      self.log          = log
+      self.readTimeout  = readTimeout
+      self.writeTimeout = writeTimeout
+      self.idleTimeout  = idleTimeout
+      self.tcpKeepAlive = tcpKeepAlive
+      self.noDelay      = noDelay
+    }
+
+    /// Whether any timeout is configured that requires an
+    /// `IdleStateHandler` in the channel pipeline.
+    @inlinable
+    public var needsIdleHandler : Bool {
+      readTimeout > 0 || writeTimeout > 0 || idleTimeout > 0
     }
   }
 
@@ -118,7 +158,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
    * users should use:
    * ```swift
    * http.createServer { req, res in
-   *       ...
+   *  ...
    * }
    * ```
    * instead.
@@ -128,8 +168,12 @@ open class Server: ErrorEmitter, CustomStringConvertible {
    *   - log:     A Logger object to use.
    */
   public init(_ options: Options = Options()) {
-    self.id      = Server.serverID.wrappingIncrementThenLoad(ordering: .relaxed)
+    let id = Server.serverID.wrappingIncrementThenLoad(ordering: .relaxed)
+    self.id      = id
     self.options = options
+    #if false // I don't think we usually need this, usually one server
+    self.options.log[metadataKey: "svrid"] = "\(id)"
+    #endif
     super.init()
   }
   deinit {
@@ -146,8 +190,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
                    onListening : (@Sendable ( Server ) -> Void)? = nil) -> Self
   {
     addDefaultListener(onListening)
-    listen(bootstrap: createServerBootstrap(backlog))
-    { bootstrap in
+    listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
       // TBD: does 0 trigger the wildcard port?
       return bootstrap.bind(host: host, port: port ?? 0)
     }
@@ -248,8 +291,8 @@ open class Server: ErrorEmitter, CustomStringConvertible {
     EventListenerSet<( IncomingMessage, ServerResponse )>()
   private var _expectListeners =
     EventListenerSet<( IncomingMessage, ServerResponse )>()
-  private var _listeningListeners =
-    EventListenerSet<Server>()
+  private var _listeningListeners  = EventListenerSet<Server>()
+  private var _connectionListeners = EventListenerSet<Connection>()
 
   private var hasRequestListeners : Bool {
     return !lock.withLock { return _requestListeners.isEmpty }
@@ -278,15 +321,30 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   }
   
   @discardableResult
-  public func onListening(execute: @escaping @Sendable (Server) -> Void) -> Self
+  public func onConnection(execute:
+                @escaping ( Connection ) -> Void) -> Self
   {
+    lock.withLockVoid { _connectionListeners.add(execute) }
+    return self
+  }
+
+  @discardableResult
+  public func onListening(execute: @escaping @Sendable (Server)->Void) -> Self {
     lock.withLockVoid { _listeningListeners.add(execute) }
     if listening { execute(self) }
     return self
   }
 
-  private func emitContinue(request: IncomingMessage, response: ServerResponse)
-  {
+  fileprivate func emitConnection(_ channel: NIOCore.Channel) {
+    var listeners = lock.withLock {
+      return _connectionListeners
+    }
+    if !listeners.isEmpty {
+      listeners.emit(Connection(channel))
+    }
+  }
+
+  private func emitContinue(request: IncomingMessage, response:ServerResponse) {
     var listeners = lock.withLock {
       return _continueListeners // Note: No `once` support!
     }
@@ -387,15 +445,23 @@ open class Server: ErrorEmitter, CustomStringConvertible {
       .serverChannelOption(reuseAddrOpt, value: 1)
       
       .childChannelInitializer { channel in
-        let timeoutMS = opts.keepAliveTimeout
+        let rt = opts.readTimeout  > 0
+               ? TimeAmount.milliseconds(Int64(opts.readTimeout))
+               : nil
+        let wt = opts.writeTimeout > 0
+               ? TimeAmount.milliseconds(Int64(opts.writeTimeout))
+               : nil
+        let at = opts.idleTimeout  > 0
+               ? TimeAmount.milliseconds(Int64(opts.idleTimeout))
+               : nil
         return channel.pipeline
           .configureHTTPServerPipeline(withServerUpgrade: upgrade)
           .flatMap {
-            guard timeoutMS > 0 else {
+            guard opts.needsIdleHandler else {
               return channel.eventLoop.makeSucceededVoidFuture()
             }
-            let idle = 
-              IdleStateHandler(readTimeout: .milliseconds(Int64(timeoutMS)))
+            let idle = IdleStateHandler(readTimeout: rt, writeTimeout: wt,
+                                        allTimeout: at)
             #if compiler(>=5.10)
             nonisolated(unsafe) let h : ChannelHandler = idle
             #else
@@ -416,7 +482,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
 
       .childChannelOption(reuseAddrOpt, value: 1)
       .childChannelOption(noDelayOp,    value: opts.noDelay   ? 1 : 0)
-      .childChannelOption(keepAliveOp,  value: opts.keepAlive ? 1 : 0)
+      .childChannelOption(keepAliveOp,  value: opts.tcpKeepAlive ? 1 : 0)
       .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 1)
     return bootstrap
   }
@@ -431,8 +497,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   static let closeOnIdleHandlerName = "μ.http.idle.close"
 
   /// Closes the channel when an idle timeout fires.
-  /// Added to the pipeline alongside `IdleStateHandler` and removed after the 
-  /// first HTTP request arrives.
+  /// Installed once in the pipeline alongside `IdleStateHandler`.
   private final class CloseOnIdleHandler: ChannelInboundHandler, 
                                           RemovableChannelHandler
   {
@@ -453,51 +518,33 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   {
 
     typealias InboundIn = HTTPServerRequestPart
-    
-    private let server      : Server
-    private var transaction : ( id       : Int,
+
+    private let server       : Server
+    private let connectionID : Int
+    private var connLog      : Logger
+    private var transaction  : ( id       : Int,
                                  request  : IncomingMessage,
                                  response : ServerResponse )?
-    private var waitForEnd  = false
-    
-    private let idle  : ChannelHandler? // cache this, should be fine?
-    private let close : CloseOnIdleHandler?
+    private var waitForEnd   = false
 
     init(server: Server) {
       self.server = server
-      let keepAliveTimeoutMS = Int64(server.options.keepAliveTimeout)
-      if keepAliveTimeoutMS > 0 {
-        self.idle = 
-          IdleStateHandler(readTimeout: .milliseconds(keepAliveTimeoutMS))
-        self.close = CloseOnIdleHandler()
-      }
-      else { self.idle = nil; self.close = nil }
+      self.connectionID = server.connID
+        .wrappingIncrementThenLoad(ordering: .relaxed)
+      var log = server.log
+      log[metadataKey: "cid"] = "\(connectionID)"
+      self.connLog = log
     }
 
-    private func removeIdleHandlers(_ context: ChannelHandlerContext) {
-      guard idle != nil else { return }
-      context.pipeline.removeHandler(name: Server.idleHandlerName)
-                      .whenFailure { _ in }
-      context.pipeline.removeHandler(name: Server.closeOnIdleHandlerName)
-                      .whenFailure { _ in }
+    func channelActive(context: ChannelHandlerContext) {
+      connLog.trace("HTTP connection opened \(connectionID)")
+      server.emitConnection(context.channel)
+      context.fireChannelActive()
     }
 
-    private func addIdleHandlers(_ context: ChannelHandlerContext) {
-      guard let idle = idle else { return }
-      #if compiler(>=5.10)
-      nonisolated(unsafe) let handler : ChannelHandler = idle
-      #else
-      let handler : ChannelHandler = idle
-      #endif
-      guard let close = self.close else { return }
-      context.pipeline
-        .addHandler(handler, name: Server.idleHandlerName, position: .first)
-        .flatMap {
-          context.pipeline.addHandler(close,
-                                      name: Server.closeOnIdleHandlerName,
-                                      position: .after(handler))
-        }
-        .whenFailure { _ in }
+    func channelInactive(context: ChannelHandlerContext) {
+      connLog.trace("HTTP connection closed \(connectionID)")
+      context.fireChannelInactive()
     }
 
     final func channelRead(context: ChannelHandlerContext, data: NIOAny) {
@@ -521,8 +568,9 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           }
 
           let id  = server.txID.wrappingIncrementThenLoad(ordering: .relaxed)
-          var log = Logger(label: "μ.http")
-          log[metadataKey: "request-id"] = "\(id)"
+          var log = self.connLog
+          log[metadataKey: "rid"] = "\(id)"
+          log.trace("request \(id) \(head.method) \(head.uri)")
           
           // TBD:  Should the ServerResponse know its IncomingMessage?
           let request  = IncomingMessage(head, socket: context.channel, log:log)
@@ -556,34 +604,31 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           self.waitForEnd  = false
           assert(!request.complete)
 
-          // Remove idle timeout while request is being processed, we might
-          // take longer to produce responses than waiting for new data.
-          self.removeIdleHandlers(context)
-
+          let cid = self.connectionID
           // The transaction ends when the response is done, not when the
           // request was read completely!
           response.onceFinish {
-            guard let ( id, request, aresponse ) = self.transaction else {
+            guard let ( id, request, aresponse ) = self.transaction
+            else { return }
+            guard aresponse === response else {
+              assertionFailure("Got incorrect response object?")
               return
             }
-            guard aresponse === response else { 
-              assertionFailure("Got incorrect response object?")
-              return 
-            }
 
-            // Re-add idle timeout for the keep-alive idle period (close if no 
-            // next request arrives within the timeout).
-            // TBD: What if the next data already arrived?
-            self.addIdleHandlers(context)
-            
+            log.trace("\(response.status.code) \(cid):\(id)")
+
             // Consume rest of request if it wasn't read already
             if request.complete {
-              log.debug("finished HTTP transaction \(id)")
+              log.trace("finished HTTP transaction \(cid):\(id)")
               self.transaction = nil
               self.waitForEnd  = false
+              if response.getHeader("Connection") as? String == "close" {
+                context.close(promise: nil)
+              }
             }
             else {
-              log.debug("finished response, but request did not end yet \(id)")
+              log.trace(
+                "finished response, but request did not end yet \(cid):\(id)")
               self.waitForEnd  = true
               let autoReadOption = ChannelOptions.Types.AutoReadOption()
               // make sure we read the request
@@ -652,6 +697,9 @@ open class Server: ErrorEmitter, CustomStringConvertible {
               log.debug("finished HTTP transaction \(id)")
               self.transaction = nil
               self.waitForEnd  = false
+              if response.getHeader("Connection") as? String == "close" {
+                context.close(promise: nil)
+              }
             }
             else {
               log.debug("finished request, but response did not end yet \(id)")
