@@ -622,6 +622,9 @@ open class Server: ErrorEmitter, CustomStringConvertible {
               log.trace("finished HTTP transaction \(cid):\(id)")
               self.transaction = nil
               self.waitForEnd  = false
+              if response.getHeader("Connection") as? String == "close" {
+                context.close(promise: nil)
+              }
             }
             else {
               log.trace(
@@ -694,6 +697,9 @@ open class Server: ErrorEmitter, CustomStringConvertible {
               log.debug("finished HTTP transaction \(id)")
               self.transaction = nil
               self.waitForEnd  = false
+              if response.getHeader("Connection") as? String == "close" {
+                context.close(promise: nil)
+              }
             }
             else {
               log.debug("finished request, but response did not end yet \(id)")
