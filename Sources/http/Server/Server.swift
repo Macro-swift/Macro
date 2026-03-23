@@ -171,7 +171,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
     let id = Server.serverID.wrappingIncrementThenLoad(ordering: .relaxed)
     self.id      = id
     self.options = options
-    #if false // I don't think we usually need this, one server
+    #if false // I don't think we usually need this, usually one server
     self.options.log[metadataKey: "svrid"] = "\(id)"
     #endif
     super.init()
@@ -190,8 +190,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
                    onListening : (@Sendable ( Server ) -> Void)? = nil) -> Self
   {
     addDefaultListener(onListening)
-    listen(bootstrap: createServerBootstrap(backlog))
-    { bootstrap in
+    listen(bootstrap: createServerBootstrap(backlog)) { bootstrap in
       // TBD: does 0 trigger the wildcard port?
       return bootstrap.bind(host: host, port: port ?? 0)
     }
@@ -292,10 +291,8 @@ open class Server: ErrorEmitter, CustomStringConvertible {
     EventListenerSet<( IncomingMessage, ServerResponse )>()
   private var _expectListeners =
     EventListenerSet<( IncomingMessage, ServerResponse )>()
-  private var _listeningListeners =
-    EventListenerSet<Server>()
-  private var _connectionListeners =
-    EventListenerSet<Connection>()
+  private var _listeningListeners  = EventListenerSet<Server>()
+  private var _connectionListeners = EventListenerSet<Connection>()
 
   private var hasRequestListeners : Bool {
     return !lock.withLock { return _requestListeners.isEmpty }
@@ -332,8 +329,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   }
 
   @discardableResult
-  public func onListening(execute: @escaping @Sendable (Server) -> Void) -> Self
-  {
+  public func onListening(execute: @escaping @Sendable (Server)->Void) -> Self {
     lock.withLockVoid { _listeningListeners.add(execute) }
     if listening { execute(self) }
     return self
@@ -348,8 +344,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
     }
   }
 
-  private func emitContinue(request: IncomingMessage, response: ServerResponse)
-  {
+  private func emitContinue(request: IncomingMessage, response:ServerResponse) {
     var listeners = lock.withLock {
       return _continueListeners // Note: No `once` support!
     }
