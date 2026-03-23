@@ -129,8 +129,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     guard !headersSent else { return }
     
     if sendDate, getHeader("Date") == nil {
-      setHeader("Date", 
-                self.date.componentsInUTC.format("%a, %d %b %Y %H:%M:%S GMT"))
+      setHeader("Date", self.date.format("%a, %d %b %Y %H:%M:%S GMT"))
     }
 
     if !willWriteHeadCallbacks.isEmpty {
