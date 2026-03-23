@@ -67,44 +67,51 @@ open class Server: ErrorEmitter, CustomStringConvertible {
   @inlinable
   public  var log       : Logger { return options.log }
 
-  /**
-   * Configuration options for the HTTP server, mirrors
-   * Node.js `http.createServer(options)`.
-   */
+  ///Configuration options for the HTTP server.
   public struct Options {
 
+    /// The base logger to use.
     public var log = Logger(label: "μ.http")
 
     /**
-     * Close the connection when no data has been *read*
-     * for this many milliseconds. 0 = disabled.
+     * Close the connection when no data has been *read* for this many 
+     * milliseconds. 0 = disabled.
+     * 
+     * Careful: This also fires if a request was fully received and is being
+     * processed. If processing the request takes longer than the read timeout,
+     * the connection will be closed! Consider ``idleTimeout`` instead.
      */
     public var readTimeout = 0
 
     /**
-     * Close the connection when no data has been *written*
-     * for this many milliseconds. 0 = disabled.
+     * Close the connection when no data has been *written* for this many 
+     * milliseconds. 0 = disabled.
      */
     public var writeTimeout = 0
 
     /**
-     * Close the connection when neither a read nor a write
-     * has occurred for this many milliseconds. This is the
-     * keep-alive idle timeout. Default 15 000 ms (15s).
+     * Close the connection when neither a read nor a write has occurred for 
+     * this many milliseconds. This is the keep-alive idle timeout. Default 5s.
      * Set to 0 to disable.
+     * 
+     * Careful: This also fires if a request was fully received and is being
+     * processed, but not response info was written yet. 
+     * If processing the request takes longer than the timeout, the connection 
+     * will be closed!
+     * So for long running requests that do not actively write, you may want to
+     * write 100-continues to keep things alive.
      */
-    public var idleTimeout = 15_000
+    public var idleTimeout = 5_000
 
     /**
-     * Enable `SO_KEEPALIVE` on the TCP socket so the OS
-     * sends periodic probes to detect dead peers.
-     * Default is true.
+     * Enable `SO_KEEPALIVE` on the TCP socket so the OS sends periodic probes 
+     * to detect dead peers. Default is true.
      */
     public var tcpKeepAlive = true
 
     /**
-     * Set `TCP_NODELAY` on connections to disable Nagle's
-     * algorithm (default true).
+     * Set `TCP_NODELAY` on connections to disable Nagle's algorithm 
+     * (default true).
      */
     public var noDelay = true
 
