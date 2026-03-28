@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 public protocol WritableStreamType: ErrorEmitterType, ErrorEmitterTarget {
@@ -21,7 +21,15 @@ public protocol WritableStreamType: ErrorEmitterType, ErrorEmitterTarget {
   
   // MARK: - Events
   // TODO: drain/close
-  
+
+  /// Fires after all data has been flushed but before
+  /// `finish`. Like `finish`, it fires at most once.
+  @discardableResult
+  func oncePrefinish(execute: @escaping () -> Void) -> Self
+
+  @discardableResult
+  func onPrefinish(execute: @escaping () -> Void) -> Self
+
   @discardableResult
   func onceFinish(execute: @escaping () -> Void) -> Self
   
@@ -38,6 +46,12 @@ public enum WritableError: Swift.Error {
 
 public extension WritableStreamType {
   
+  @discardableResult
+  @inlinable
+  func onPrefinish(execute: @escaping () -> Void) -> Self {
+    return oncePrefinish(execute: execute)
+  }
+
   /// `onFinish` is the same like `onceFinish` (only ever finishes once)
   @discardableResult
   @inlinable

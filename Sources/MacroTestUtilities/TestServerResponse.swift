@@ -60,11 +60,14 @@ open class TestServerResponse: ServerResponse, @unchecked Sendable {
     guard !writableEnded else { return }
     if !headersSent { primaryWriteHead() }
 
+    state = .isEnding
+    prefinishListeners.emit()
     state = .finished
     finishListeners.emit()
     _clearListenersOnFinish()
   }
   private func _clearListenersOnFinish() {
+    prefinishListeners.removeAll()
     finishListeners.removeAll()
     errorListeners .removeAll()
   }

@@ -105,9 +105,11 @@ open class FileWriteStream: WritableByteStream, FileStream,
     if let error = error { emit(error: error) }
     writableBuffer.forEach { $0.whenDone() }
     writableBuffer.removeAll()
+
+    prefinishListeners.emit()
     close()
-    
     finishListeners.emit()
+    prefinishListeners.removeAll()
     finishListeners.removeAll()
     
     // force destroy, regardless of close errors

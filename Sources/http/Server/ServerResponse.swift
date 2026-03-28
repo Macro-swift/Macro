@@ -129,8 +129,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     guard !headersSent else { return }
     
     if sendDate, getHeader("Date") == nil {
-      setHeader("Date", 
-                self.date.componentsInUTC.format("%a, %d %b %Y %H:%M:%S GMT"))
+      setHeader("Date", self.date.format("%a, %d %b %Y %H:%M:%S GMT"))
     }
 
     if !willWriteHeadCallbacks.isEmpty {
@@ -172,6 +171,18 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     else { self.trailers?.add(contentsOf: trailers) }
   }
   
+  private func _writeBufferToChannel() {
+    guard let buffer = writableBuffer, let channel = socket else { return }
+    writableBuffer = nil
+    channel.write(HTTPServerResponsePart.body(.byteBuffer(buffer.byteBuffer)))
+           .whenComplete { result in
+             switch result {
+               case .success(_): break
+               case .failure(let error): self.handleError(error)
+             }
+           }
+  }
+  
   override open func end() {
     guard !writableEnded else { return }
 
@@ -202,22 +213,16 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
 
     if let channel = socket {
       state = .isEnding
-      if let buffer = writableBuffer {
-        writableBuffer = nil
-        channel.writeAndFlush(HTTPServerResponsePart
-                                .body(.byteBuffer(buffer.byteBuffer)))
-               .whenComplete { result in
-                 switch result {
-                   case .success(_): break
-                   case .failure(let error): self.handleError(error)
-                 }
-               }
-      }
+      
+      _writeBufferToChannel()
+      prefinishListeners.emit()
+      _writeBufferToChannel() // Flush any buffer written by prefinish
       channel.writeAndFlush(HTTPServerResponsePart.end(nil))
              .whenComplete { result in
                switch result {
                  case .success(_): break
-                 case .failure(let error): self.handleError(error)
+                 case .failure(let error):
+                   self.handleError(error)
                }
                self.state = .finished
                self.finishListeners.emit()
@@ -225,12 +230,15 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
              }
     }
     else {
+      state = .isEnding
+      prefinishListeners.emit()
       state = .finished
       finishListeners.emit()
       _clearListenersOnFinish()
     }
   }
   private func _clearListenersOnFinish() {
+    prefinishListeners.removeAll()
     finishListeners.removeAll()
     errorListeners .removeAll()
     willWriteHeadCallbacks.removeAll()

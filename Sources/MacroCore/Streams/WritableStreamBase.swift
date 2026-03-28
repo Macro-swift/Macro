@@ -22,6 +22,7 @@
 open class WritableStreamBase<WritablePayload>: ErrorEmitter {
 
   open   var writableHighWaterMark = 4096
+  public var prefinishListeners    = EventListenerSet<Void>()
   public var finishListeners       = EventListenerSet<Void>()
   public var drainListeners        = EventListenerSet<Void>()
   
@@ -31,8 +32,8 @@ open class WritableStreamBase<WritablePayload>: ErrorEmitter {
   open var writableFinished : Bool {
     fatalError("subclass responsibility \(#function)")
   }
-  open var writableCorked : Bool { return false }
-  open var writable       : Bool { return !writableFinished }
+  @inlinable open var writableCorked : Bool { return false }
+  @inlinable open var writable       : Bool { return !writableFinished }
 
   // MARK: - Init
 
@@ -52,14 +53,23 @@ open class WritableStreamBase<WritablePayload>: ErrorEmitter {
   // MARK: - Listeners
   
   @discardableResult
+  open func oncePrefinish(execute: @escaping () -> Void) -> Self {
+    prefinishListeners.once(immediate: writableEnded, execute)
+    return self
+  }
+  @discardableResult
+  open func onPrefinish(execute: @escaping () -> Void) -> Self {
+    return oncePrefinish(execute: execute)
+  }
+
+  @discardableResult
   open func onceFinish(execute: @escaping () -> Void) -> Self {
     finishListeners.once(immediate: writableEnded, execute)
     return self
   }
   @discardableResult
   open func onFinish(execute: @escaping () -> Void) -> Self {
-    onceFinish(execute: execute)
-    return self
+    return onceFinish(execute: execute)
   }
   
   @discardableResult

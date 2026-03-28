@@ -107,6 +107,7 @@ open class OutgoingMessage: WritableByteStream,
     _ = socket?.close() // TBD
     socket = nil
     emit(error: error)
+    prefinishListeners.emit()
     finishListeners.emit()
   }
   
