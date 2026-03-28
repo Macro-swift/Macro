@@ -142,8 +142,10 @@ public class ConcatByteStream: WritableByteStream,
   }
   
   public func end() {
+    prefinishListeners.emit()
     state = .finished
     finishListeners.emit()
+    prefinishListeners.removeAll()
     finishListeners.removeAll()
     errorListeners .removeAll()
   }
