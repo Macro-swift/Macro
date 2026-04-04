@@ -3,7 +3,7 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Heß on 4/27/16.
-//  Copyright © 2016-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
 // TODO: This file triggers a weird warning on Swift 3 2016-05-09:
@@ -12,11 +12,33 @@
 
 #if os(Windows)
   import WinSDK
+  import ucrt
 
-  public typealias size_t  = WinSDK.size_t // TBD
+  public typealias size_t  = WinSDK.size_t
   public let memcpy        = WinSDK.memcpy
   public let strlen        = WinSDK.strlen
   public let strchr        = WinSDK.strchr
+
+  public let chdir         = ucrt._chdir
+  public let rmdir         = ucrt._rmdir
+  public let unlink        = ucrt._unlink
+  public let rename        = ucrt.rename
+  public let mkdir         = ucrt._mkdir
+  public let getcwd        = ucrt._getcwd
+  public typealias pid_t   = Int32
+  public typealias mode_t  = UInt16
+
+  public let getenv        = ucrt.getenv
+
+  // signals
+  public let SIGTERM       = WinSDK.SIGTERM
+  public let SIGINT        = WinSDK.SIGINT
+
+  // stdio
+  public let STDIN_FILENO  : Int32 = 0
+  public let STDOUT_FILENO : Int32 = 1
+  public let STDERR_FILENO : Int32 = 2
+  public let O_RDONLY      = ucrt._O_RDONLY
 #elseif os(Linux)
   import Glibc
   
