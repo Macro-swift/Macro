@@ -57,9 +57,9 @@ open class WebSocket: ErrorEmitter {
    * WebSocket connection ready state, matching the Node.js ws library.
    *
    * - `connecting`: The connection is not yet open.
-   * - `open`: The connection is open and ready to communicate.
-   * - `closing`: The connection is in the process of closing.
-   * - `closed`: The connection is closed.
+   * - `open`:       The connection is open and ready to communicate.
+   * - `closing`:    The connection is in the process of closing.
+   * - `closed`:     The connection is closed.
    */
   public enum ReadyState: Int, Sendable {
     case connecting = 0
@@ -81,13 +81,10 @@ open class WebSocket: ErrorEmitter {
   public              let lock       = NIOLock()
   open                var log        : Logger
   public private(set) var channel    : Channel?
-  public private(set) var readyState : ReadyState = .connecting
+  public private(set) var readyState = ReadyState.connecting
 
   public var isConnected : Bool {
-    lock.lock()
-    let result = readyState == .open && channel != nil
-    lock.unlock()
-    return result
+    return lock.withLock { return readyState == .open && channel != nil }
   }
 
   private var didRetain = false
@@ -473,7 +470,8 @@ open class WebSocket: ErrorEmitter {
   private static let httpHandlerName      = "μ.ws.client.http"
   
   private final class HTTPHandler: ChannelInboundHandler,
-                                   RemovableChannelHandler
+                                   RemovableChannelHandler,
+                                   @unchecked Sendable
   {
     public typealias InboundIn   = HTTPClientResponsePart
     public typealias OutboundOut = HTTPClientRequestPart
@@ -530,11 +528,13 @@ open class WebSocket: ErrorEmitter {
   
   // API: TBD
   typealias WebSocketBootstrap =
-    ( URL, WebSocket, String,
-      RemovableChannelHandler,
-      ChannelHandler ) -> ClientBootstrap
-  
-  /// This could later be used to register custom bootstraps for say TLS.
+    (_ url: URL, _ ws: WebSocket,
+     _ requestKey: String,
+     _ httpHandler: any RemovableChannelHandler & Sendable,
+     _ wsHandler: any ChannelHandler & Sendable)
+    -> ClientBootstrap
+
+  /// Register custom bootstraps for schemes (e.g. TLS).
   static var schemeToBootstrap : [ String : WebSocketBootstrap ] = [
     "ws": makePlainClientBootstrap
   ]
@@ -585,20 +585,24 @@ open class WebSocket: ErrorEmitter {
     return "\(host):\(port)"
   }
   
-  static func makePlainClientBootstrap(url         : URL, for ws : WebSocket,
-                                       requestKey  : String,
-                                       httpHandler : RemovableChannelHandler,
-                                       wsHandler   : ChannelHandler)
-              -> ClientBootstrap
+  static func makePlainClientBootstrap(
+    _ url: URL, _ ws: WebSocket,
+    _ requestKey: String,
+    _ httpHandler: any RemovableChannelHandler & Sendable,
+    _ wsHandler: any ChannelHandler & Sendable)
+    -> ClientBootstrap
   {
-    let bootstrap = ClientBootstrap(group: MacroCore.shared.fallbackEventLoop())
+    let bootstrap = ClientBootstrap(
+      group: MacroCore.shared.fallbackEventLoop())
       .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
       .channelInitializer { channel in
         let upgrader = NIOWebSocketClientUpgrader(
           requestKey: requestKey,
           upgradePipelineHandler: { channel, _ in
-            channel.pipeline
-                   .addHandler(wsHandler, name: WebSocket.webSocketHandlerName)
+            channel.eventLoop.makeCompletedFuture {
+              try channel.pipeline.syncOperations
+                .addHandler(wsHandler, name: WebSocket.webSocketHandlerName)
+            }
           }
         )
         
@@ -613,8 +617,10 @@ open class WebSocket: ErrorEmitter {
           .addHTTPClientHandlers(leftOverBytesStrategy: .forwardBytes,
                                  withClientUpgrade: config)
           .flatMap {
-            channel.pipeline
-                   .addHandler(httpHandler, name: WebSocket.httpHandlerName)
+            channel.eventLoop.makeCompletedFuture {
+              try channel.pipeline.syncOperations
+                .addHandler(httpHandler, name: WebSocket.httpHandlerName)
+            }
           }
       }
     return bootstrap

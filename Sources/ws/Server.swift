@@ -90,13 +90,14 @@ extension WebSocket {
     
     @discardableResult
     public func onConnection(execute: @escaping ( WebSocket ) -> Void) -> Self {
-      lock.lock()
-      _connectionListeners.add(execute)
-      lock.unlock()
+      lock.withLockVoid {
+        _connectionListeners.add(execute)
+      }
       return self
     }
 
     private lazy var upgrader : HTTPServerProtocolUpgrader = {
+      
       func shouldUpgrade(channel: Channel, head: HTTPRequestHead)
            -> EventLoopFuture<HTTPHeaders?>
       {
@@ -121,9 +122,11 @@ extension WebSocket {
         
         return channel.pipeline
           .removeHandler(name: http.Server.httpHandlerName)
-          .flatMap { ( _ ) -> EventLoopFuture<Void> in
-            return channel.pipeline
-                     .addHandler(handler, name: Server.webSocketHandlerName)
+          .flatMap {
+            channel.eventLoop.makeCompletedFuture {
+              try channel.pipeline.syncOperations
+                .addHandler(handler, name: Server.webSocketHandlerName)
+            }
           }
           .map {
             if self._connectionListeners.isEmpty {
