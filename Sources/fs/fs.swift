@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 import class  NIO.NIOThreadPool
@@ -80,10 +80,10 @@ public extension FileSystemModule {
     return fs.createReadStream(path)
   }
   @inlinable
-  static func createWriteStream(on eventLoop: EventLoop? = nil,
-                                _ path: String,
-                                flags: NIOFileHandle.Flags
-                                          = .allowFileCreation())
+  static func createWriteStream(on eventLoop : EventLoop? = nil,
+                                _       path : String,
+                                flags        : NIOFileHandle.Flags
+                                             = .allowFileCreation())
               -> FileWriteStream
   {
     return fs.createWriteStream(on: eventLoop, path, flags: flags)
@@ -106,7 +106,8 @@ public extension FileSystemModule {
   /// Check whether we have access to the given path in the given mode.
   @inlinable
   static func access(_ path: String, _ mode: Int = F_OK,
-                     yield: @escaping ( Error? ) -> Void) {
+                     yield: @escaping ( Error? ) -> Void) 
+  {
     fs.access(path, mode, yield: yield)
   }
 
@@ -126,9 +127,10 @@ public extension FileSystemModule {
 
   // MARK: - Synchronous wrappers
 
-  // If you do a lot of FS operations in sequence, you might want to use a single
-  // (async) GCD call, instead of using the convenience async functions.
+  // If you do a lot of FS operations in sequence, you might want to use a
+  // single (async) GCD call, instead of using the convenience async functions.
   //
+  // TODO(2026-04-04): Update note for Macro, this was for Noze.io :-)
   // Example:
   //   FileSystemModule.workerQueue.async {
   //     statSync(...)
@@ -249,6 +251,31 @@ public extension FileSystemModule {
     try fs.writeFileSync(path, string, encoding)
   }
 
+  // MARK: - Async Callback Variants
+
+  @inlinable
+  static func mkdir(_ path: String, _ options: MakeDirOptions = .init(),
+                    yield: @escaping ( Error? ) -> Void)
+  {
+    fs.mkdir(path, options, yield: yield)
+  }
+  @inlinable
+  static func rmdir(_ path: String, yield: @escaping ( Error? ) -> Void) {
+    fs.rmdir(path, yield: yield)
+  }
+  @inlinable
+  static func unlink(_ path: String, yield: @escaping ( Error? ) -> Void) {
+    fs.unlink(path, yield: yield)
+  }
+  @inlinable
+  static func rename(_ oldPath: String, _ newPath: String,
+                     yield: @escaping ( Error? ) -> Void)
+  {
+    fs.rename(oldPath, newPath, yield: yield)
+  }
+
+  // MARK: - Sync Variants
+
   @inlinable
   static func mkdirSync(_ path: String, _ options: MakeDirOptions = .init())
                 throws
@@ -303,7 +330,7 @@ public extension FileSystemModule {
   /**
    * Check whether the path exists.
    *
-   * Use `fs.access()` instead.
+   * Use ``fs/access(_:_:yield:)`` instead.
    */
   @available(*, deprecated, message: "Using `access` is recommended.")
   @inlinable
