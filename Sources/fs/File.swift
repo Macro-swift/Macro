@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2023 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 import protocol NIO.EventLoop
@@ -24,6 +24,7 @@ import struct   xsys.mode_t
 import let      xsys.mkdir
 import let      xsys.rmdir
 import var      xsys.errno
+import let      xsys.rename
 
 // Most, not all, funcs currently require Foundation and should be reimplemented
 // using Posix as an alternative.
@@ -406,6 +407,67 @@ public struct MakeDirOptions: Equatable {
   }
 }
 
+// MARK: - Async Callback Variants
+
+/**
+ * Create a directory asynchronously on the thread pool (blocks).
+ *
+ * - Parameters:
+ *   - path:    The path to the directory to create.
+ *   - options: The ``MakeDirOptions`` specifying the creation behaviour.
+ *   - yield:   Called on completion with an optional error.
+ */
+@inlinable
+public func mkdir(_ path: String,
+                  _ options: MakeDirOptions = .init(),
+                  yield: @escaping ( Error? ) -> Void)
+{
+  FileSystemModule._evalAsync(
+    mkdirSync, (path, options), yield)
+}
+
+/**
+ * Delete a directory asynchronously on the thread pool (blocks).
+ *
+ * - Parameters:
+ *   - path:  The path to the directory to remove.
+ *   - yield: Called on completion with an optional error.
+ */
+@inlinable
+public func rmdir(_ path: String, yield: @escaping ( Error? ) -> Void) {
+  FileSystemModule._evalAsync(rmdirSync, path, yield)
+}
+
+/**
+ * Delete a file asynchronously on the thread pool (blocks).
+ *
+ * - Parameters:
+ *   - path:  The path to the file to remove.
+ *   - yield: Called on completion with an optional error.
+ */
+@inlinable
+public func unlink(_ path: String, yield: @escaping ( Error? ) -> Void) {
+  FileSystemModule._evalAsync(unlinkSync, path, yield)
+}
+
+/**
+ * Rename a file or directory asynchronously on the thread pool (blocks).
+ *
+ * - Parameters:
+ *   - oldPath: The current path.
+ *   - newPath: The new path.
+ *   - yield:   Called on completion with an optional error.
+ */
+@inlinable
+public func rename(_ oldPath: String, _ newPath: String,
+                   yield: @escaping ( Error? ) -> Void)
+{
+  FileSystemModule._evalAsync(renameSync, (oldPath, newPath), yield)
+}
+
+
+// MARK: - Sync Variants
+
 /**
  * Create a directory synchronously, on the active thread.
  *
@@ -443,7 +505,7 @@ public func mkdirSync(_ path: String, _ umask: String) throws {
 }
 
 /**
- * Delete a directory synchronously, on the active thread.
+ * Delete a directory synchronously, on the active thread (blocks).
  *
  * - Parameters:
  *   - path:  The path to the directory to create.
@@ -459,7 +521,7 @@ public func rmdirSync(_ path: String) throws {
 }
 
 /**
- * Delete a directory or file synchronously, on the active thread.
+ * Delete a directory or file synchronously, on the active thread (blocks).
  *
  * - Parameters:
  *   - path:  The path to the directory to create.
@@ -472,6 +534,18 @@ public func unlinkSync(_ path: String) throws {
     let rc = xsys.unlink(path)
     if rc != 0 { try throwErrno() }
   #endif
+}
+
+/**
+ * Rename a file or directory synchronously, on the active thread (blocks).
+ * 
+ * - Parameters:
+ *   - path:    The path to rename
+ *   - newPath: The new name. 
+ */
+public func renameSync(_ path: String, _ newPath: String) throws {
+  let rc = rename(path, newPath)
+  if rc != 0 { try throwErrno() }
 }
 
 /**

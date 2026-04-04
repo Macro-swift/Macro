@@ -3,10 +3,10 @@
 //  Noze.io
 //
 //  Created by Helge Hess on 23/07/16.
-//  Copyright © 2016 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
-#if !os(Linux)
+#if !os(Linux) && !os(Android) && !os(WASI) && !os(Windows)
   import Darwin
 
 private func makeArray<T: ExpressibleByIntegerLiteral>(count c: Int) -> [ T ] {
@@ -144,8 +144,7 @@ func uuid(fromArray v: [UInt8]) -> uuid_t {
 }
 
 #else
-  import Glibc
-
-  // TBD: uuid is not standard on Linux libc, one needs to link to (and install)
-  //      libuuid explicitly.
+  // TBD: uuid is not available on Linux/Android/WASI/
+  //      Windows. On Linux one needs to link to (and
+  //      install) libuuid explicitly.
 #endif

@@ -3,7 +3,7 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Hess on 11/04/16.
-//  Copyright © 2016-2025 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
 // TBD: This is a bit weird. Now even more due to POSIXErrorCode vs POSIXError.
@@ -11,13 +11,60 @@
 
 #if os(Windows)
   import WinSDK
-
-  // TODO: port me
-#elseif os(Linux)
+#elseif os(WASI)
+  import WASILibc
+#elseif os(Linux) || os(Android)
   import Glibc
+#else
+  import Darwin
+#endif
 
+#if os(Windows)
+  // TODO: port me
+
+#elseif os(WASI)
+  // TBD: WASI support is untested.
+  public let EWOULDBLOCK : Int32 = 11
+
+  @inlinable
+  public var errno : Int32 {
+    get { return WASILibc.errno }
+    set { WASILibc.errno = newValue }
+  }
+
+#elseif os(Linux) || os(Android)
   public let EWOULDBLOCK = Glibc.EWOULDBLOCK
-  
+
+  @inlinable
+  public var errno : Int32 {
+    get { return Glibc.errno }
+    set { Glibc.errno = newValue }
+  }
+
+#else // MacOS
+  public let EWOULDBLOCK = Darwin.EWOULDBLOCK
+
+  @inlinable
+  public var errno : Int32 {
+    get { return Darwin.errno }
+    set { Darwin.errno = newValue }
+  }
+
+  // this doesn't seem to work though
+  import Foundation // this is for POSIXError : Error
+
+  #if compiler(>=6)
+  extension POSIXErrorCode : @retroactive _BridgedNSError {}
+  extension POSIXErrorCode : @retroactive Swift.Error {}
+  #else
+  extension POSIXErrorCode : Error {}
+  #endif
+#endif // MacOS
+
+// Linux, Android, and WASI share the same POSIX error code
+// values from asm-generic/errno-base.h and errno.h.
+#if os(Linux) || os(Android) || os(WASI)
+
   // This is lame, but how else? This does not work:
   //   case EAGAIN = Glibc.EAGAIN
   //
@@ -160,28 +207,4 @@
 
   extension POSIXErrorCode : Error {}
 
-  public var errno : Int32 {
-      get { return Glibc.errno }
-      set { Glibc.errno = newValue }
-  }
-  
-#else // MacOS
-  import Darwin
-
-  public let EWOULDBLOCK = Darwin.EWOULDBLOCK
-
-  public var errno : Int32 {
-      get { return Darwin.errno }
-      set { Darwin.errno = newValue }
-  }
-
-  // this doesn't seem to work though
-  import Foundation // this is for POSIXError : Error
-
-  #if compiler(>=6)
-  extension POSIXErrorCode : @retroactive _BridgedNSError {}
-  extension POSIXErrorCode : @retroactive Swift.Error {}
-  #else
-  extension POSIXErrorCode : Error {}
-  #endif
-#endif // MacOS
+#endif // os(Linux) || os(Android) || os(WASI)

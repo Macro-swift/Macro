@@ -3,7 +3,7 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Heß on 4/27/16.
-//  Copyright © 2016-2021 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
 // TODO: This file triggers a weird warning on Swift 3 2016-05-09:
@@ -12,12 +12,65 @@
 
 #if os(Windows)
   import WinSDK
+  import ucrt
 
-  public typealias size_t  = WinSDK.size_t // TBD
+  public typealias size_t  = WinSDK.size_t
   public let memcpy        = WinSDK.memcpy
   public let strlen        = WinSDK.strlen
   public let strchr        = WinSDK.strchr
-#elseif os(Linux)
+
+  public let chdir         = ucrt._chdir
+  public let rmdir         = ucrt._rmdir
+  public let unlink        = ucrt._unlink
+  public let rename        = ucrt.rename
+  public let mkdir         = ucrt._mkdir
+  public let getcwd        = ucrt._getcwd
+  public typealias pid_t   = Int32
+  public typealias mode_t  = UInt16
+
+  public let getenv        = ucrt.getenv
+
+  // signals
+  public let SIGTERM       = WinSDK.SIGTERM
+  public let SIGINT        = WinSDK.SIGINT
+
+  // stdio
+  public let STDIN_FILENO  : Int32 = 0
+  public let STDOUT_FILENO : Int32 = 1
+  public let STDERR_FILENO : Int32 = 2
+  public let O_RDONLY      = ucrt._O_RDONLY
+#elseif os(WASI)
+  import WASILibc
+  // TBD: WASI support is untested, some POSIX wrappers
+  //      may be unavailable depending on the runtime.
+  //      No process/signal/user/rlimit APIs on WASI.
+
+  public typealias size_t  = WASILibc.size_t
+  public let memcpy        = WASILibc.memcpy
+  public let strlen        = WASILibc.strlen
+  public let strchr        = WASILibc.strchr
+
+  public let chdir         = WASILibc.chdir
+  public let rmdir         = WASILibc.rmdir
+  public let unlink        = WASILibc.unlink
+  public let rename        = WASILibc.rename
+  public let mkdir         = WASILibc.mkdir
+  public let getcwd        = WASILibc.getcwd
+  public typealias pid_t   = Int32
+  public typealias mode_t  = WASILibc.mode_t
+
+  public let getenv        = WASILibc.getenv
+
+  // signals (limited on WASI)
+  public let SIGTERM       = WASILibc.SIGTERM
+  public let SIGINT        = WASILibc.SIGINT
+
+  // stdio
+  public let STDIN_FILENO  = WASILibc.STDIN_FILENO
+  public let STDOUT_FILENO = WASILibc.STDOUT_FILENO
+  public let STDERR_FILENO = WASILibc.STDERR_FILENO
+  public let O_RDONLY      = WASILibc.O_RDONLY
+#elseif os(Linux) || os(Android)
   import Glibc
   
   public typealias size_t  = Glibc.size_t
@@ -36,6 +89,7 @@
   public let chdir         = Glibc.chdir
   public let rmdir         = Glibc.rmdir
   public let unlink        = Glibc.unlink
+  public let rename        = Glibc.rename
   public let mkdir         = Glibc.mkdir
   public let getcwd        = Glibc.getcwd
   public let getegid       = Glibc.getegid
@@ -84,6 +138,7 @@
   public let chdir         = Darwin.chdir
   public let rmdir         = Darwin.rmdir
   public let unlink        = Darwin.unlink
+  public let rename        = Darwin.rename
   public let mkdir         = Darwin.mkdir
   public let getcwd        = Darwin.getcwd
   public let getegid       = Darwin.getegid
@@ -130,7 +185,10 @@
 //   public let exit          = Darwin.exit
 #if os(Windows)
   public func exit(_ code: Int32) -> Never { WinSDK.exit(code) }
-#elseif os(Linux)
+#elseif os(WASI)
+  public func abort()             -> Never { WASILibc.abort()    }
+  public func exit(_ code: Int32) -> Never { WASILibc.exit(code) }
+#elseif os(Linux) || os(Android)
   public func abort()             -> Never { Glibc.abort()    }
   public func exit(_ code: Int32) -> Never { Glibc.exit(code) }
 #else // Darwin
@@ -139,7 +197,7 @@
 #endif // Darwin
 
 
-#if !os(Windows)
+#if !os(Windows) && !os(WASI)
 
 // MARK: - process status macros
 
@@ -158,4 +216,4 @@ public func WIFSIGNALED (_ x: CInt) -> Bool {
 public func WEXITSTATUS(_ x: CInt) -> CInt { return (x >> 8) & 0xFF }
 public func WTERMSIG   (_ x: CInt) -> CInt { return _WSTATUS(x) }
 
-#endif // !os(Windows)
+#endif // !os(Windows) && !os(WASI)

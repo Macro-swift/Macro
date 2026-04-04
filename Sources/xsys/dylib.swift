@@ -3,12 +3,15 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Hess on 11/04/16.
-//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
 #if os(Windows)
   import WinSDK
-#elseif os(Linux)
+#elseif os(WASI)
+  import WASILibc
+  // No dynamic library support on WASI
+#elseif os(Linux) || os(Android)
   import Glibc
 
   public let dlsym  = Glibc.dlsym

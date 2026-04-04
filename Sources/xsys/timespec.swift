@@ -8,7 +8,24 @@
 
 #if os(Windows)
   import WinSDK
-#elseif os(Linux)
+#elseif os(WASI)
+  import WASILibc
+  // TBD: WASI support is untested.
+
+  public typealias timespec = WASILibc.timespec
+  public typealias timeval  = WASILibc.timeval
+
+  public extension timespec {
+
+    @inlinable
+    static func monotonic() -> timespec {
+      var ts = timespec()
+      clock_gettime(CLOCK_MONOTONIC, &ts)
+      return ts
+    }
+
+  }
+#elseif os(Linux) || os(Android)
   import Glibc
 
   public typealias timespec = Glibc.timespec
@@ -16,7 +33,7 @@
 
   public extension timespec {
 
-    @inlinable    
+    @inlinable
     static func monotonic() -> timespec {
       var ts = timespec()
       clock_gettime(CLOCK_MONOTONIC, &ts)

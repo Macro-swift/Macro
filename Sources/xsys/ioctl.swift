@@ -3,21 +3,23 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Hess on 11/04/16.
-//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
 #if os(Windows)
   import WinSDK
-#elseif os(Linux)
+#elseif os(WASI)
+  import WASILibc
+#elseif os(Linux) || os(Android)
   import Glibc
 #else
   import Darwin
 #endif
 // MARK: - ioctl / ioccom stuff
 
-#if os(Windows)
-  // port me, WinSock2
-#elseif os(Linux)
+#if os(Windows) || os(WASI)
+  // No ioctl/fcntl support
+#elseif os(Linux) || os(Android)
 
   public let FIONREAD : CUnsignedLong = CUnsignedLong(Glibc.FIONREAD)
   
@@ -40,7 +42,7 @@
 #endif /* os(Darwin) */
 
 
-#if !os(Windows)
+#if !os(Windows) && !os(WASI)
 
 // MARK: - Replicate C shims - BAD HACK
 // TODO: not required anymore? varargs work on Linux?
@@ -70,4 +72,4 @@ public func ioctlVip(_ fildes: Int32, _ cmd: CUnsignedLong,
   return fp(fildes, cmd, val)
 }
 
-#endif // !os(Windows)
+#endif // !os(Windows) && !os(WASI)

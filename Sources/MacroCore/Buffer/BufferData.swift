@@ -34,6 +34,15 @@ public extension Buffer {
   }
 }
 
+public extension Buffer {
+
+  /// Initialize from any `ContiguousBytes` value.
+  @_disfavoredOverload @inlinable
+  init(_ value: some ContiguousBytes) {
+    self = value.withUnsafeBytes { Buffer($0) }
+  }
+}
+
 extension Buffer: ContiguousBytes {
   
   @inlinable

@@ -3,14 +3,17 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Hess on 11/04/16.
-//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
 #if os(Windows)
   import WinSDK
 
   // TODO: port me using WinSock2
-#elseif os(Linux)
+#elseif os(WASI)
+  import WASILibc
+  // No socket support on WASI
+#elseif os(Linux) || os(Android)
   import Glibc
   
   public let socket       = Glibc.socket
