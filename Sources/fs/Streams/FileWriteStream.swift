@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2022 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 import class    NIO.NIOFileHandle
@@ -234,8 +234,8 @@ open class FileWriteStream: WritableByteStream, FileStream,
     
     retainIfNecessary()
     
-    fileIO.openFile(path: path, mode: .write, flags: flags,
-                    eventLoop: eventLoop)
+    fileIO.openFile(_deprecatedPath: path, mode: .write,
+                    flags: flags, eventLoop: eventLoop)
           .whenComplete(_handleOpenResult)
   }
   func _handleOpenResult(_ result: Result<NIOFileHandle, Swift.Error>) {
