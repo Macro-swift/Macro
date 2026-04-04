@@ -445,38 +445,31 @@ open class Server: ErrorEmitter, CustomStringConvertible {
       .serverChannelOption(reuseAddrOpt, value: 1)
       
       .childChannelInitializer { channel in
-        let rt = opts.readTimeout  > 0
-               ? TimeAmount.milliseconds(Int64(opts.readTimeout))
-               : nil
-        let wt = opts.writeTimeout > 0
-               ? TimeAmount.milliseconds(Int64(opts.writeTimeout))
-               : nil
-        let at = opts.idleTimeout  > 0
-               ? TimeAmount.milliseconds(Int64(opts.idleTimeout))
-               : nil
-        return channel.pipeline
+        channel.pipeline
           .configureHTTPServerPipeline(withServerUpgrade: upgrade)
           .flatMap {
-            guard opts.needsIdleHandler else {
-              return channel.eventLoop.makeSucceededVoidFuture()
-            }
-            let idle = IdleStateHandler(readTimeout: rt, writeTimeout: wt,
-                                        allTimeout: at)
-            #if compiler(>=5.10)
-            nonisolated(unsafe) let h : ChannelHandler = idle
-            #else
-            let h : ChannelHandler = idle
-            #endif
-            return channel.pipeline
-              .addHandler(h, name: Server.idleHandlerName)
-              .flatMap {
-                channel.pipeline.addHandler(CloseOnIdleHandler(),
-                                            name: Server.closeOnIdleHandlerName)
+            channel.eventLoop.makeCompletedFuture {
+              let p = channel.pipeline.syncOperations
+              if opts.needsIdleHandler {
+                let rt = opts.readTimeout  > 0
+                       ? TimeAmount.milliseconds(Int64(opts.readTimeout))
+                       : nil
+                let wt = opts.writeTimeout > 0
+                       ? TimeAmount.milliseconds(Int64(opts.writeTimeout))
+                       : nil
+                let at = opts.idleTimeout  > 0
+                       ? TimeAmount.milliseconds(Int64(opts.idleTimeout))
+                       : nil
+                try p.addHandler(
+                  IdleStateHandler(readTimeout: rt, writeTimeout: wt,
+                                   allTimeout: at),
+                  name: Server.idleHandlerName)
+                try p.addHandler(CloseOnIdleHandler(),
+                                 name: Server.closeOnIdleHandlerName)
               }
-          }
-          .flatMap {
-            channel.pipeline.addHandler(HTTPHandler(server: self),
-                                        name: Server.httpHandlerName)
+              try p.addHandler(HTTPHandler(server: self),
+                               name: Server.httpHandlerName)
+            }
           }
       }
 
