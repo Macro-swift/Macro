@@ -38,7 +38,10 @@ let package = Package(
             exclude: [
               "Process/README.md", "Streams/README.md"
             ],
-            swiftSettings: [ .swiftLanguageMode(.v5) ]),
+            swiftSettings: [
+              .swiftLanguageMode(.v5),
+              .enableExperimentalFeature("Lifetimes")
+            ]),
     .target(name: "xsys",
             exclude: [ "README.md" ],
             swiftSettings: [ .swiftLanguageMode(.v5) ]),
