@@ -3,14 +3,16 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Hess on 12/04/16.
-//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
 #if os(Windows)
   import WinSDK
 
   // TODO: port via WinSock2
-#elseif os(Linux)
+#elseif os(WASI)
+  import WASILibc
+#elseif os(Linux) || os(Android)
   import Glibc
 #else
   import Darwin
@@ -19,8 +21,8 @@
 // Note: This cannot conform to SocketAddress because it doesn't have a static
 //       domain.
 public enum sockaddr_any {
-  
-#if !os(Windows) // TODO: port me using WinSock2
+
+#if !os(Windows) && !os(WASI)
   case AF_INET (sockaddr_in)
   case AF_INET6(sockaddr_in6)
   case AF_LOCAL(sockaddr_un)
@@ -34,7 +36,7 @@ public enum sockaddr_any {
   }
   
   public var len: __uint8_t {
-#if os(Linux)
+#if os(Linux) || os(Android)
     switch self {
       case .AF_INET:  return __uint8_t(MemoryLayout<sockaddr_in>.stride)
       case .AF_INET6: return __uint8_t(MemoryLayout<sockaddr_in6>.stride)
@@ -109,10 +111,10 @@ public enum sockaddr_any {
   // TODO: how to implement this? Is it even possible? (is the associated value
   //       memory-stable, or do we get a local copy?)
   // public var genericPointer : UnsafePointer<sockaddr> { .. }
-#endif // !os(Windows)
+#endif // !os(Windows) && !os(WASI)
 }
 
-#if !os(Windows) // TODO: port me using WinSock2
+#if !os(Windows) && !os(WASI)
 extension sockaddr_any: CustomStringConvertible {
   
   public var description: String {
@@ -124,4 +126,4 @@ extension sockaddr_any: CustomStringConvertible {
     }
   }
 }
-#endif // !os(Windows)
+#endif // !os(Windows) && !os(WASI)

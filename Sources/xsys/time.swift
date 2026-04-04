@@ -8,7 +8,19 @@
 
 #if os(Windows)
   import WinSDK
-#elseif os(Linux)
+#elseif os(WASI)
+  import WASILibc
+  // TBD: WASI support is untested.
+
+  public typealias struct_tm = WASILibc.tm
+  public typealias time_t    = WASILibc.time_t
+
+  public let time          = WASILibc.time
+  public let gmtime_r      = WASILibc.gmtime_r
+  public let localtime_r   = WASILibc.localtime_r
+  public let strftime      = WASILibc.strftime
+
+#elseif os(Linux) || os(Android)
   import Glibc
 
   public typealias struct_tm = Glibc.tm

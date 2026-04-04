@@ -3,14 +3,43 @@
 //  Noze.io / Macro
 //
 //  Created by Helge Hess on 11/04/16.
-//  Copyright © 2016-2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2016-2026 ZeeZide GmbH. All rights reserved.
 //
 
 public typealias xsysOpenType = (UnsafePointer<CChar>, CInt) -> CInt
 
 #if os(Windows)
   import WinSDK
-#elseif os(Linux)
+#elseif os(WASI)
+  import WASILibc
+  // TBD: WASI support is untested, some POSIX wrappers
+  //      may be unavailable depending on the runtime.
+
+  public let open      : xsysOpenType = WASILibc.open
+  public let close     = WASILibc.close
+  public let read      = WASILibc.read
+  public let write     = WASILibc.write
+  // No socket operations (recvfrom, sendto) on WASI
+
+  public let access    = WASILibc.access
+  public let F_OK      = WASILibc.F_OK
+  public let R_OK      = WASILibc.R_OK
+  public let W_OK      = WASILibc.W_OK
+  public let X_OK      = WASILibc.X_OK
+
+  public let stat      = WASILibc.lstat // stat=lstat on WASI
+  public let lstat     = WASILibc.lstat
+
+  public let opendir   = WASILibc.opendir
+  public let closedir  = WASILibc.closedir
+  public let readdir   = WASILibc.readdir
+
+  public typealias dirent      = WASILibc.dirent
+  public typealias stat_struct = WASILibc.stat
+
+  public let O_EVTONLY = WASILibc.O_RDONLY
+
+#elseif os(Linux) || os(Android)
   import Glibc
   
   public let open      : xsysOpenType = Glibc.open

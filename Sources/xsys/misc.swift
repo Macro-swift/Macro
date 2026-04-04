@@ -39,7 +39,38 @@
   public let STDOUT_FILENO : Int32 = 1
   public let STDERR_FILENO : Int32 = 2
   public let O_RDONLY      = ucrt._O_RDONLY
-#elseif os(Linux)
+#elseif os(WASI)
+  import WASILibc
+  // TBD: WASI support is untested, some POSIX wrappers
+  //      may be unavailable depending on the runtime.
+  //      No process/signal/user/rlimit APIs on WASI.
+
+  public typealias size_t  = WASILibc.size_t
+  public let memcpy        = WASILibc.memcpy
+  public let strlen        = WASILibc.strlen
+  public let strchr        = WASILibc.strchr
+
+  public let chdir         = WASILibc.chdir
+  public let rmdir         = WASILibc.rmdir
+  public let unlink        = WASILibc.unlink
+  public let rename        = WASILibc.rename
+  public let mkdir         = WASILibc.mkdir
+  public let getcwd        = WASILibc.getcwd
+  public typealias pid_t   = Int32
+  public typealias mode_t  = WASILibc.mode_t
+
+  public let getenv        = WASILibc.getenv
+
+  // signals (limited on WASI)
+  public let SIGTERM       = WASILibc.SIGTERM
+  public let SIGINT        = WASILibc.SIGINT
+
+  // stdio
+  public let STDIN_FILENO  = WASILibc.STDIN_FILENO
+  public let STDOUT_FILENO = WASILibc.STDOUT_FILENO
+  public let STDERR_FILENO = WASILibc.STDERR_FILENO
+  public let O_RDONLY      = WASILibc.O_RDONLY
+#elseif os(Linux) || os(Android)
   import Glibc
   
   public typealias size_t  = Glibc.size_t
@@ -154,7 +185,10 @@
 //   public let exit          = Darwin.exit
 #if os(Windows)
   public func exit(_ code: Int32) -> Never { WinSDK.exit(code) }
-#elseif os(Linux)
+#elseif os(WASI)
+  public func abort()             -> Never { WASILibc.abort()    }
+  public func exit(_ code: Int32) -> Never { WASILibc.exit(code) }
+#elseif os(Linux) || os(Android)
   public func abort()             -> Never { Glibc.abort()    }
   public func exit(_ code: Int32) -> Never { Glibc.exit(code) }
 #else // Darwin
@@ -163,7 +197,7 @@
 #endif // Darwin
 
 
-#if !os(Windows)
+#if !os(Windows) && !os(WASI)
 
 // MARK: - process status macros
 
@@ -182,4 +216,4 @@ public func WIFSIGNALED (_ x: CInt) -> Bool {
 public func WEXITSTATUS(_ x: CInt) -> CInt { return (x >> 8) & 0xFF }
 public func WTERMSIG   (_ x: CInt) -> CInt { return _WSTATUS(x) }
 
-#endif // !os(Windows)
+#endif // !os(Windows) && !os(WASI)
