@@ -127,7 +127,7 @@ public extension JSONFileModule {
    */
   static func readFile<T>(on eventLoop : EventLoop? = nil,
                           _       path : String,
-                          as      type : T.Type,
+                          as      type : T.Type = T.self,
                           decoder      : JSONDecoder? = nil,
                           yield        : @escaping ( Swift.Error?, T? ) -> Void)
               -> Void
@@ -135,7 +135,8 @@ public extension JSONFileModule {
   {
     let module = MacroCore.shared.retain()
     let loop   = module.fallbackEventLoop(eventLoop)
-    
+
+    nonisolated(unsafe) let type = type // avoid the Sendable type warning
     FileSystemModule.threadPool.submit { shouldRun in
       let result      : T?
       let resultError : Swift.Error?

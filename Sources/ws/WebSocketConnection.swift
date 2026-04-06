@@ -3,18 +3,13 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
-import struct   NIO.ByteBuffer
-import struct   NIO.ByteBufferAllocator
-import struct   NIO.NIOAny
-import protocol NIO.ChannelInboundHandler
-import class    NIO.ChannelHandlerContext
-import struct   NIOWebSocket.WebSocketFrame
-import struct   NIOWebSocket.WebSocketOpcode
+import NIO
+import NIOWebSocket
 
-final class WebSocketConnection: ChannelInboundHandler {
+final class WebSocketConnection: ChannelInboundHandler, @unchecked Sendable {
   
   public typealias InboundIn   = WebSocketFrame
   public typealias OutboundOut = WebSocketFrame
