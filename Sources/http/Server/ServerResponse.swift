@@ -6,17 +6,10 @@
 //  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
-import protocol NIO.Channel
-import struct   NIOHTTP1.HTTPHeaders
-import enum     NIOHTTP1.HTTPResponseStatus
-import struct   NIOHTTP1.HTTPResponseHead
-import struct   NIOHTTP1.HTTPVersion
-import enum     NIOHTTP1.HTTPServerResponsePart
-import struct   Logging.Logger
-import enum     MacroCore.WritableError
-import struct   MacroCore.Buffer
-import protocol MacroCore.EnvironmentKey
-import struct   MacroCore.EnvironmentValues
+import Logging   // Logger
+import NIO       // Channel
+import NIOHTTP1  // HTTP stuff
+import MacroCore // Errors, Buffer, Environment
 import xsys
 
 /**
@@ -60,8 +53,9 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   public var status  = HTTPResponseStatus.ok
 
   override open var writableCorked : Bool { return corkCount > 0 }
-  private var corkCount      = 0
-  open    var writableBuffer : Buffer?
+  private var corkCount          = 0
+  open    var writableBuffer     : Buffer?
+  private var pendingWriteBytes  = 0
 
   private var willWriteHeadCallbacks = [ ( ServerResponse ) -> Void ]()
 
@@ -213,10 +207,14 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
 
     if let channel = socket {
       state = .isEnding
-      
+      pendingWriteBytes = 0
+
       _writeBufferToChannel()
       prefinishListeners.emit()
-      _writeBufferToChannel() // Flush any buffer written by prefinish
+      _writeBufferToChannel()
+      // writeAndFlush(.end) flushes all pending
+      // channel.write() calls before sending the
+      // end marker.
       channel.writeAndFlush(HTTPServerResponsePart.end(nil))
              .whenComplete { result in
                switch result {
@@ -344,17 +342,22 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
       return true
     }
 
-    channel.writeAndFlush(HTTPServerResponsePart
-                            .body(.byteBuffer(bytes.byteBuffer)))
-           .whenComplete { result in
-             if case .failure(let error) = result {
-               self.handleError(error)
-               whenDone(error)
-             }
-             else {
-               whenDone(nil)
-             }
-           }
+    pendingWriteBytes += bytes.count
+    channel
+      .write(HTTPServerResponsePart.body(.byteBuffer(bytes.byteBuffer)))
+      .whenComplete { result in
+        if case .failure(let error) = result {
+          self.handleError(error)
+          whenDone(error)
+        }
+        else { whenDone(nil) }
+      }
+    
+    if pendingWriteBytes >= writableHighWaterMark { // flush
+      pendingWriteBytes = 0
+      channel.flush()
+    }
+    
     return true
   }
   
@@ -362,8 +365,8 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   /// about errors in the done closure (can still use `.onError`).
   @inlinable
   @discardableResult
-  override open func write(_ bytes: Buffer,
-                           whenDone: @escaping () -> Void = {}) -> Bool
+  override open func write(_ bytes: Buffer, whenDone: @escaping () -> Void = {}) 
+                     -> Bool
   {
     return write(bytes) { _ in whenDone() }
   }
