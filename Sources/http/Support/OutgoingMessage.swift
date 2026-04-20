@@ -6,7 +6,14 @@
 //  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
+#if canImport(Glibc)
+  import Glibc  // ECONNRESET, EPIPE
+#elseif canImport(Darwin)
+  import Darwin // ECONNRESET, EPIPE
+#endif
 import protocol NIO.Channel
+import enum     NIO.ChannelError
+import struct   NIOCore.IOError
 import struct   NIOHTTP1.HTTPHeaders
 import struct   Logging.Logger
 import class    MacroCore.WritableByteStream
@@ -103,8 +110,16 @@ open class OutgoingMessage: WritableByteStream,
   // MARK: - Error Handling
 
   open func handleError(_ error: Error) {
-    log.error("\(error)")
-    _ = socket?.close() // TBD
+    // Guard against cascading errors (e.g. writableEnded
+    // after channel was already closed).
+    guard socket != nil else { return }
+    if isExpectedCloseError(error) {
+      log.trace("channel closed: \(error)")
+    }
+    else {
+      log.error("\(error)")
+    }
+    _ = socket?.close()
     socket = nil
     emit(error: error)
     prefinishListeners.emit()
@@ -125,7 +140,19 @@ open class OutgoingMessage: WritableByteStream,
     guard writableCorked || socket != nil else { whenDone(); return false }
     return write(Buffer(string), whenDone: whenDone)
   }
-  
+
+  // MARK: - Helpers
+
+  /// Whether the error is an expected channel-close condition
+  /// (client timeout, disconnect, etc.) rather than a real
+  /// server error.
+  private func isExpectedCloseError(_ error: Error) -> Bool {
+    if error is ChannelError { return true }
+    if let e = error as? IOError {
+      return e.errnoCode == ECONNRESET || e.errnoCode == EPIPE
+    }
+    return false
+  }
 }
 
 extension OutgoingMessage: EnvironmentValuesHolder  {}
