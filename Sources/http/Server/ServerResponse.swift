@@ -103,9 +103,9 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   // MARK: - Emit Header
   
   /**
-   * Register a one-shot callback that fires right before response headers are 
-   * sent. 
-   * 
+   * Register a one-shot callback that fires right before response headers are
+   * sent.
+   *
    * Similar to the Node.js `on-headers` package, but w/o monkey-patching :-)
    *
    * Example:
@@ -116,8 +116,8 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
    * ```
    */
   @discardableResult
-  public func onceWriteHead(execute: @escaping ( ServerResponse ) -> Void) 
-              -> Self 
+  public func onceWriteHead(execute: @escaping ( ServerResponse ) -> Void)
+              -> Self
   {
     willWriteHeadCallbacks.append(execute)
     return self
@@ -194,11 +194,11 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
       if writableCorked { corkCount = 0 }
     }
     else if writableCorked {
-      // 2026-03-16: I'm not entirely sure this is a good idea. Does end'ing a 
+      // 2026-03-16: I'm not entirely sure this is a good idea. Does end'ing a
       //             response really override corking behaviour?
-      // This thing is useful and was added to better support clients that do 
+      // This thing is useful and was added to better support clients that do
       // not support chunked encoding / need a content-length.
-      // By corking we make them spool up content in memory and can then set the 
+      // By corking we make them spool up content in memory and can then set the
       // Content-Length.
       corkCount = 0
       if !headersSent, let buffer = writableBuffer,
@@ -260,7 +260,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   @inlinable
   public var statusMessage : String {
     set {
-      status = HTTPResponseStatus(statusCode: statusCode, reasonPhrase:newValue) 
+      status = HTTPResponseStatus(statusCode: statusCode, reasonPhrase:newValue)
     }
     get { return status.reasonPhrase }
   }
@@ -418,7 +418,7 @@ public extension ServerResponse {
   var date : time_t {
     set { self[DateEnvironmentKey.self] = newValue }
     get {
-      let value = self[DateEnvironmentKey.self] 
+      let value = self[DateEnvironmentKey.self]
       if value == 0 {
         assert(!sendDate, "ServerResponse has no timestamp set?")
         let newValue = time_t.now
