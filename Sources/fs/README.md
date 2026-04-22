@@ -12,8 +12,8 @@ It often provides methods in asynchronous (e.g. `fs.readdir`) and synchronous
 (e.g. `fs.readdirSync`) versions.
 For asynchronous invocations all Macro functions use a shared thread pool
 (`fs.threadPool`). The number of threads allocated can be set using the
-`macro.core.iothreads` environment variables (defaults to half the number of CPU
-cores the machine has).
+`macro.core.iothreads` environment variable (defaults to twice the number of
+CPU cores, minimum 4).
 
 It further includes an implementation of the 
 [`jsonfile`](https://www.npmjs.com/package/jsonfile)
