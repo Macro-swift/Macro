@@ -52,6 +52,21 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   public var version = HTTPVersion(major: 1, minor: 1)
   public var status  = HTTPResponseStatus.ok
 
+  /**
+   * If `true`, the response is sent for an HTTP HEAD request: writes are
+   * counted to determine `Content-Length`, but the body itself is never sent
+   * to the channel.
+   *
+   * Set automatically by the ``http/Server`` when a HEAD request is received,
+   * so a route registered for `GET` can still produce its body and end up with
+   * a correct `Content-Length` header.
+   */
+  public var isHead = false
+
+  /// Number of body bytes that would have been written for a HEAD response.
+  /// Used to populate `Content-Length`. Only meaningful when `isHead` is true.
+  private var headBodyBytes = 0
+
   override open var writableCorked : Bool { return corkCount > 0 }
   private var corkCount          = 0
   open    var writableBuffer     : Buffer?
@@ -179,6 +194,12 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   
   override open func end() {
     guard !writableEnded else { return }
+
+    if isHead, !headersSent, headers["Content-Length"].isEmpty,
+       headBodyBytes > 0
+    {
+      setHeader("Content-Length", headBodyBytes)
+    }
 
     if status == .noContent || status == .notModified {
       if writableBuffer != nil {
@@ -317,7 +338,14 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
       handleError(WritableError.writableEnded)
       return true
     }
-    
+
+    if isHead {
+      // HEAD: count bytes for Content-Length, but never emit the body.
+      headBodyBytes += bytes.count
+      whenDone(nil)
+      return true
+    }
+
     if writableCorked {
       // TBD: would probably better to couple the whenDone with the buffers?
       if writableBuffer != nil { writableBuffer?.append(bytes) }

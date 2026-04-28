@@ -587,6 +587,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           
           let response = ServerResponse(channel: context.channel, log: log)
           response.version = head.version
+          response.isHead = (head.method == .HEAD)
 
           // remember the time the response object got created.
           // The Date header will be set on header flush if sendDate is on and
