@@ -135,8 +135,12 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   @usableFromInline
   internal func primaryWriteHead() {
     assert(!headersSent)
+    assert(!writableEnded, "primaryWriteHead called on ended response")
     guard !headersSent else { return }
-    
+    guard !writableEnded else {
+      return log.error("writeHead() on ended response, caller has a bug")
+    }
+
     if sendDate, getHeader("Date") == nil {
       setHeader("Date", self.date.format("%a, %d %b %Y %H:%M:%S GMT"))
     }
