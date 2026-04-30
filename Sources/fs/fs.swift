@@ -24,9 +24,9 @@ public enum FileSystemModule {
   /**
    * The worker queue for asynchronous file system functions.
    *
-   * The number of threads is set using the `macro.core.iothreads` environment
-   * variable and defaults to half the number of machine cores (e.g. a machine
-   * w/ 8 CPU cores will be assigned 4 I/O threads).
+   * The number of threads is set using the `macro.core.iothreads`
+   * environment variable and defaults to twice the number of CPU
+   * cores (minimum 4).
    */
   public static let threadPool : NIOThreadPool = {
     let tp = NIOThreadPool(numberOfThreads: _defaultIOThreadCount)
@@ -42,13 +42,15 @@ public enum FileSystemModule {
 }
 
 /**
- * The number of I/O threads is set using the `macro.core.iothreads` environment
- * variable and defaults to half the number of machine cores (e.g. a machine
- * w/ 8 CPU cores will be assigned 4 I/O threads).
+ * The number of I/O threads is set using the `macro.core.iothreads`
+ * environment variable and defaults to twice the number of CPU cores
+ * (minimum 4). The I/O pool runs blocking syscalls (read, write, stat,
+ * etc.), so threads spend most of their time sleeping in the kernel
+ * and overcommitting relative to core count is appropriate.
  */
 public let _defaultIOThreadCount =
   process.getenv("macro.core.iothreads",
-                 defaultValue      : max(1, System.coreCount / 2),
+                 defaultValue      : max(4, System.coreCount * 2),
                  upperWarningBound : 64)
 
 
@@ -106,7 +108,7 @@ public extension FileSystemModule {
   /// Check whether we have access to the given path in the given mode.
   @inlinable
   static func access(_ path: String, _ mode: Int = F_OK,
-                     yield: @escaping ( Error? ) -> Void) 
+                     yield: @escaping ( Error? ) -> Void)
   {
     fs.access(path, mode, yield: yield)
   }
@@ -337,7 +339,7 @@ public extension FileSystemModule {
   static func exists(_ path: String, yield: @escaping ( Bool ) -> Void) {
     fs.access(path) { error in
       yield(error == nil)
-    }    
+    }
   }
 
   /**

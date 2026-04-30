@@ -25,6 +25,10 @@ open class TestServerResponse: ServerResponse, @unchecked Sendable {
   public var writtenContent = Buffer()
   public var errorToTrigger : Swift.Error?
 
+  /// Body bytes that were dropped to simulate a HEAD response. Only relevant
+  /// when ``ServerResponse/isHead`` is set on the response.
+  public var headBodyBytes  = 0
+
   public init() {
     super.init(unsafeChannel: nil, log: MacroTestLogger)
     sendDate = false
@@ -58,6 +62,11 @@ open class TestServerResponse: ServerResponse, @unchecked Sendable {
   
   override open func end() {
     guard !writableEnded else { return }
+    if isHead, !headersSent, headers["Content-Length"].isEmpty,
+       headBodyBytes > 0
+    {
+      setHeader("Content-Length", headBodyBytes)
+    }
     if !headersSent { primaryWriteHead() }
 
     state = .isEnding
@@ -122,7 +131,14 @@ open class TestServerResponse: ServerResponse, @unchecked Sendable {
       handleError(WritableError.writableEnded)
       return true
     }
-    
+
+    if isHead {
+      // HEAD: count bytes for Content-Length, but don't capture the body.
+      headBodyBytes += bytes.count
+      whenDone(nil)
+      return true
+    }
+
     if !headersSent { primaryWriteHead() }
     
     if let error = consumeErrorToTrigger()  {

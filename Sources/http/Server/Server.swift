@@ -59,6 +59,19 @@ open class Server: ErrorEmitter, CustomStringConvertible {
 
   public  let id        : Int
   public  var options   : Options
+
+  /**
+   * Configure the channel pipeline before HTTP handlers are added.
+   *
+   * Example (with swift-nio-ssl):
+   * ```swift
+   * server.channelConfigurator = { channel in
+   *   channel.pipeline.addHandler(NIOSSLServerHandler(context: sslContext))
+   * }
+   * ```
+   */
+  public var channelConfigurator: (( Channel ) -> EventLoopFuture<Void>)?
+
   private var didRetain = false
   private let txID      = Atomics.ManagedAtomic<Int>(0)
   private let connID    = Atomics.ManagedAtomic<Int>(0)
@@ -444,10 +457,14 @@ open class Server: ErrorEmitter, CustomStringConvertible {
       .serverChannelOption(ChannelOptions.backlog, value: Int32(backlog))
       .serverChannelOption(reuseAddrOpt, value: 1)
       
-      .childChannelInitializer { channel in
-        channel.pipeline
-          .configureHTTPServerPipeline(withServerUpgrade: upgrade)
-          .flatMap {
+      .childChannelInitializer { [channelConfigurator] channel in
+        let preFuture = channelConfigurator?(channel) 
+                     ?? channel.eventLoop.makeSucceededVoidFuture()
+        return preFuture.flatMap {
+          channel.pipeline
+            .configureHTTPServerPipeline(withServerUpgrade: upgrade)
+        }
+        .flatMap {
             channel.eventLoop.makeCompletedFuture {
               let p = channel.pipeline.syncOperations
               if opts.needsIdleHandler {
@@ -570,6 +587,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           
           let response = ServerResponse(channel: context.channel, log: log)
           response.version = head.version
+          response.isHead = (head.method == .HEAD)
 
           // remember the time the response object got created.
           // The Date header will be set on header flush if sendDate is on and
