@@ -131,6 +131,13 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible,
    */
   public var environment = EnvironmentValues.empty
   
+  public var _routingURLCacheKey   : String?
+  public var _routingURLComponents : [ String ]?
+  public var _originalURL  : String?
+  public var _baseURL      : String?
+  public var _routeParams  : [ String : String ]?
+  public var _route        : AnyObject?
+
   @available(*, deprecated, message: "Please use the regular `log` w/ `.error`")
   @inlinable
   override open var errorLog : Logger { return log } // this was a mistake
