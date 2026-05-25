@@ -331,8 +331,8 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   // MARK: - WritableByteStream
   
   @discardableResult
-  open func write(_ bytes: Buffer, whenDone: @escaping ( Error? ) -> Void)
-            -> Bool
+  override open func write(_ bytes: Buffer,
+                           whenDone: (() -> Void)? = nil) -> Bool
   {
     guard !writableEnded else {
       handleError(WritableError.writableEnded)
@@ -342,7 +342,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     if isHead {
       // HEAD: count bytes for Content-Length, but never emit the body.
       headBodyBytes += bytes.count
-      whenDone(nil)
+      whenDone?()
       return true
     }
 
@@ -350,7 +350,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
       // TBD: would probably better to couple the whenDone with the buffers?
       if writableBuffer != nil { writableBuffer?.append(bytes) }
       else                     { writableBuffer = bytes        }
-      whenDone(nil)
+      whenDone?()
       // This returns false if the high water mark has been hit, so that the
       // callsite knows that backpressure should be applied.
       return (writableBuffer?.count ?? 0) < writableHighWaterMark
@@ -360,25 +360,24 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     
     guard let channel = socket else {
       handleError(WritableError.writableEnded)
-      whenDone(WritableError.writableEnded)
+      whenDone?()
       return false
     }
     
     if (status == .noContent || status == .notModified) && !bytes.isEmpty {
       log.warning("write() called with 204/304 status, ignoring body")
-      whenDone(nil)
+      whenDone?()
       return true
     }
 
     pendingWriteBytes += bytes.count
-    channel
-      .write(HTTPServerResponsePart.body(.byteBuffer(bytes.byteBuffer)))
-      .whenComplete { result in
+    let part = HTTPServerResponsePart.body(.byteBuffer(bytes.byteBuffer))
+    if let whenDone {
+      channel.write(part).whenComplete { result in
         if case .failure(let error) = result {
           self.handleError(error)
-          whenDone(error)
         }
-        else { whenDone(nil) }
+        whenDone()
       }
     }
     else {
@@ -391,16 +390,6 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     }
     
     return true
-  }
-  
-  /// Version of ``write(_:whenDone:)-(_,(Error?)->Void)`` that doesn't care
-  /// about errors in the done closure (can still use `.onError`).
-  @inlinable
-  @discardableResult
-  override open func write(_ bytes: Buffer, whenDone: @escaping () -> Void = {})
-                     -> Bool
-  {
-    return write(bytes) { _ in whenDone() }
   }
 
   // MARK: - CustomStringConvertible
