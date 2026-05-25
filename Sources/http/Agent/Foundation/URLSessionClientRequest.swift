@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 import struct   MacroCore.Buffer
@@ -144,14 +144,15 @@ public final class URLSessionClientRequest: ClientRequest {
 
   @discardableResult
   public override func write(_ bytes: Buffer,
-                             whenDone: @escaping () -> Void) -> Bool {
+                             whenDone: (() -> Void)? = nil) -> Bool
+  {
     writtenContent.append(bytes)
-    whenDone()
+    whenDone?()
     return true
   }
   @discardableResult @inlinable
   override public func write(_ string: String,
-                             whenDone: @escaping () -> Void = {}) -> Bool
+                             whenDone: (() -> Void)? = nil) -> Bool
   {
     return write(Buffer(string), whenDone: whenDone)
   }

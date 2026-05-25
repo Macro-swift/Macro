@@ -142,7 +142,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     }
 
     if sendDate, getHeader("Date") == nil {
-      setHeader("Date", self.date.format("%a, %d %b %Y %H:%M:%S GMT"))
+      setHeader("Date", date.httpDateString)
     }
 
     if !willWriteHeadCallbacks.isEmpty {
@@ -155,8 +155,9 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     headersSent = true
     
     if let channel = socket {
-      channel.writeAndFlush(HTTPServerResponsePart.head(head))
-             .whenFailure(handleError)
+      // Errors propagate via the channel's errorCaught, no promise needed.
+      channel.writeAndFlush(HTTPServerResponsePart.head(head),
+                            promise: nil)
     }
     else {
       version = head.version
@@ -187,13 +188,9 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   private func _writeBufferToChannel() {
     guard let buffer = writableBuffer, let channel = socket else { return }
     writableBuffer = nil
-    channel.write(HTTPServerResponsePart.body(.byteBuffer(buffer.byteBuffer)))
-           .whenComplete { result in
-             switch result {
-               case .success(_): break
-               case .failure(let error): self.handleError(error)
-             }
-           }
+    // Errors done by errorCaught handler, no promise necessary.
+    channel.write(HTTPServerResponsePart.body(.byteBuffer(buffer.byteBuffer)),
+                  promise: nil)
   }
   
   override open func end() {
@@ -237,9 +234,8 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
       _writeBufferToChannel()
       prefinishListeners.emit()
       _writeBufferToChannel()
-      // writeAndFlush(.end) flushes all pending
-      // channel.write() calls before sending the
-      // end marker.
+      // writeAndFlush(.end) flushes all pending channel.write() calls before
+      // sending the end marker.
       channel.writeAndFlush(HTTPServerResponsePart.end(nil))
              .whenComplete { result in
                switch result {
@@ -335,8 +331,8 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   // MARK: - WritableByteStream
   
   @discardableResult
-  open func write(_ bytes: Buffer, whenDone: @escaping ( Error? ) -> Void)
-            -> Bool
+  override open func write(_ bytes: Buffer,
+                           whenDone: (() -> Void)? = nil) -> Bool
   {
     guard !writableEnded else {
       handleError(WritableError.writableEnded)
@@ -346,7 +342,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     if isHead {
       // HEAD: count bytes for Content-Length, but never emit the body.
       headBodyBytes += bytes.count
-      whenDone(nil)
+      whenDone?()
       return true
     }
 
@@ -354,7 +350,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
       // TBD: would probably better to couple the whenDone with the buffers?
       if writableBuffer != nil { writableBuffer?.append(bytes) }
       else                     { writableBuffer = bytes        }
-      whenDone(nil)
+      whenDone?()
       // This returns false if the high water mark has been hit, so that the
       // callsite knows that backpressure should be applied.
       return (writableBuffer?.count ?? 0) < writableHighWaterMark
@@ -364,43 +360,36 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     
     guard let channel = socket else {
       handleError(WritableError.writableEnded)
-      whenDone(WritableError.writableEnded)
+      whenDone?()
       return false
     }
     
     if (status == .noContent || status == .notModified) && !bytes.isEmpty {
       log.warning("write() called with 204/304 status, ignoring body")
-      whenDone(nil)
+      whenDone?()
       return true
     }
 
     pendingWriteBytes += bytes.count
-    channel
-      .write(HTTPServerResponsePart.body(.byteBuffer(bytes.byteBuffer)))
-      .whenComplete { result in
+    let part = HTTPServerResponsePart.body(.byteBuffer(bytes.byteBuffer))
+    if let whenDone {
+      channel.write(part).whenComplete { result in
         if case .failure(let error) = result {
           self.handleError(error)
-          whenDone(error)
         }
-        else { whenDone(nil) }
+        whenDone()
       }
-    
+    }
+    else {
+      channel.write(part, promise: nil) // errors via channel
+    }
+
     if pendingWriteBytes >= writableHighWaterMark { // flush
       pendingWriteBytes = 0
       channel.flush()
     }
     
     return true
-  }
-  
-  /// Version of ``write(_:whenDone:)-(_,(Error?)->Void)`` that doesn't care
-  /// about errors in the done closure (can still use `.onError`).
-  @inlinable
-  @discardableResult
-  override open func write(_ bytes: Buffer, whenDone: @escaping () -> Void = {}) 
-                     -> Bool
-  {
-    return write(bytes) { _ in whenDone() }
   }
 
   // MARK: - CustomStringConvertible

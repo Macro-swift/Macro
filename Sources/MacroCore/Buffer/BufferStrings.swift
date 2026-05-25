@@ -3,12 +3,13 @@
 //  Macro
 //
 //  Created by Helge Heß.
-//  Copyright © 2020-2024 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 #if canImport(Foundation)
 import struct Foundation.Data
 #endif
+import NIOCore
 
 public enum DataDecodingError: Swift.Error {
   case failedToDecodeHexString
@@ -20,20 +21,26 @@ public enum DataEncodingError: Swift.Error {
 
 public extension Buffer {
   
-  /**
-   * Initialize the Buffer with the UTF-8 data in the String.
-   */
+  /// Initialize the Buffer with the UTF-8 data in the String.
   @inlinable
   init(_ string: String) {
     self.init(string.utf8)
   }
   
-  /**
-   * Initialize the Buffer with the UTF-8 data in the String.
-   */
+  /// Initialize the Buffer with the UTF-8 data in the String.
   @inlinable
   init<S: StringProtocol>(_ string: S) {
     self.init(string.utf8)
+  }
+
+  @inlinable // avoids an alloc
+  mutating func append(_ string: String) {
+    byteBuffer.writeString(string)
+  }
+
+  @inlinable
+  mutating func append<S: StringProtocol>(_ string: S) {
+    byteBuffer.writeSubstring(Substring(string))
   }
 }
 

@@ -112,7 +112,7 @@ public extension ReadableStreamType {
     
     onReadable {
       let payload = self.read()
-      output.write(payload, whenDone: {})
+      output.write(payload, whenDone: nil)
     }
     
     return output
@@ -204,7 +204,7 @@ public extension IteratorProtocol {
     // version of Noze.io eventually.
     
     while let element = next() {
-      output.write(element, whenDone: {})
+      output.write(element, whenDone: nil)
     }
     if callEnd { if !output.writableEnded { output.end() } }
     return output

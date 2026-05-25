@@ -118,12 +118,10 @@ public class ConcatByteStream: WritableByteStream,
   
   @discardableResult
   @inlinable
-  public func write(_ bytes: Buffer, whenDone: @escaping () -> Void = {})
-              -> Bool
-  {
+  public func write(_ bytes: Buffer, whenDone: (() -> Void)? = nil) -> Bool {
     guard !writableEnded else {
       emit(error: WritableError.writableEnded)
-      whenDone()
+      whenDone?()
       return true
     }
     
@@ -132,12 +130,12 @@ public class ConcatByteStream: WritableByteStream,
       emit(error: ConcatError
             .maximumSizeExceeded(maximumSize: maximumSize,
                                  availableSize: newSize))
-      whenDone()
+      whenDone?()
       return true
     }
     
     writableBuffer.append(bytes)
-    whenDone()
+    whenDone?()
     return true
   }
   

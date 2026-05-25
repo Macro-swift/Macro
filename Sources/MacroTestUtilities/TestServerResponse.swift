@@ -123,9 +123,8 @@ open class TestServerResponse: ServerResponse, @unchecked Sendable {
   }
   
   @discardableResult
-  override
-  open func write(_ bytes: Buffer, whenDone: @escaping ( Error? ) -> Void)
-            -> Bool
+  override open func write(_ bytes: Buffer,
+                           whenDone: (() -> Void)? = nil) -> Bool
   {
     guard !writableEnded else {
       handleError(WritableError.writableEnded)
@@ -135,31 +134,24 @@ open class TestServerResponse: ServerResponse, @unchecked Sendable {
     if isHead {
       // HEAD: count bytes for Content-Length, but don't capture the body.
       headBodyBytes += bytes.count
-      whenDone(nil)
+      whenDone?()
       return true
     }
 
     if !headersSent { primaryWriteHead() }
-    
-    if let error = consumeErrorToTrigger()  {
+
+    if let error = consumeErrorToTrigger() {
       handleError(error)
-      whenDone(error)
     }
     else {
       writtenContent.append(bytes)
-      whenDone(nil)
     }
+    whenDone?()
     return true
   }
-  
-  @discardableResult
-  override open func write(_ bytes: Buffer,
-                           whenDone: @escaping () -> Void = {}) -> Bool
-  {
-    return write(bytes) { _ in whenDone() }
-  }
-  @discardableResult @inlinable override
-  open func write(_ string: String, whenDone: @escaping () -> Void = {}) -> Bool
+  @discardableResult @inlinable
+  override open func write(_ string: String,
+                           whenDone: (() -> Void)? = nil) -> Bool
   {
     return write(Buffer(string), whenDone: whenDone)
   }

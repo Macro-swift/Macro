@@ -53,20 +53,20 @@
 public extension time_t {
   
   /// Returns the current time.
-  @inlinable    
+  @inlinable
   static var now : time_t { return xsys.time(nil) }
   
   /// Initialize the `time_t` value from Unix `tm` value (date components).
   /// Assumes the values are given in *local time*.
   /// Remember that the `time_t` itself is in UTC.
-  @inlinable    
+  @inlinable
   init(_ tm: xsys.struct_tm) {
     self = tm.localTime
   }
   /// Initialize the `time_t` value from Unix `tm` value (date components).
   /// Assumes the values are given in *UTC time*.
   /// Remember that the `time_t` itself is in UTC.
-  @inlinable    
+  @inlinable
   init(utc tm: xsys.struct_tm) {
     self = tm.utcTime
   }
@@ -74,7 +74,7 @@ public extension time_t {
   /// Converts the `time_t` timestamp into date components (`tz` struct) living
   /// in the UTC timezone.
   /// Remember that the `time_t` itself is in UTC.
-  @inlinable    
+  @inlinable
   var componentsInUTC : xsys.struct_tm {
     var t  = self
     var tm = xsys.struct_tm()
@@ -85,7 +85,7 @@ public extension time_t {
   /// Converts the `time_t` timestamp into date components (`tz` struct) living
   /// in the local timezone of the Unix environment.
   /// Remember that the `time_t` itself is in UTC.
-  @inlinable    
+  @inlinable
   var componentsInLocalTime : xsys.struct_tm {
     var t  = self
     var tm = xsys.struct_tm()
@@ -93,20 +93,136 @@ public extension time_t {
     return tm
   }
   
-  /// Example `strftime` format:
-  ///   "%a, %d %b %Y %H:%M:%S GMT"
-  ///
-  /// This function converts the timestamp into UTC time components to format
-  /// the value.
-  ///
-  /// Example call:
-  ///
-  ///     xsys.time(nil).format("%a, %d %b %Y %H:%M:%S %Z")
-  ///
-  @inlinable    
+  /** Example `strftime` format:
+   *   "%a, %d %b %Y %H:%M:%S GMT"
+   *
+   * This function converts the timestamp into UTC time components to format
+   * the value.
+   *
+   * Example call:
+   * ```swift
+   * xsys.time(nil).format("%a, %d %b %Y %H:%M:%S %Z")
+   * ```
+  */
+  @inlinable
   func format(_ sf: String) -> String {
     return self.componentsInUTC.format(sf)
   }
+
+  /**
+   * Optimized version that produces HTTP date strings (RFC 1123).
+   *
+   * E.g. "Sun, 17 May 2026 12:34:56 GMT". Always 29 ASCII chars long.
+   */
+  @inlinable
+  var httpDateString : String {
+    let tm = self.componentsInUTC
+    let bytes = [ UInt8 ](unsafeUninitializedCapacity: 29) {
+      buf, count in
+      let day  = rfc1123DayBytes  [Int(tm.tm_wday) % 7]
+      let monB = rfc1123MonthBytes[Int(tm.tm_mon)  % 12]
+      buf[0]  = day.0;  buf[1]  = day.1;  buf[2]  = day.2
+      buf[3]  = UInt8(ascii: ",")
+      buf[4]  = UInt8(ascii: " ")
+      writeTwoDigit(Int(tm.tm_mday), into: buf, at: 5)
+      buf[7]  = UInt8(ascii: " ")
+      buf[8]  = monB.0; buf[9]  = monB.1; buf[10] = monB.2
+      buf[11] = UInt8(ascii: " ")
+      writeFourDigit(Int(tm.tm_year) + 1900, into: buf, at: 12)
+      buf[16] = UInt8(ascii: " ")
+      writeTwoDigit(Int(tm.tm_hour), into: buf, at: 17)
+      buf[19] = UInt8(ascii: ":")
+      writeTwoDigit(Int(tm.tm_min),  into: buf, at: 20)
+      buf[22] = UInt8(ascii: ":")
+      writeTwoDigit(Int(tm.tm_sec),  into: buf, at: 23)
+      buf[25] = UInt8(ascii: " ")
+      buf[26] = UInt8(ascii: "G")
+      buf[27] = UInt8(ascii: "M")
+      buf[28] = UInt8(ascii: "T")
+      count = 29
+    }
+    return String(decoding: bytes, as: UTF8.self)
+  }
+
+  /**
+   * Optimized version that produces ISO UTC date strings.
+   *
+   * E.g. "2026-05-17T12:34:56Z". Always 20 ASCII chars long.
+   */
+  @inlinable
+  var iso8601String : String {
+    let tm = self.componentsInUTC
+    let bytes = [ UInt8 ](unsafeUninitializedCapacity: 20) {
+      buf, count in
+      writeFourDigit(Int(tm.tm_year) + 1900, into: buf, at:  0)
+      buf[4]  = UInt8(ascii: "-")
+      writeTwoDigit (Int(tm.tm_mon)  + 1,    into: buf, at:  5)
+      buf[7]  = UInt8(ascii: "-")
+      writeTwoDigit (Int(tm.tm_mday),        into: buf, at:  8)
+      buf[10] = UInt8(ascii: "T")
+      writeTwoDigit (Int(tm.tm_hour),        into: buf, at: 11)
+      buf[13] = UInt8(ascii: ":")
+      writeTwoDigit (Int(tm.tm_min),         into: buf, at: 14)
+      buf[16] = UInt8(ascii: ":")
+      writeTwoDigit (Int(tm.tm_sec),         into: buf, at: 17)
+      buf[19] = UInt8(ascii: "Z")
+      count = 20
+    }
+    return String(decoding: bytes, as: UTF8.self)
+  }
+}
+
+// MARK: - Fast Date Formatter Helpers
+
+@usableFromInline
+internal let rfc1123DayBytes: [ (UInt8, UInt8, UInt8) ] = [
+  (0x53, 0x75, 0x6E), // Sun
+  (0x4D, 0x6F, 0x6E), // Mon
+  (0x54, 0x75, 0x65), // Tue
+  (0x57, 0x65, 0x64), // Wed
+  (0x54, 0x68, 0x75), // Thu
+  (0x46, 0x72, 0x69), // Fri
+  (0x53, 0x61, 0x74)  // Sat
+]
+
+@usableFromInline
+internal let rfc1123MonthBytes: [ (UInt8, UInt8, UInt8) ] = [
+  (0x4A, 0x61, 0x6E), // Jan
+  (0x46, 0x65, 0x62), // Feb
+  (0x4D, 0x61, 0x72), // Mar
+  (0x41, 0x70, 0x72), // Apr
+  (0x4D, 0x61, 0x79), // May
+  (0x4A, 0x75, 0x6E), // Jun
+  (0x4A, 0x75, 0x6C), // Jul
+  (0x41, 0x75, 0x67), // Aug
+  (0x53, 0x65, 0x70), // Sep
+  (0x4F, 0x63, 0x74), // Oct
+  (0x4E, 0x6F, 0x76), // Nov
+  (0x44, 0x65, 0x63)  // Dec
+]
+
+/// Two ASCII digits (`'00'..='99'`) of `n` written at `buf[offset]` and
+/// `buf[offset+1]`. ASCII '0' is 0x30. `n` is clamped to `0...99`.
+@inlinable
+internal func writeTwoDigit(_ n: Int,
+                            into buf: UnsafeMutableBufferPointer<UInt8>,
+                            at offset: Int)
+{
+  let v = (n < 0 || n > 99) ? 0 : n
+  buf[offset]     = UInt8(0x30 + v / 10)
+  buf[offset + 1] = UInt8(0x30 + v % 10)
+}
+
+/// Four ASCII digits of `n` written at `buf[offset ..< offset+4]`.
+/// `n` is clamped to `1000...9999` (falls back to 1900 if out of range).
+@inlinable
+internal func writeFourDigit(_ n: Int,
+                             into buf: UnsafeMutableBufferPointer<UInt8>,
+                             at offset: Int)
+{
+  let v = (n < 1000 || n > 9999) ? 1900 : n
+  writeTwoDigit(v / 100, into: buf, at: offset)
+  writeTwoDigit(v % 100, into: buf, at: offset + 2)
 }
 
 /// The Unix `tm` struct is essentially NSDateComponents PLUS some timezone
@@ -115,24 +231,24 @@ public extension xsys.struct_tm {
   
   /// Create a Unix date components structure from a timestamp. This variant
   /// creates components in the local timezone.
-  @inlinable    
+  @inlinable
   init(_ tm: time_t) {
     self = tm.componentsInLocalTime
   }
   
   /// Create a Unix date components structure from a timestamp. This variant
   /// creates components in the UTC timezone.
-  @inlinable    
+  @inlinable
   init(utc tm: time_t) {
     self = tm.componentsInUTC
   }
-  
-  @inlinable    
+
+  @inlinable
   var utcTime : time_t {
     var tm = self
     return timegm(&tm)
   }
-  @inlinable    
+  @inlinable
   var localTime : time_t {
     var tm = self
     return mktime(&tm)
@@ -141,7 +257,7 @@ public extension xsys.struct_tm {
   /// Example `strftime` format (`man strftime`):
   ///   "%a, %d %b %Y %H:%M:%S GMT"
   ///
-  @inlinable    
+  @inlinable
   func format(_ sf: String, defaultCapacity: Int = 100) -> String {
     var tm = self
     

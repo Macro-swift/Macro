@@ -14,9 +14,8 @@ public protocol WritableStreamType: ErrorEmitterType, ErrorEmitterTarget {
   var  writableEnded         : Bool { get }
 
   @discardableResult
-  func write(_ payload: WritablePayload, whenDone : @escaping () -> Void)
-       -> Bool
-  
+  func write(_ payload: WritablePayload, whenDone : (() -> Void)?) -> Bool
+
   func end()
   
   // MARK: - Events

@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 /**
@@ -17,9 +17,9 @@ public protocol WritableByteStreamType: ErrorEmitterType {
   //      Yes, and provide those w/o args as wrappers.
   
   @discardableResult
-  func write(_ bytes  : Buffer, whenDone : @escaping () -> Void) -> Bool
+  func write(_ bytes : Buffer, whenDone: (() -> Void)?) -> Bool
   @discardableResult
-  func write(_ string : String, whenDone : @escaping () -> Void) -> Bool
+  func write(_ string: String, whenDone: (() -> Void)?) -> Bool
 
   // MARK: - Events
   // TODO: drain/close
@@ -37,7 +37,7 @@ public extension WritableStreamType where WritablePayload == Buffer {
   
   @inlinable
   @discardableResult
-  func write(_ string: String, whenDone: @escaping () -> Void = {}) -> Bool {
+  func write(_ string: String, whenDone: (() -> Void)? = nil) -> Bool {
     return write(Buffer(string), whenDone: whenDone)
   }
   
@@ -61,7 +61,7 @@ public extension WritableStreamType where WritablePayload == Buffer {
   
   @inlinable
   @discardableResult
-  func write<T>(_ data: T, whenDone: @escaping () -> Void = {}) -> Bool 
+  func write<T>(_ data: T, whenDone: (() -> Void)? = nil) -> Bool
     where T: Collection, T.Element == UInt8
   {
     return write(Buffer(data), whenDone: whenDone)

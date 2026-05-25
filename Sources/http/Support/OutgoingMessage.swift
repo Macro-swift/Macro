@@ -129,15 +129,16 @@ open class OutgoingMessage: WritableByteStream,
   // MARK: - WritableByteStream
   
   @discardableResult
-  open func write(_ bytes: Buffer, whenDone: @escaping () -> Void) -> Bool {
+  open func write(_ bytes: Buffer, whenDone: (() -> Void)? = nil) -> Bool {
     assertionFailure("subclass responsibility: \(#function)")
-    whenDone()
+    whenDone?()
     return false
   }
   @discardableResult @inlinable
-  open func write(_ string: String, whenDone: @escaping () -> Void = {}) -> Bool
-  {
-    guard writableCorked || socket != nil else { whenDone(); return false }
+  open func write(_ string: String, whenDone: (() -> Void)? = nil) -> Bool {
+    guard writableCorked || socket != nil else {
+      whenDone?(); return false
+    }
     return write(Buffer(string), whenDone: whenDone)
   }
 
