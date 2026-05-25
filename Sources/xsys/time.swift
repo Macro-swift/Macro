@@ -93,16 +93,17 @@ public extension time_t {
     return tm
   }
   
-  /// Example `strftime` format:
-  ///   "%a, %d %b %Y %H:%M:%S GMT"
-  ///
-  /// This function converts the timestamp into UTC time components to format
-  /// the value.
-  ///
-  /// Example call:
-  ///
-  ///     xsys.time(nil).format("%a, %d %b %Y %H:%M:%S %Z")
-  ///
+  /** Example `strftime` format:
+   *   "%a, %d %b %Y %H:%M:%S GMT"
+   *
+   * This function converts the timestamp into UTC time components to format
+   * the value.
+   *
+   * Example call:
+   * ```swift
+   * xsys.time(nil).format("%a, %d %b %Y %H:%M:%S %Z")
+   * ```
+  */
   @inlinable
   func format(_ sf: String) -> String {
     return self.componentsInUTC.format(sf)

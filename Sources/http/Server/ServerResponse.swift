@@ -237,9 +237,8 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
       _writeBufferToChannel()
       prefinishListeners.emit()
       _writeBufferToChannel()
-      // writeAndFlush(.end) flushes all pending
-      // channel.write() calls before sending the
-      // end marker.
+      // writeAndFlush(.end) flushes all pending channel.write() calls before
+      // sending the end marker.
       channel.writeAndFlush(HTTPServerResponsePart.end(nil))
              .whenComplete { result in
                switch result {
@@ -397,7 +396,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   /// about errors in the done closure (can still use `.onError`).
   @inlinable
   @discardableResult
-  override open func write(_ bytes: Buffer, whenDone: @escaping () -> Void = {}) 
+  override open func write(_ bytes: Buffer, whenDone: @escaping () -> Void = {})
                      -> Bool
   {
     return write(bytes) { _ in whenDone() }

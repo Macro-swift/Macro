@@ -21,9 +21,7 @@ public enum DataEncodingError: Swift.Error {
 
 public extension Buffer {
   
-  /**
-   * Initialize the Buffer with the UTF-8 data in the String.
-   */
+  /// Initialize the Buffer with the UTF-8 data in the String.
   @inlinable
   init(_ string: String) {
     self.init(string.utf8)
