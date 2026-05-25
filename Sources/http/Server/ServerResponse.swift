@@ -155,8 +155,9 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     headersSent = true
     
     if let channel = socket {
-      channel.writeAndFlush(HTTPServerResponsePart.head(head))
-             .whenFailure(handleError)
+      // Errors propagate via the channel's errorCaught, no promise needed.
+      channel.writeAndFlush(HTTPServerResponsePart.head(head),
+                            promise: nil)
     }
     else {
       version = head.version
@@ -187,13 +188,9 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   private func _writeBufferToChannel() {
     guard let buffer = writableBuffer, let channel = socket else { return }
     writableBuffer = nil
-    channel.write(HTTPServerResponsePart.body(.byteBuffer(buffer.byteBuffer)))
-           .whenComplete { result in
-             switch result {
-               case .success(_): break
-               case .failure(let error): self.handleError(error)
-             }
-           }
+    // Errors done by errorCaught handler, no promise necessary.
+    channel.write(HTTPServerResponsePart.body(.byteBuffer(buffer.byteBuffer)),
+                  promise: nil)
   }
   
   override open func end() {
@@ -383,7 +380,11 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
         }
         else { whenDone(nil) }
       }
-    
+    }
+    else {
+      channel.write(part, promise: nil) // errors via channel
+    }
+
     if pendingWriteBytes >= writableHighWaterMark { // flush
       pendingWriteBytes = 0
       channel.flush()
