@@ -142,7 +142,7 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
     }
 
     if sendDate, getHeader("Date") == nil {
-      setHeader("Date", self.date.format("%a, %d %b %Y %H:%M:%S GMT"))
+      setHeader("Date", date.httpDateString)
     }
 
     if !willWriteHeadCallbacks.isEmpty {
