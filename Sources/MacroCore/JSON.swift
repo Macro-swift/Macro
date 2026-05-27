@@ -164,7 +164,7 @@ public extension WritableStreamType where WritablePayload == Buffer {
                            outputFormatting:
                              JSONEncoder.OutputFormatting
                              = _defaultJSONEncoderOptions,
-                           whenDone : @escaping () -> Void = {}) -> Bool
+                           whenDone: (() -> Void)? = nil) -> Bool
   {
     do {
       let encoder = JSONEncoderWithISO8601()
@@ -183,10 +183,9 @@ public extension WritableStreamType where WritablePayload == Buffer {
   func writeJSON(_ object : Any?,
                  options  : JSONSerialization.WritingOptions
                           = _defaultJSONOptions,
-                 whenDone : @escaping () -> Void = {}) -> Bool
+                 whenDone : (() -> Void)? = nil) -> Bool
   {
     guard let o = object else { return write("null", whenDone: whenDone) }
-    
     do {
       let data = try JSONSerialization.data(withJSONObject: o, options: options)
       return write(data, whenDone: whenDone)
@@ -195,14 +194,6 @@ public extension WritableStreamType where WritablePayload == Buffer {
       emit(error: error)
       return true // FIXME: HWM-Writable
     }
-  }
-
-  @discardableResult
-  @inlinable
-  func writeJSON(_ string : String?,
-                 whenDone : @escaping () -> Void = {}) -> Bool
-  {
-    return write(string ?? "null", whenDone: whenDone)
   }
 }
 

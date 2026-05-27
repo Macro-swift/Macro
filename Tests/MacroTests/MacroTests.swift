@@ -10,7 +10,7 @@ final class MacroBaseTests: XCTestCase {
   }
   
   func testDirname() throws {
-    XCTAssertEqual(path.dirname("/usr/local/bin"), "/usr/local")    
+    XCTAssertEqual(path.dirname("/usr/local/bin"), "/usr/local")
   }
   func testBasename() throws {
     XCTAssertEqual(path.basename("/usr/local/bin"), "bin")
@@ -36,6 +36,15 @@ final class MacroBaseTests: XCTestCase {
     XCTAssertEqual(try res.writtenContent.toString(), "Hello World")
   }
   
+  func testEncodableWrite() throws {
+    struct Payload: Encodable { let answer: Int; let msg: String }
+    let res = TestServerResponse()
+    _ = res.write(Payload(answer: 42, msg: "hi"))
+    res.end()
+    let body = try res.writtenContent.toString()
+    XCTAssertEqual(body, #"{"answer":42,"msg":"hi"}"#)
+  }
+
   func testResponseCorking() throws {
     let res = http.ServerResponse(unsafeChannel: nil, log: MacroTestLogger)
     res.sendDate = false
@@ -63,6 +72,7 @@ final class MacroBaseTests: XCTestCase {
     ( "testDirname"         , testDirname         ),
     ( "testBasename"        , testBasename        ),
     ( "testTestResponse"    , testTestResponse    ),
-    ( "testResponseCorking" , testResponseCorking ),
+    ( "testEncodableWrite"  , testEncodableWrite  ),
+    ( "testResponseCorking" , testResponseCorking )
   ]
 }
