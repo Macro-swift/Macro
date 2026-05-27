@@ -11,7 +11,8 @@ public func allTests() -> [ XCTestCaseEntry ] {
     testCase(AgentTests     .allTests),
     testCase(WebSocketTests .allTests),
     testCase(NextTickTests  .allTests),
-    testCase(KeepAliveTests.allTests)
+    testCase(KeepAliveTests.allTests),
+    testCase(FileWriteStreamTests.allTests)
   ]
 }
 #endif
