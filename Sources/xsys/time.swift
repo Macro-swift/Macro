@@ -60,16 +60,12 @@ public extension time_t {
   /// Assumes the values are given in *local time*.
   /// Remember that the `time_t` itself is in UTC.
   @inlinable
-  init(_ tm: xsys.struct_tm) {
-    self = tm.localTime
-  }
+  init(_ tm: xsys.struct_tm) { self = tm.localTime }
   /// Initialize the `time_t` value from Unix `tm` value (date components).
   /// Assumes the values are given in *UTC time*.
   /// Remember that the `time_t` itself is in UTC.
   @inlinable
-  init(utc tm: xsys.struct_tm) {
-    self = tm.utcTime
-  }
+  init(utc tm: xsys.struct_tm) { self = tm.utcTime }
   
   /// Converts the `time_t` timestamp into date components (`tz` struct) living
   /// in the UTC timezone.
@@ -105,9 +101,7 @@ public extension time_t {
    * ```
   */
   @inlinable
-  func format(_ sf: String) -> String {
-    return self.componentsInUTC.format(sf)
-  }
+  func format(_ sf: String) -> String { return self.componentsInUTC.format(sf) }
 
   /**
    * Optimized version that produces HTTP date strings (RFC 1123).
@@ -122,8 +116,7 @@ public extension time_t {
       let day  = rfc1123DayBytes  [Int(tm.tm_wday) % 7]
       let monB = rfc1123MonthBytes[Int(tm.tm_mon)  % 12]
       buf[0]  = day.0;  buf[1]  = day.1;  buf[2]  = day.2
-      buf[3]  = UInt8(ascii: ",")
-      buf[4]  = UInt8(ascii: " ")
+      buf[3]  = UInt8(ascii: ","); buf[4]  = UInt8(ascii: " ")
       writeTwoDigit(Int(tm.tm_mday), into: buf, at: 5)
       buf[7]  = UInt8(ascii: " ")
       buf[8]  = monB.0; buf[9]  = monB.1; buf[10] = monB.2
@@ -135,19 +128,17 @@ public extension time_t {
       writeTwoDigit(Int(tm.tm_min),  into: buf, at: 20)
       buf[22] = UInt8(ascii: ":")
       writeTwoDigit(Int(tm.tm_sec),  into: buf, at: 23)
-      buf[25] = UInt8(ascii: " ")
-      buf[26] = UInt8(ascii: "G")
-      buf[27] = UInt8(ascii: "M")
-      buf[28] = UInt8(ascii: "T")
+      buf[25] = UInt8(ascii: " "); buf[26] = UInt8(ascii: "G")
+      buf[27] = UInt8(ascii: "M"); buf[28] = UInt8(ascii: "T")
       count = 29
     }
     return String(decoding: bytes, as: UTF8.self)
   }
 
   /**
-   * Optimized version that produces ISO UTC date strings.
+   * Produce ISO UTC date strings (e.g. `2026-05-17T12:34:56Z`)
    *
-   * E.g. "2026-05-17T12:34:56Z". Always 20 ASCII chars long.
+   * Always 20 ASCII chars long.
    */
   @inlinable
   var iso8601String : String {
@@ -169,6 +160,23 @@ public extension time_t {
       count = 20
     }
     return String(decoding: bytes, as: UTF8.self)
+  }
+
+  /**
+   * Parses an HTTP-date (RFC 9110 Section 5.6.7).
+   * 
+   * Supports IMF-fixdate (`"Sun, 06 Nov 1994 08:49:37 GMT"`), the obsolete
+   * RFC 850 form (`"Sunday, 06-Nov-94 08:49:37 GMT"`), 
+   * and asctime (`"Sun Nov  6 08:49:37 1994"`).
+   *
+   * Input is always UTC.
+   *
+   * - Returns: `nil` if `s` does not match one of the formats.
+   */
+  @inlinable
+  init?(httpDateString s: String) {
+    guard let tm = xsys.struct_tm(httpDateString: s) else { return nil }
+    self = tm.utcTime
   }
 }
 
@@ -225,6 +233,124 @@ internal func writeFourDigit(_ n: Int,
   writeTwoDigit(v % 100, into: buf, at: offset + 2)
 }
 
+
+// MARK: - HTTP Date Parser Helpers
+
+/// Two ASCII digits at `buf[offset ..< offset+2]`. `nil` on out-of-bounds or
+/// non-digit input. Symmetric with ``writeTwoDigit``.
+@inlinable
+internal func parseTwoDigit(_ buf: UnsafeBufferPointer<UInt8>, at offset: Int)
+              -> Int?
+{
+  guard offset >= 0, offset + 1 < buf.count else { return nil }
+  let z  = UInt8(ascii: "0"), nine = UInt8(ascii: "9")
+  let hi = buf[offset], lo = buf[offset + 1]
+  guard hi >= z, hi <= nine, lo >= z, lo <= nine else { return nil }
+  return Int(hi - z) * 10 + Int(lo - z)
+}
+
+/// Four ASCII digits at `buf[offset ..< offset+4]`. Symmetric with
+/// ``writeFourDigit``.
+@inlinable
+internal func parseFourDigit(_ buf: UnsafeBufferPointer<UInt8>, at offset: Int)
+              -> Int?
+{
+  guard let hi = parseTwoDigit(buf, at: offset),
+        let lo = parseTwoDigit(buf, at: offset + 2) else { return nil }
+  return hi * 100 + lo
+}
+
+/// `HH:MM:SS` at `buf[offset ..< offset+8]`.
+@inlinable
+internal func parseHMS(_ buf: UnsafeBufferPointer<UInt8>, at offset: Int)
+              -> (Int, Int, Int)?
+{
+  let colon = UInt8(ascii: ":")
+  guard offset + 7 < buf.count,
+        let h = parseTwoDigit(buf, at: offset),
+        buf[offset + 2] == colon,
+        let m = parseTwoDigit(buf, at: offset + 3),
+        buf[offset + 5] == colon,
+        let s = parseTwoDigit(buf, at: offset + 6) else { return nil }
+  return (h, m, s)
+}
+
+/// Index of `b0,b1,b2` in ``rfc1123MonthBytes`` (`0...11`), or `nil`.
+@inlinable
+internal func monthFromBytes(_ b0: UInt8, _ b1: UInt8, _ b2: UInt8) -> Int? {
+  for i in 0..<12 {
+    let m = rfc1123MonthBytes[i]
+    if m.0 == b0 && m.1 == b1 && m.2 == b2 { return i }
+  }
+  return nil
+}
+
+/**
+ * Pure RFC 9110 / RFC 7231 HTTP-date parser, byte-level.
+ * Supports IMF-fixdate, the obsolete RFC 850 form, and asctime.
+ */
+@usableFromInline
+internal func _parseHTTPDate(bytes buf: UnsafeBufferPointer<UInt8>)
+              -> (year: Int, mon: Int, day: Int, h: Int, m: Int, sec: Int)?
+{
+  let comma = UInt8(ascii: ","), space = UInt8(ascii: " ")
+  let dash  = UInt8(ascii: "-")
+
+  if let ci = buf.firstIndex(of: comma) {
+    // Skip the spaces after the comma.
+    var off = ci + 1
+    while off < buf.count && buf[off] == space { off += 1 }
+
+    // Need at least "dd-Xxx-yy HH:MM:SS GMT" (22 bytes) past `off`.
+    guard off + 21 < buf.count, let d = parseTwoDigit(buf, at: off) else {
+      return nil 
+    }
+    let sep = buf[off + 2]
+
+    if sep == dash { // RFC 850: dd-Xxx-yy HH:MM:SS GMT
+      guard let mo = monthFromBytes(buf[off+3], buf[off+4], buf[off+5]),
+            buf[off + 6] == dash, let y2 = parseTwoDigit(buf, at: off + 7),
+            buf[off + 9] == space,
+            let (hh, mm, ss) = parseHMS(buf, at: off + 10) else { return nil }
+      let y = y2 + (y2 < 70 ? 2000 : 1900)
+      return (year: y, mon: mo, day: d, h: hh, m: mm, sec: ss)
+    }
+
+    if sep == space { // IMF: dd Xxx yyyy HH:MM:SS GMT (24 bytes past `off`)
+      guard off + 23 < buf.count,
+            let mo = monthFromBytes(buf[off+3], buf[off+4], buf[off+5]),
+            buf[off + 6] == space, let y = parseFourDigit(buf, at: off + 7),
+            buf[off + 11] == space,
+            let (hh, mm, ss) = parseHMS(buf, at: off + 12) else { return nil }
+      return (year: y, mon: mo, day: d, h: hh, m: mm, sec: ss)
+    }
+
+    return nil
+  }
+
+  // asctime: "Xxx Xxx dd HH:MM:SS yyyy" (24 bytes). Day may be ` D` or `DD`.
+  let z = UInt8(ascii: "0"), nine = UInt8(ascii: "9")
+  guard buf.count >= 24, buf[3] == space,
+        let mo = monthFromBytes(buf[4], buf[5], buf[6]),
+        buf[7] == space else { return nil }
+  
+  let dh = buf[8], dl = buf[9]
+  let day: Int
+  if dh == space {
+    guard dl >= z, dl <= nine else { return nil }
+    day = Int(dl - z)
+  }
+  else if dh >= z, dh <= nine, dl >= z, dl <= nine {
+    day = Int(dh - z) * 10 + Int(dl - z)
+  }
+  else { return nil }
+  guard buf[10] == space, let (hh, mm, ss) = parseHMS(buf, at: 11),
+        buf[19] == space,
+        let y = parseFourDigit(buf, at: 20) else { return nil }
+  
+  return (year: y, mon: mo, day: day, h: hh, m: mm, sec: ss)
+}
+
 /// The Unix `tm` struct is essentially NSDateComponents PLUS some timezone
 /// information (isDST, offset, tz abbrev name).
 public extension xsys.struct_tm {
@@ -243,6 +369,31 @@ public extension xsys.struct_tm {
     self = tm.componentsInUTC
   }
 
+  /**
+   * Parses an HTTP-date (RFC 9110 Section 5.6.7).
+   * 
+   * Supports IMF-fixdate (`"Sun, 06 Nov 1994 08:49:37 GMT"`), the obsolete
+   * RFC 850 form (`"Sunday, 06-Nov-94 08:49:37 GMT"`),
+   * and asctime (`"Sun Nov  6 08:49:37 1994"`).
+   *
+   * Only: `tm_year`, `tm_mon`, `tm_mday`, `tm_hour`, `tm_min`, `tm_sec`,
+   * `tm_wday`, `tm_yday`, `tm_isdst`, ...) are zero.
+   * 
+   * Always UTC.
+   */
+  init?(httpDateString s: String) {
+    var s = s
+    guard let r = s.withUTF8({ _parseHTTPDate(bytes: $0) }) else { return nil }
+
+    self.init()
+    self.tm_year = Int32(r.year - 1900)
+    self.tm_mon  = Int32(r.mon)
+    self.tm_mday = Int32(r.day)
+    self.tm_hour = Int32(r.h)
+    self.tm_min  = Int32(r.m)
+    self.tm_sec  = Int32(r.sec)
+  }
+
   @inlinable
   var utcTime : time_t {
     var tm = self
@@ -253,10 +404,25 @@ public extension xsys.struct_tm {
     var tm = self
     return mktime(&tm)
   }
-  
+
+  /**
+   * Optimized version that produces HTTP date strings (RFC 1123).
+   *
+   * E.g. "Sun, 17 May 2026 12:34:56 GMT". Always 29 ASCII chars long.
+   */
+  @inlinable
+  var httpDateString : String { utcTime.httpDateString }
+
+  /**
+   * Produce ISO UTC date strings (e.g. `2026-05-17T12:34:56Z`)
+   *
+   * Always 20 ASCII chars long.
+   */
+  @inlinable
+  var iso8601String : String { utcTime.iso8601String }
+
   /// Example `strftime` format (`man strftime`):
   ///   "%a, %d %b %Y %H:%M:%S GMT"
-  ///
   @inlinable
   func format(_ sf: String, defaultCapacity: Int = 100) -> String {
     var tm = self
