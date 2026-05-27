@@ -8,6 +8,7 @@
 
 import class    NIO.NIOFileHandle
 import protocol NIO.EventLoop
+import class    NIO.EventLoopFuture
 import struct   NIO.NonBlockingFileIO
 import struct   NIOConcurrencyHelpers.NIOLock
 import class    MacroCore.MacroCore
@@ -68,7 +69,7 @@ open class FileWriteStream: WritableByteStream, FileStream,
     return true
   }
 
-  public var writableBuffer = [ ( bytes: Buffer, whenDone: () -> () ) ]()
+  public var writableBuffer = [ ( bytes: Buffer, whenDone: () -> Void ) ]()
   
   @inlinable
   open var writableLength : Int {
@@ -172,22 +173,33 @@ open class FileWriteStream: WritableByteStream, FileStream,
       
       let count = bytes.count
       pendingWrites += count
-      fileIO.write(fileHandle: fileHandle, buffer: bytes.byteBuffer,
-                   eventLoop: eventLoop)
-        .whenComplete { result in
-          self.pendingWrites -= count
-          assert(self.pendingWrites >= 0)
-          
-          if case .failure(let error) = result {
-            self.emit(error: error)
-          }
+      // Chain off the previous write so multiple in-flight writes don't race
+      // on the same file descriptor (concurrent `pwrite` calls on the thread
+      // pool trip `EBUSY` and lose data).
+      let prev   = lastWriteFuture ?? eventLoop.makeSucceededVoidFuture()
+      let io     = self.fileIO
+      let loop   = eventLoop
+      let future = prev.flatMap { _ -> EventLoopFuture<Void> in
+        return io.write(fileHandle: fileHandle, buffer: bytes.byteBuffer,
+                        eventLoop: loop)
+      }
+      lastWriteFuture = future
 
-          whenDone()
-          
-          if self.pendingWrites < 1 {
-            self._handleAllPendingDone()
-          }
+      future.whenComplete { result in
+        self.pendingWrites -= count
+        assert(self.pendingWrites >= 0)
+
+        if case .failure(let error) = result {
+          self.emit(error: error)
         }
+
+        whenDone()
+
+        if self.pendingWrites < 1 {
+          self.lastWriteFuture = nil
+          self._handleAllPendingDone()
+        }
+      }
     }
     else {
       assertionFailure("unexpected state \(state)")
@@ -198,12 +210,11 @@ open class FileWriteStream: WritableByteStream, FileStream,
 
   
   private func _handleAllPendingDone() {
-    // TODO: shutdown if requested
     if !writableBuffer.isEmpty && state != .destroyed {
       return flushBuffer()
     }
-    
-    if state == .ending { // .end was called, buffer is empty, all writes done.
+
+    if _didEnd { // .end was called, buffer is empty, all writes done.
       destroy()
     }
     else { // ready for more writes
@@ -228,15 +239,22 @@ open class FileWriteStream: WritableByteStream, FileStream,
     }
   }
   
+  private var openRequested  = false
+  private var lastWriteFuture: EventLoopFuture<Void>?
+
   private func open() {
+    // Guard against `_write` triggering a second open while the first is
+    // still in flight (multiple writes can land in `.pending` state).
+    guard !openRequested else { return }
+    openRequested = true
     assert(fileHandle == nil)
     assert(pending)
-    
+
     retainIfNecessary()
-    
+
     fileIO.openFile(_deprecatedPath: path, mode: .write,
                     flags: flags, eventLoop: eventLoop)
-          .whenComplete(_handleOpenResult)
+      .whenComplete(_handleOpenResult)
   }
   func _handleOpenResult(_ result: Result<NIOFileHandle, Swift.Error>) {
     switch result {
@@ -270,7 +288,9 @@ open class FileWriteStream: WritableByteStream, FileStream,
       self.fileHandle = nil
       closeListeners.emit()
       closeListeners.removeAll()
-      _clearListeners()
+      // Don't call `_clearListeners()` here -- `destroy()` still needs to
+      // emit `prefinishListeners` / `finishListeners` after `close()`
+      // returns, and `_clearListeners()` would wipe them first.
     }
     catch {
       emit(error: error)
