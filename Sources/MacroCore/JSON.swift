@@ -195,12 +195,6 @@ public extension WritableStreamType where WritablePayload == Buffer {
       return true // FIXME: HWM-Writable
     }
   }
-
-  @discardableResult
-  @inlinable
-  func writeJSON(_ string: String?, whenDone: (() -> Void)? = nil) -> Bool {
-    return write(string ?? "null", whenDone: whenDone)
-  }
 }
 
 /// It is undocumented whether the encoder is threadsafe, so assume it is not.
