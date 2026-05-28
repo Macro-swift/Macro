@@ -80,17 +80,18 @@ public extension OSModule {
   static let EOL = "\r\n" // careful, may become a single Unicode char!
   #else
   /// Platform-native line separator (`"\n"` on POSIX, `"\r\n"` on Windows).
-  static let EOL = "\r"
+  static let EOL = "\n"
   #endif
 
   @usableFromInline
   internal static func trimTrailingSeparator(_ s: String) -> String {
-    guard let last = s.last else { return "" }
+    guard let last = s.last, s.count > 1 else { return s }
     #if os(Windows)
-    return last == "/" || last == "\\" ? s : String(s.dropLast())
+    let isSep = (last == "/" || last == "\\")
     #else
-    return last == "/" ? s : String(s.dropLast())
+    let isSep = (last == "/")
     #endif
+    return isSep ? String(s.dropLast()) : s
   }
 
   /**
@@ -100,7 +101,10 @@ public extension OSModule {
   static func hostname() -> String {
     var buf = [ CChar ]( repeating: 0, count: 256 )
     let rc  = buf.withUnsafeMutableBufferPointer { ptr -> Int32 in
-      return gethostname(ptr.baseAddress, ptr.count)
+      // Glibc's gethostname takes a non-optional pointer; the buffer is
+      // freshly allocated so baseAddress is never nil.
+      guard let base = ptr.baseAddress else { return 42 }
+      return gethostname(base, ptr.count)
     }
     guard rc == 0 else { return "" }
     return String(cString: buf)
