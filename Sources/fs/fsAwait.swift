@@ -144,6 +144,13 @@ public func rename(_ oldPath: String, _ newPath: String) async throws {
   }
 }
 
+@inlinable
+public func mkdtemp(_ prefix: String) async throws -> String {
+  try await asyncValue(FSError.mkdtempFailed(prefix)) {
+    mkdtemp(prefix, yield: $0)
+  }
+}
+
 public extension FileSystemModule {
 
   @inlinable
@@ -224,4 +231,5 @@ public enum FSError: Error {
 
   case readFailed(String)
   case statFailed(String)
+  case mkdtempFailed(String)
 }
