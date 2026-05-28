@@ -24,7 +24,6 @@ import xsys
  *                     name is `prefix` plus six random characters.
  * - Throws: A POSIX error if the directory could not be created.
  */
-@inlinable
 public func mkdtemp(_ prefix: String,
                     yield: @escaping ( Error?, String? ) -> Void)
 {
