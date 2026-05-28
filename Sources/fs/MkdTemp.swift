@@ -6,9 +6,15 @@
 //  Copyright © 2026 ZeeZide GmbH. All rights reserved.
 //
 
-#if os(Linux) || os(Windows)
+#if os(Windows)
+import WinSDK
+#elseif os(Linux) || os(Android)
+import Glibc      // EEXIST
+import Foundation // POSIXErrorCode
+#elseif os(WASI)
+import WASILibc   // EEXIST
 #else
-import Foundation // POSIXError
+import Foundation // POSIXErrorCode
 #endif
 
 import xsys
