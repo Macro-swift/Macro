@@ -19,6 +19,7 @@
 @_exported import func     MacroCore.leftpad
 @_exported import enum     MacroCore.Math
 @_exported import enum     MacroCore.Object
+@_exported import enum     MacroCore.OSModule
 @_exported import protocol NIO.EventLoop
 @_exported import protocol NIO.EventLoopGroup
 @_exported import struct   Logging.Logger
@@ -26,6 +27,8 @@
 
 // To support the pipe (`|`) operators. Swift can't re-export operators?
 @_exported import MacroCore
+
+public typealias os       = OSModule
 
 // MARK: - Submodules in `fs` Target
 
