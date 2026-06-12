@@ -188,28 +188,32 @@ public extension FileSystemModule {
 
   @inlinable
   static func writeFile(_ path: String, _ data: Buffer,
+                        atomic: Bool = true,
                         whenDone: @escaping ( Error? ) -> Void)
   {
-    fs.writeFile(path, data, whenDone: whenDone)
+    fs.writeFile(path, data, atomic: atomic, whenDone: whenDone)
   }
   @inlinable
   static func writeFile(_ path: String, _ data: Data,
-                            whenDone: @escaping ( Error? ) -> Void)
+                        atomic: Bool = true,
+                        whenDone: @escaping ( Error? ) -> Void)
   {
-    fs.writeFile(path, data, whenDone: whenDone)
+    fs.writeFile(path, data, atomic: atomic, whenDone: whenDone)
   }
   @inlinable
   static func writeFile(_ path: String, _ string: String,
                         _ encoding: String.Encoding = .utf8,
+                        atomic: Bool = true,
                         whenDone: @escaping ( Error? ) -> Void)
   {
-    fs.writeFile(path, string, encoding, whenDone: whenDone)
+    fs.writeFile(path, string, encoding, atomic: atomic, whenDone: whenDone)
   }
   @inlinable
   static func writeFile(_ path: String, _ string: String, _ encoding: String,
+                        atomic: Bool = true,
                         whenDone: @escaping ( Error? ) -> Void)
   {
-    fs.writeFile(path, string, encoding, whenDone: whenDone)
+    fs.writeFile(path, string, encoding, atomic: atomic, whenDone: whenDone)
   }
 }
 
@@ -233,24 +237,29 @@ public extension FileSystemModule {
   }
 
   @inlinable
-  static func writeFileSync(_ path: String, _ data: Buffer) throws {
-    try fs.writeFileSync(path, data)
+  static func writeFileSync(_ path: String, _ data: Buffer,
+                            atomic: Bool = true) throws
+  {
+    try fs.writeFileSync(path, data, atomic: atomic)
   }
   @inlinable
-  static func writeFileSync(_ path: String, _ data: Data) throws {
-    try fs.writeFileSync(path, data)
+  static func writeFileSync(_ path: String, _ data: Data,
+                            atomic: Bool = true) throws
+  {
+    try fs.writeFileSync(path, data, atomic: atomic)
   }
   @inlinable
   static func writeFileSync(_ path: String, _ string: String,
-                            _ encoding: String.Encoding = .utf8) throws
+                            _ encoding: String.Encoding = .utf8,
+                            atomic: Bool = true) throws
   {
-    try fs.writeFileSync(path, string, encoding)
+    try fs.writeFileSync(path, string, encoding, atomic: atomic)
   }
   @inlinable
   static func writeFileSync(_ path: String, _ string: String,
-                            _ encoding: String) throws
+                            _ encoding: String, atomic: Bool = true) throws
   {
-    try fs.writeFileSync(path, string, encoding)
+    try fs.writeFileSync(path, string, encoding, atomic: atomic)
   }
 
   // MARK: - Async Callback Variants

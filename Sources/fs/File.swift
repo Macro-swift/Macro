@@ -157,9 +157,11 @@ public func readFile(on eventLoop : EventLoop? = nil,
 @inlinable
 public func writeFile(on eventLoop: EventLoop? = nil,
                       _ path: String, _ buffer: Buffer,
+                      atomic: Bool = true,
                       whenDone: @escaping ( Error? ) -> Void)
 {
-  writeFile(on: eventLoop, path, buffer.data, whenDone: whenDone)
+  writeFile(on: eventLoop, path, buffer.data, atomic: atomic,
+            whenDone: whenDone)
 }
 
 /**
@@ -170,12 +172,15 @@ public func writeFile(on eventLoop: EventLoop? = nil,
  *                delivered on.
  *   - path:      The file that should be created/replaced from the `Buffer`.
  *   - data:      The data to write.
+ *   - atomic:    Write atomically via a temp file + rename (default
+ *                `true`); `false` writes in place.
  *   - whenDone:  A closure to be called when the file has been written
  *                successfully, or if an error happened.
  */
 @inlinable
 public func writeFile(on eventLoop: EventLoop? = nil,
                       _ path: String, _ data: Data,
+                      atomic: Bool = true,
                       whenDone: @escaping ( Error? ) -> Void)
 {
   let module = MacroCore.shared.retain()
@@ -186,7 +191,7 @@ public func writeFile(on eventLoop: EventLoop? = nil,
 
     if case shouldRun = NIOThreadPool.WorkItemState.active {
       do {
-        try writeFileSync(path, data)
+        try writeFileSync(path, data, atomic: atomic)
         yieldError = nil
       }
       catch {
@@ -219,13 +224,14 @@ public func writeFile(on eventLoop: EventLoop? = nil,
 @inlinable
 public func writeFile(_ path: String, _ string: String,
                       _ encoding: String.Encoding = .utf8,
+                      atomic: Bool = true,
                       whenDone: @escaping ( Error? ) -> Void)
 {
   guard let data = string.data(using: encoding) else {
     return whenDone(CharsetConversionError
-                      .failedToConverData(encoding: encoding))
+                    .failedToConverData(encoding: encoding))
   }
-  writeFile(path, data, whenDone: whenDone)
+  writeFile(path, data, atomic: atomic, whenDone: whenDone)
 }
 
 /**
@@ -242,10 +248,11 @@ public func writeFile(_ path: String, _ string: String,
  */
 @inlinable
 public func writeFile(_ path: String, _ string: String,
-                      _ encoding: String,
+                      _ encoding: String, atomic: Bool = true,
                       whenDone: @escaping ( Error? ) -> Void)
 {
-  writeFile(path, string, .encodingWithName(encoding), whenDone: whenDone)
+  writeFile(path, string, .encodingWithName(encoding), atomic: atomic,
+            whenDone: whenDone)
 }
 
 
@@ -321,7 +328,9 @@ public func readFileSync(_ path: String, _ encoding: String) -> String? {
 /**
  * Write a `Buffer` to the given path synchronously, on the active thread.
  *
- * This does an atomic write.
+ * By default this is an atomic write (write to a temporary file,
+ * then rename it over `path`); pass `atomic: false` to write the
+ * file in place (preserving its inode, e.g. for `fs.watch`).
  *
  * - Parameters:
  *   - path:   The file that should be created/replaced from the `Buffer`.
@@ -329,24 +338,33 @@ public func readFileSync(_ path: String, _ encoding: String) -> String? {
  * - Throws: Any lower level file error.
  */
 @inlinable
-public func writeFileSync(_ path: String, _ buffer: Buffer) throws {
-  try writeFileSync(path, buffer.data)
+public func writeFileSync(_ path: String, _ buffer: Buffer,
+                          atomic: Bool = true) throws
+{
+  try writeFileSync(path, buffer.data, atomic: atomic)
 }
 
 #if canImport(Foundation)
 /**
  * Write `Data` to the given path synchronously, on the active thread.
  *
- * This does an atomic write.
+ * By default this is an atomic write (write to a temporary file,
+ * then rename it over `path`); pass `atomic: false` to write the
+ * file in place (preserving its inode, e.g. for `fs.watch`).
  *
  * - Parameters:
- *   - path: The file that should be created/replaced from the `Buffer`.
- *   - data: The `Data` to write.
+ *   - path:   The file that should be created/replaced from the `Buffer`.
+ *   - data:   The `Data` to write.
+ *   - atomic: Write atomically via a temp file + rename (default
+ *             `true`); `false` writes in place.
  * - Throws: Any lower level file error.
  */
 @inlinable
-public func writeFileSync(_ path: String, _ data: Data) throws {
-  try data.write(to: URL(fileURLWithPath: path), options: [.atomic])
+public func writeFileSync(_ path: String, _ data: Data,
+                          atomic: Bool = true) throws
+{
+  try data.write(to: URL(fileURLWithPath: path),
+                 options: atomic ? [ .atomic ] : [])
 }
 #endif
 
@@ -363,12 +381,14 @@ public func writeFileSync(_ path: String, _ data: Data) throws {
  */
 @inlinable
 public func writeFileSync(_ path: String, _ string: String,
-                          _ encoding: String.Encoding = .utf8) throws
+                          _ encoding: String.Encoding = .utf8,
+                          atomic: Bool = true) throws
 {
   guard let data = string.data(using: encoding) else {
     throw CharsetConversionError.failedToConverData(encoding: encoding)
   }
-  try data.write(to: URL(fileURLWithPath: path), options: [.atomic])
+  try data.write(to: URL(fileURLWithPath: path),
+                 options: atomic ? [ .atomic ] : [])
 }
 
 /**
@@ -384,9 +404,9 @@ public func writeFileSync(_ path: String, _ string: String,
  */
 @inlinable
 public func writeFileSync(_ path: String, _ string: String,
-                          _ encoding: String) throws
+                          _ encoding: String, atomic: Bool = true) throws
 {
-  try writeFileSync(path, string, .encodingWithName(encoding))
+  try writeFileSync(path, string, .encodingWithName(encoding), atomic: atomic)
 }
 
 #endif // canImport/Foundation
@@ -423,7 +443,8 @@ public func mkdir(_ path: String,
                   yield: @escaping ( Error? ) -> Void)
 {
   FileSystemModule._evalAsync(
-    mkdirSync, (path, options), yield)
+    mkdirSync, (path, options), yield
+  )
 }
 
 /**
