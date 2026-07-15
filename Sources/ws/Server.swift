@@ -110,7 +110,7 @@ extension WebSocket {
            -> EventLoopFuture<Void>
       {
         let log     = self.log
-        let ws      = WebSocket(channel)
+        let ws      = WebSocket(channel, upgradeRequestHead: head)
         let handler = WebSocketConnection(ws)
         
         guard !_connectionListeners.isEmpty else {

@@ -462,21 +462,17 @@ open class Server: ErrorEmitter, CustomStringConvertible {
                      ?? channel.eventLoop.makeSucceededVoidFuture()
         return preFuture.flatMap {
           channel.pipeline
-            .configureHTTPServerPipeline(withServerUpgrade: upgrade)
+            .configureHTTPServerPipeline(withPipeliningAssistance: true,
+                                         withServerUpgrade: upgrade)
         }
         .flatMap {
             channel.eventLoop.makeCompletedFuture {
               let p = channel.pipeline.syncOperations
               if opts.needsIdleHandler {
-                let rt = opts.readTimeout  > 0
-                       ? TimeAmount.milliseconds(Int64(opts.readTimeout))
-                       : nil
-                let wt = opts.writeTimeout > 0
-                       ? TimeAmount.milliseconds(Int64(opts.writeTimeout))
-                       : nil
-                let at = opts.idleTimeout  > 0
-                       ? TimeAmount.milliseconds(Int64(opts.idleTimeout))
-                       : nil
+                let rt = TimeAmount.milliseconds(opts.readTimeout)
+                let wt = TimeAmount.milliseconds(opts.writeTimeout)
+                let at = TimeAmount.milliseconds(opts.idleTimeout)
+
                 try p.addHandler(
                   IdleStateHandler(readTimeout: rt, writeTimeout: wt,
                                    allTimeout: at),
@@ -563,8 +559,16 @@ open class Server: ErrorEmitter, CustomStringConvertible {
       
       switch reqPart {
         case .head(let head):
-          // TBD: If pipelining is on, there could be multiple requests coming
-          //      in.
+          // We must never see a new request `.head` while the previous
+          // transaction is still recorded.
+          // With NIO's `HTTPServerPipelineHandler` in front of us, that handler
+          // waits for BOTH the inbound `.end` to be consumed AND the outbound
+          // `.end` to be written before releasing the next buffered `.head`
+          // upstream, and we now clear `self.transaction` synchronously
+          // from `ServerResponse`'s prefinish hook (i.e. inside our own
+          // `res.end()`, BEFORE the outbound `.end` traverses the pipeline
+          // handler), so the pipeline release can never race ahead of the
+          // book-keeping. Hitting this branch therefore indicates a real bug.
           if let ( id, request, response ) = transaction {
             assert(transaction == nil, "already processing an HTTP request?!")
             log.error("got another HTTP request while \(id) is active")
@@ -595,19 +599,13 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           response.date = time_t.now
           
           if head.version.major == 1 {
-            let connectionHeaderCount = head
-              .headers[canonicalForm: "connection"]
-              .lazy
-              .map    { $0.lowercased() }
-              .filter { $0 == "keep-alive" || $0 == "close" }
-              .count
-            if connectionHeaderCount == 0 { // no connection headers
-              if head.isKeepAlive, head.version.minor == 0 {
+            if head.isKeepAlive {
+              if head.version.minor == 0 {
                 response.headers.add(name: "Connection", value: "keep-alive")
               }
-              else if !head.isKeepAlive, head.version.minor >= 1 {
-                response.headers.add(name: "Connection", value: "close")
-              }
+            }
+            else {
+              response.headers.add(name: "Connection", value: "close")
             }
           }
 
@@ -616,9 +614,17 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           assert(!request.complete)
 
           let cid = self.connectionID
-          // The transaction ends when the response is done, not when the
-          // request was read completely!
-          response.onceFinish {
+
+          // Tear down the transaction synchronously from inside
+          // `ServerResponse.end()` (`prefinishListeners.emit()` runs there
+          // BEFORE `channel.writeAndFlush(.end)`). This is the only point
+          // we can reliably clear `self.transaction` *before*
+          // `HTTPServerPipelineHandler` sees the outbound `.end` and
+          // synchronously fires the next buffered `.head` upstream.
+          // The post-flush `onceFinish` below would be too late, since it
+          // is wired to the writeAndFlush future and only resolves on the
+          // I/O ack.
+          response.onPrefinish {
             guard let ( id, request, aresponse ) = self.transaction
             else { return }
             guard aresponse === response else {
@@ -628,23 +634,29 @@ open class Server: ErrorEmitter, CustomStringConvertible {
 
             log.trace("\(response.status.code) \(cid):\(id)")
 
-            // Consume rest of request if it wasn't read already
             if request.complete {
+              // Both directions done, tx done.
               log.trace("finished HTTP transaction \(cid):\(id)")
               self.transaction = nil
               self.waitForEnd  = false
-              if response.getHeader("Connection") as? String == "close" {
-                context.close(promise: nil)
-              }
             }
             else {
+              // Response ended before the request body was fully read (the
+              // end-point didn't consume!). Keep consuming inbound data, must
+              // be read to properly finish the TX.
               log.trace(
                 "finished response, but request did not end yet \(cid):\(id)")
-              self.waitForEnd  = true
+              self.waitForEnd    = true
               let autoReadOption = ChannelOptions.Types.AutoReadOption()
               // make sure we read the request
               _ = context.channel.setOption(autoReadOption, value: true)
             }
+          }
+
+          response.onceFinish {
+            let close = response.getHeader("Connection") as? String == "close"
+            guard request.complete, close else { return }
+            context.close(promise: nil)
           }
           
           #if false
@@ -705,10 +717,16 @@ open class Server: ErrorEmitter, CustomStringConvertible {
             server.end(request: request)
             
             if response.writableEnded {
+              // Response was ended before the request `.end` arrived.
+              // `onPrefinish` couldn't clear the transaction yet.
+              // Close here if flushing finished, otherwise `onceFinish`
+              // closes after observing the completed request.
               log.debug("finished HTTP transaction \(id)")
               self.transaction = nil
               self.waitForEnd  = false
-              if response.getHeader("Connection") as? String == "close" {
+              if response.writableFinished,
+                 response.getHeader("Connection") as? String == "close"
+              {
                 context.close(promise: nil)
               }
             }
@@ -782,5 +800,13 @@ open class Server: ErrorEmitter, CustomStringConvertible {
     if !didRetain { ms += " not-retaining" }
     ms += ">"
     return ms
+  }
+}
+
+fileprivate extension TimeAmount {
+
+  static func milliseconds(_ amount: Int?) -> TimeAmount? {
+    guard let amount = amount, amount > 0 else { return nil }
+    return milliseconds(Int64(amount))
   }
 }

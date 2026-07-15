@@ -83,6 +83,11 @@ open class WebSocket: ErrorEmitter {
   public private(set) var channel    : Channel?
   public private(set) var readyState = ReadyState.connecting
 
+  public let upgradeRequestHead : HTTPRequestHead?
+
+  /// Extra headers sent on the *client* upgrade request
+  public var extraUpgradeHeaders : HTTPHeaders = [:]
+
   public var isConnected : Bool {
     return lock.withLock { return readyState == .open && channel != nil }
   }
@@ -95,10 +100,13 @@ open class WebSocket: ErrorEmitter {
    * Used by the server.
    */
   @usableFromInline
-  init(_ channel: Channel?, log: Logger? = nil) {
-    self.channel    = channel
-    self.log        = log ?? .init(label: "μ.ws")
-    self.readyState = channel != nil ? .open : .connecting
+  init(_ channel: Channel?, upgradeRequestHead: HTTPRequestHead? = nil,
+       log: Logger? = nil)
+  {
+    self.channel            = channel
+    self.upgradeRequestHead = upgradeRequestHead
+    self.log                = log ?? .init(label: "μ.ws")
+    self.readyState         = channel != nil ? .open : .connecting
     super.init()
     
     if channel != nil, !didRetain { didRetain = true; core.retain() }
@@ -108,9 +116,10 @@ open class WebSocket: ErrorEmitter {
   }
 
   convenience
-  public init(_ url: URL, log: Logger? = nil) {
+  public init(_ url: URL, headers: HTTPHeaders = [:], log: Logger? = nil) {
     self.init(nil, log: log)
-    
+    self.extraUpgradeHeaders = headers
+
     guard let bootstrap = bootstrapForURL(url) else {
       nextTick {
         self.emit(error:WebSocketError.unsupportedURLScheme(url.absoluteString))
@@ -137,7 +146,7 @@ open class WebSocket: ErrorEmitter {
   }
   
   convenience
-  public init(_ url: String, log: Logger? = nil) {
+  public init(_ url: String, headers: HTTPHeaders = [:], log: Logger? = nil) {
     guard let parsedURL = URL(string: url) else {
       self.init(nil, log: log)
       
@@ -146,8 +155,8 @@ open class WebSocket: ErrorEmitter {
       }
       return
     }
-    
-    self.init(parsedURL, log: log)
+
+    self.init(parsedURL, headers: headers, log: log)
   }
 
   
@@ -346,10 +355,10 @@ open class WebSocket: ErrorEmitter {
     lock.unlock()
 
     var buffer = channel.allocator.buffer(
-      capacity: min(data.count, 125))
+      capacity: min(data.count, 125)
+    )
     buffer.writeBytes(data.prefix(125))
-    let frame = WebSocketFrame(fin: true, opcode: .ping,
-                               data: buffer)
+    let frame = WebSocketFrame(fin: true, opcode: .ping, data: buffer)
     channel.writeAndFlush(frame).whenFailure(self.emit(error:))
   }
 
@@ -381,8 +390,7 @@ open class WebSocket: ErrorEmitter {
     var buffer = channel.allocator.buffer(capacity: data.count)
     buffer.writeBytes(data)
 
-    let frame = WebSocketFrame(fin: true, opcode: opcode,
-                               data: buffer)
+    let frame = WebSocketFrame(fin: true, opcode: opcode, data: buffer)
     channel.writeAndFlush(frame).whenFailure(self.emit(error:))
   }
 
@@ -491,7 +499,12 @@ open class WebSocket: ErrorEmitter {
       // Connection, Upgrade, Sec-WebSocket-Key, and
       // Sec-WebSocket-Version automatically. Duplicating them
       // causes the server to reject the upgrade.
-      let headers: HTTPHeaders = [ "Host": host ]
+      var headers: HTTPHeaders = [ "Host": host ]
+      if let extra = ws?.extraUpgradeHeaders {
+        for (name, value) in extra {
+          headers.add(name: name, value: value)
+        }
+      }
       let req = HTTPRequestHead(version : .init(major: 1, minor: 1),
                                 method  : .GET, uri: path,
                                 headers : headers)
@@ -567,8 +580,7 @@ open class WebSocket: ErrorEmitter {
     let requestKey  = WebSocket.generateRequestKey()
     let host        = hostHeaderValue(from: url)
     let path        = url.path.isEmpty ? "/" : url.path
-    let httpHandler = HTTPHandler(path: path, host: host,
-                                  ws: self)
+    let httpHandler = HTTPHandler(path: path, host: host, ws: self)
     return bootstrap(url, self, requestKey,
                      httpHandler, WebSocketConnection(self))
   }
