@@ -468,15 +468,10 @@ open class Server: ErrorEmitter, CustomStringConvertible {
             channel.eventLoop.makeCompletedFuture {
               let p = channel.pipeline.syncOperations
               if opts.needsIdleHandler {
-                let rt = opts.readTimeout  > 0
-                       ? TimeAmount.milliseconds(Int64(opts.readTimeout))
-                       : nil
-                let wt = opts.writeTimeout > 0
-                       ? TimeAmount.milliseconds(Int64(opts.writeTimeout))
-                       : nil
-                let at = opts.idleTimeout  > 0
-                       ? TimeAmount.milliseconds(Int64(opts.idleTimeout))
-                       : nil
+                let rt = TimeAmount.milliseconds(opts.readTimeout)
+                let wt = TimeAmount.milliseconds(opts.writeTimeout)
+                let at = TimeAmount.milliseconds(opts.idleTimeout)
+
                 try p.addHandler(
                   IdleStateHandler(readTimeout: rt, writeTimeout: wt,
                                    allTimeout: at),
@@ -782,5 +777,13 @@ open class Server: ErrorEmitter, CustomStringConvertible {
     if !didRetain { ms += " not-retaining" }
     ms += ">"
     return ms
+  }
+}
+
+fileprivate extension TimeAmount {
+
+  static func milliseconds(_ amount: Int?) -> TimeAmount? {
+    guard let amount = amount else { return nil }
+    return milliseconds(Int64(amount))
   }
 }
