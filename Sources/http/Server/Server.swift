@@ -783,7 +783,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
 fileprivate extension TimeAmount {
 
   static func milliseconds(_ amount: Int?) -> TimeAmount? {
-    guard let amount = amount else { return nil }
+    guard let amount = amount, amount > 0 else { return nil }
     return milliseconds(Int64(amount))
   }
 }
