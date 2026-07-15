@@ -591,19 +591,13 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           response.date = time_t.now
           
           if head.version.major == 1 {
-            let connectionHeaderCount = head
-              .headers[canonicalForm: "connection"]
-              .lazy
-              .map    { $0.lowercased() }
-              .filter { $0 == "keep-alive" || $0 == "close" }
-              .count
-            if connectionHeaderCount == 0 { // no connection headers
-              if head.isKeepAlive, head.version.minor == 0 {
+            if head.isKeepAlive {
+              if head.version.minor == 0 {
                 response.headers.add(name: "Connection", value: "keep-alive")
               }
-              else if !head.isKeepAlive, head.version.minor >= 1 {
-                response.headers.add(name: "Connection", value: "close")
-              }
+            }
+            else {
+              response.headers.add(name: "Connection", value: "close")
             }
           }
 
