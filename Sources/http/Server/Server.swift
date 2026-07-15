@@ -462,7 +462,8 @@ open class Server: ErrorEmitter, CustomStringConvertible {
                      ?? channel.eventLoop.makeSucceededVoidFuture()
         return preFuture.flatMap {
           channel.pipeline
-            .configureHTTPServerPipeline(withServerUpgrade: upgrade)
+            .configureHTTPServerPipeline(withPipeliningAssistance: true,
+                                         withServerUpgrade: upgrade)
         }
         .flatMap {
             channel.eventLoop.makeCompletedFuture {
