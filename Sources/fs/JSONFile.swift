@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020-2024 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 #if canImport(Foundation)
@@ -36,15 +36,16 @@ public extension JSONFileModule {
    * The JSON parsing happens on the I/O thread (`fs.threadPool`).
    *
    * Example:
-   *
-   *     jsonfile.readFile("/tmp/myfile.json") { error, value in
-   *       if let error = error {
-   *         console.error("loading failed:", error)
-   *       }
-   *       else {
-   *         print("Loaded JSON:", value)
-   *       }
-   *     }
+   * ```swift
+   * jsonfile.readFile("/tmp/myfile.json") { error, value in
+   *   if let error = error {
+   *     console.error("loading failed:", error)
+   *   }
+   *   else {
+   *     print("Loaded JSON:", value)
+   *   }
+   * }
+   * ```
    *
    * - Parameters:
    *   - eventLoop: The NIO EventLoop to call the callback on. Defaults to the
@@ -103,16 +104,17 @@ public extension JSONFileModule {
    * The JSON parsing happens on the I/O thread (`fs.threadPool`).
    *
    * Example:
-   *
-   *     jsonfile.readFile("/tmp/myfile.json", as: Person.self) {
-   *       error, value in
-   *       if let error = error {
-   *         console.error("loading failed:", error)
-   *       }
-   *       else {
-   *         print("Loaded JSON:", value)
-   *       }
-   *     }
+   * ```swift
+   * jsonfile.readFile("/tmp/myfile.json", as: Person.self) {
+   *   error, value in
+   *   if let error = error {
+   *     console.error("loading failed:", error)
+   *   }
+   *   else {
+   *     print("Loaded JSON:", value)
+   *   }
+   * }
+   * ```
    *
    * - Parameters:
    *   - eventLoop: The NIO EventLoop to call the callback on. Defaults to the
@@ -136,7 +138,9 @@ public extension JSONFileModule {
     let module = MacroCore.shared.retain()
     let loop   = module.fallbackEventLoop(eventLoop)
 
-    nonisolated(unsafe) let type = type // avoid the Sendable type warning
+    #if compiler(>=6.2) // `T.Type` is only Sendable if `T: SendableMetatype`
+      nonisolated(unsafe) let type = type
+    #endif
     FileSystemModule.threadPool.submit { shouldRun in
       let result      : T?
       let resultError : Swift.Error?

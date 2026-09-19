@@ -202,7 +202,7 @@ open class WebSocket: ErrorEmitter {
   @discardableResult
   public func onMessage<T: Decodable>(execute: @escaping (T) -> Void) -> Self {
     // Note: self-cycle, but that is OK, will be broken on close!
-    nonisolated(unsafe) let type = T.self // avoid sendable type warning
+    let type = T.self
     _dataListeners.add { [self] data in
       do {
         let message = try JSONDecoder().decode(type, from: data)

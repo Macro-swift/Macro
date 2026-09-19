@@ -30,7 +30,15 @@ import struct   NIOHTTP1.HTTPHeaders
   import class    Foundation.HTTPURLResponse
 #endif
 
-public final class URLSessionClientRequest: ClientRequest {
+/**
+ * A ``ClientRequest`` which is backed by a Foundation `URLSessionDataTask`.
+ *
+ * Async/Await: This is marked `@unchecked Sendable`. The class itself is *NOT*
+ * actually thread safe. But it is also not assumed to be accessed by multiple
+ * tasks/threads at the same time, but always only one after another (it can
+ * hop).
+ */
+public final class URLSessionClientRequest: ClientRequest, @unchecked Sendable {
   
   let agent           : URLSessionAgent
   let request         : URLRequest
