@@ -330,6 +330,16 @@ open class ServerResponse: OutgoingMessage, CustomStringConvertible,
   
   // MARK: - WritableByteStream
   
+  /**
+   * Write a chunk of the response body.
+   *
+   * Chunks are queued in the channel and only flushed once they reach
+   * the ``writableHighWaterMark``, or when ``end()`` is called.
+   *
+   * Note: Careful with `whenDone`, this ONLY runs when NIO actually flushes the
+   *       write. I.e. can't currently be used for backpressure (pulling the
+   *       next input in whenDone).
+   */
   @discardableResult
   override open func write(_ bytes: Buffer,
                            whenDone: (() -> Void)? = nil) -> Bool

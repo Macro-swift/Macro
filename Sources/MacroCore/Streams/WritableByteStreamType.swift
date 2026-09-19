@@ -41,15 +41,18 @@ public extension WritableStreamType where WritablePayload == Buffer {
     return write(Buffer(string), whenDone: whenDone)
   }
   
+  /// Write a final `String` and finish the stream.
   @inlinable
   func end(_ string: String) {
-    write(Buffer(string)) { self.end() }
+    write(Buffer(string), whenDone: nil)
+    end()
   }
   
   @inlinable
   func end(_ string: String, _ encoding: String) {
     do {
-      write(try Buffer.from(string, encoding)) { self.end() }
+      write(try Buffer.from(string, encoding), whenDone: nil)
+      end()
     }
     catch {
       emit(error: error)
@@ -69,7 +72,7 @@ public extension WritableStreamType where WritablePayload == Buffer {
   
   @inlinable
   func end<T>(_ data: T) where T: Collection, T.Element == UInt8 {
-    if data.isEmpty { end() }
-    else { write(Buffer(data)) { self.end() } }
+    if !data.isEmpty { write(Buffer(data), whenDone: nil) }
+    end()
   }
 }

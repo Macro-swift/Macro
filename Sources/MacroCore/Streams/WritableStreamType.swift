@@ -16,6 +16,7 @@ public protocol WritableStreamType: ErrorEmitterType, ErrorEmitterTarget {
   @discardableResult
   func write(_ payload: WritablePayload, whenDone : (() -> Void)?) -> Bool
 
+  /// Finish the stream, emitting all potentially queued writes.
   func end()
   
   // MARK: - Events
@@ -63,7 +64,8 @@ public extension WritableStreamType {
   
   @inlinable
   func end(_ payload: WritablePayload) {
-    write(payload) { self.end() }
+    write(payload, whenDone: nil)
+    end()
   }
 }
 
