@@ -96,7 +96,7 @@ let package = Package(
                 swiftSettings: [ .swiftLanguageMode(.v6) ]),
 
     .testTarget(name: "MacroTests",
-                dependencies: [ "MacroTestUtilities", "ws" ],
+                dependencies: [ "MacroTestUtilities", "ws", "xsys" ],
                 swiftSettings: [ .swiftLanguageMode(.v5) ])
   ]
 )

@@ -7,40 +7,40 @@
 //
 
 #if os(Windows)
-  import WinSDK
+import WinSDK
 #elseif os(WASI)
-  import WASILibc
+import WASILibc
   // TBD: WASI support is untested.
 
-  public typealias struct_tm = WASILibc.tm
-  public typealias time_t    = WASILibc.time_t
+public typealias struct_tm = WASILibc.tm
+public typealias time_t    = WASILibc.time_t
 
-  public let time          = WASILibc.time
-  public let gmtime_r      = WASILibc.gmtime_r
-  public let localtime_r   = WASILibc.localtime_r
-  public let strftime      = WASILibc.strftime
+public let time          = WASILibc.time
+public let gmtime_r      = WASILibc.gmtime_r
+public let localtime_r   = WASILibc.localtime_r
+public let strftime      = WASILibc.strftime
 
 #elseif os(Linux) || os(Android)
-  import Glibc
+import Glibc
 
-  public typealias struct_tm = Glibc.tm
-  public typealias time_t    = Glibc.time_t
+public typealias struct_tm = Glibc.tm
+public typealias time_t    = Glibc.time_t
   
-  public let time          = Glibc.time
-  public let gmtime_r      = Glibc.gmtime_r
-  public let localtime_r   = Glibc.localtime_r
-  public let strftime      = Glibc.strftime
+public let time          = Glibc.time
+public let gmtime_r      = Glibc.gmtime_r
+public let localtime_r   = Glibc.localtime_r
+public let strftime      = Glibc.strftime
   
 #else
-  import Darwin
+import Darwin
   
-  public typealias struct_tm = Darwin.tm
-  public typealias time_t    = Darwin.time_t
+public typealias struct_tm = Darwin.tm
+public typealias time_t    = Darwin.time_t
 
-  public let time          = Darwin.time
-  public let gmtime_r      = Darwin.gmtime_r
-  public let localtime_r   = Darwin.localtime_r
-  public let strftime      = Darwin.strftime
+public let time          = Darwin.time
+public let gmtime_r      = Darwin.gmtime_r
+public let localtime_r   = Darwin.localtime_r
+public let strftime      = Darwin.strftime
 #endif
 
 #if !os(Windows)
@@ -113,7 +113,7 @@ public extension time_t {
     let tm = self.componentsInUTC
     let bytes = [ UInt8 ](unsafeUninitializedCapacity: 29) {
       buf, count in
-      let day  = rfc1123DayBytes  [Int(tm.tm_wday) % 7]
+      let day  = rfc1123DayBytes[Int(tm.tm_wday) % 7]
       let monB = rfc1123MonthBytes[Int(tm.tm_mon)  % 12]
       buf[0]  = day.0;  buf[1]  = day.1;  buf[2]  = day.2
       buf[3]  = UInt8(ascii: ","); buf[4]  = UInt8(ascii: " ")
@@ -313,7 +313,7 @@ internal func _parseHTTPDate(bytes buf: UnsafeBufferPointer<UInt8>)
             buf[off + 9] == space,
             let (hh, mm, ss) = parseHMS(buf, at: off + 10) else { return nil }
       let y = y2 + (y2 < 70 ? 2000 : 1900)
-      return (year: y, mon: mo, day: d, h: hh, m: mm, sec: ss)
+      return ( year: y, mon: mo, day: d, h: hh, m: mm, sec: ss )
     }
 
     if sep == space { // IMF: dd Xxx yyyy HH:MM:SS GMT (24 bytes past `off`)
@@ -322,7 +322,7 @@ internal func _parseHTTPDate(bytes buf: UnsafeBufferPointer<UInt8>)
             buf[off + 6] == space, let y = parseFourDigit(buf, at: off + 7),
             buf[off + 11] == space,
             let (hh, mm, ss) = parseHMS(buf, at: off + 12) else { return nil }
-      return (year: y, mon: mo, day: d, h: hh, m: mm, sec: ss)
+      return ( year: y, mon: mo, day: d, h: hh, m: mm, sec: ss )
     }
 
     return nil
@@ -348,7 +348,33 @@ internal func _parseHTTPDate(bytes buf: UnsafeBufferPointer<UInt8>)
         buf[19] == space,
         let y = parseFourDigit(buf, at: 20) else { return nil }
   
-  return (year: y, mon: mo, day: day, h: hh, m: mm, sec: ss)
+  return ( year: y, mon: mo, day: day, h: hh, m: mm, sec: ss )
+}
+
+/**
+ * Pure ISO 8601 date(-time) parser, byte-level. Accepts a bare
+ * `"YYYY-MM-DD"` date or a full `"YYYY-MM-DDTHH:MM:SS"` (with an
+ * optional trailing `Z`); fractional seconds and numeric zone offsets
+ * are ignored. Always interpreted as UTC. `mon` is 0-based to match
+ * ``_parseHTTPDate`` and `tm_mon`.
+ */
+@usableFromInline
+internal func _parseISO8601Date(bytes buf: UnsafeBufferPointer<UInt8>)
+              -> (year: Int, mon: Int, day: Int, h: Int, m: Int, sec: Int)?
+{
+  let dash = UInt8(ascii: "-")
+  guard buf.count >= 10, let y = parseFourDigit(buf, at: 0),
+        buf[4] == dash, let mo = parseTwoDigit(buf, at: 5),
+        buf[7] == dash, let d = parseTwoDigit(buf, at: 8),
+        (1 ... 12).contains(mo), (1 ... 31).contains(d) else { return nil }
+
+  // Optional "THH:MM:SS" (or space-separated) part.
+  let t = UInt8(ascii: "T"), space = UInt8(ascii: " ")
+  guard buf.count >= 19, buf[10] == t || buf[10] == space,
+        let (hh, mm, ss) = parseHMS(buf, at: 11) else {
+    return ( year: y, mon: mo - 1, day: d, h: 0, m: 0, sec: 0 )
+  }
+  return ( year: y, mon: mo - 1, day: d, h: hh, m: mm, sec: ss )
 }
 
 /// The Unix `tm` struct is essentially NSDateComponents PLUS some timezone
@@ -384,6 +410,27 @@ public extension xsys.struct_tm {
   init?(httpDateString s: String) {
     var s = s
     guard let r = s.withUTF8({ _parseHTTPDate(bytes: $0) }) else { return nil }
+
+    self.init()
+    self.tm_year = Int32(r.year - 1900)
+    self.tm_mon  = Int32(r.mon)
+    self.tm_mday = Int32(r.day)
+    self.tm_hour = Int32(r.h)
+    self.tm_min  = Int32(r.m)
+    self.tm_sec  = Int32(r.sec)
+  }
+
+  /**
+   * Parses an ISO 8601 date or date-time, e.g. `"2026-05-17"` or
+   * `"2026-05-17T12:34:56Z"`. Fractional seconds and numeric zone
+   * offsets are ignored and the value is treated as UTC. Symmetric
+   * with ``iso8601String``. Returns nil if `s` is not a valid date.
+   */
+  init?(iso8601String s: String) {
+    var s = s
+    guard let r = s.withUTF8({ _parseISO8601Date(bytes: $0) }) else {
+      return nil
+    }
 
     self.init()
     self.tm_year = Int32(r.year - 1900)

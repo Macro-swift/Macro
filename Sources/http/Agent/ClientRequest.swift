@@ -3,7 +3,7 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
 
 import func   MacroCore.nextTick
@@ -159,12 +159,6 @@ public extension HTTPModule {
       set { host = newValue }
       get { return host     }
     }
-    
-    @inlinable
-    public var timeoutInterval : TimeInterval? {
-      set { timeout = newValue.flatMap { Int($0 * 1000) } }
-      get { return timeout.flatMap { TimeInterval($0) } }
-    }
 
     @inlinable
     public init(agent      : AgentType  = .global,
@@ -235,7 +229,22 @@ public extension HTTPModule {
 
 extension HTTPModule.ClientRequestOptions {
   
-  public var url : URL {
+  internal var resolvedAgent : Agent {
+    switch agent {
+      #if canImport(Foundation)
+      case .`default`               : return URLSessionAgent()
+      #endif
+      case .global                  : return HTTPModule.globalAgent
+      case .custom(let customAgent) : return customAgent
+    }
+  }
+}
+
+#if canImport(Foundation)
+public extension HTTPModule.ClientRequestOptions {
+  
+  @inlinable
+  var url : URL {
     set {
       if let v = newValue.scheme { self.`protocol` = v + ":" }
       if let v = newValue.host   { host = v }
@@ -257,11 +266,10 @@ extension HTTPModule.ClientRequestOptions {
     }
   }
   
-  internal var resolvedAgent : Agent {
-    switch agent {
-      case .`default`               : return URLSessionAgent()
-      case .global                  : return HTTPModule.globalAgent
-      case .custom(let customAgent) : return customAgent
-    }
+  @inlinable
+  var timeoutInterval : TimeInterval? {
+    set { timeout = newValue.flatMap { Int($0 * 1000) } }
+    get { return timeout.flatMap { TimeInterval($0) / 1000 } }
   }
 }
+#endif

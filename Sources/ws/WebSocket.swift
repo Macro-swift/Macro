@@ -137,11 +137,11 @@ open class WebSocket: ErrorEmitter {
       }
       
       bootstrap.connect(host: host, port: port)
-        .whenComplete(self.handleConnectResult)
+               .whenComplete(self.handleConnectResult)
     }
     else {
       bootstrap.connect(unixDomainSocketPath: url.path)
-        .whenComplete(self.handleConnectResult)
+               .whenComplete(self.handleConnectResult)
     }
   }
   
@@ -202,7 +202,7 @@ open class WebSocket: ErrorEmitter {
   @discardableResult
   public func onMessage<T: Decodable>(execute: @escaping (T) -> Void) -> Self {
     // Note: self-cycle, but that is OK, will be broken on close!
-    nonisolated(unsafe) let type = T.self // avoid sendable type warning
+    let type = T.self
     _dataListeners.add { [self] data in
       do {
         let message = try JSONDecoder().decode(type, from: data)
@@ -415,9 +415,9 @@ open class WebSocket: ErrorEmitter {
   public func send(_ message: Any) {
     do {
       #if os(Linux)
-        let opts : JSONSerialization.WritingOptions = []
+      let opts : JSONSerialization.WritingOptions = []
       #else
-        let opts : JSONSerialization.WritingOptions = [ .fragmentsAllowed ]
+      let opts : JSONSerialization.WritingOptions = [ .fragmentsAllowed ]
       #endif
       let data = try JSONSerialization.data(withJSONObject: message,
                                             options: opts)
@@ -439,9 +439,9 @@ open class WebSocket: ErrorEmitter {
     if !_messageListeners.isEmpty {
       do {
         #if os(Linux)
-          let opts : JSONSerialization.ReadingOptions = []
+        let opts : JSONSerialization.ReadingOptions = []
         #else
-          let opts : JSONSerialization.ReadingOptions = [ .fragmentsAllowed ]
+        let opts : JSONSerialization.ReadingOptions = [ .fragmentsAllowed ]
         #endif
         let json = try JSONSerialization.jsonObject(with: data, options: opts)
         _messageListeners.emit(json)
@@ -519,7 +519,7 @@ open class WebSocket: ErrorEmitter {
       switch clientResponse {
         case .head(let res):
           ws?.emit(error: WebSocketError
-                            .upgradeFailed(status: Int(res.status.code)))
+                   .upgradeFailed(status: Int(res.status.code)))
           ws = nil
         case .body : break
         case .end  :
@@ -540,11 +540,14 @@ open class WebSocket: ErrorEmitter {
   }
   
   // API: TBD
-  typealias WebSocketBootstrap =
-    (_ url: URL, _ ws: WebSocket,
-     _ requestKey: String,
-     _ httpHandler: any RemovableChannelHandler & Sendable,
-     _ wsHandler: any ChannelHandler & Sendable)
+  // Pass the pieces needed to build the per-channel handlers rather
+  // than pre-built handler instances: `connect(host:port:)` may try
+  // several resolved addresses in turn, and the channelInitializer
+  // runs once per attempt -- each attempt needs its own handlers (see
+  // makePlainClientBootstrap).
+  typealias WebSocketBootstrap = (_ url: URL, _ ws: WebSocket,
+                                  _ requestKey: String, _ path: String,
+                                  _ host: String)
     -> ClientBootstrap
 
   /// Register custom bootstraps for schemes (e.g. TLS).
@@ -580,9 +583,7 @@ open class WebSocket: ErrorEmitter {
     let requestKey  = WebSocket.generateRequestKey()
     let host        = hostHeaderValue(from: url)
     let path        = url.path.isEmpty ? "/" : url.path
-    let httpHandler = HTTPHandler(path: path, host: host, ws: self)
-    return bootstrap(url, self, requestKey,
-                     httpHandler, WebSocketConnection(self))
+    return bootstrap(url, self, requestKey, path, host)
   }
 
   /**
@@ -599,15 +600,23 @@ open class WebSocket: ErrorEmitter {
   
   static func makePlainClientBootstrap(
     _ url: URL, _ ws: WebSocket,
-    _ requestKey: String,
-    _ httpHandler: any RemovableChannelHandler & Sendable,
-    _ wsHandler: any ChannelHandler & Sendable)
+    _ requestKey: String, _ path: String, _ host: String
+  )
     -> ClientBootstrap
   {
-    let bootstrap = ClientBootstrap(
-      group: MacroCore.shared.fallbackEventLoop())
+    return ClientBootstrap(group: MacroCore.shared.fallbackEventLoop())
       .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
       .channelInitializer { channel in
+        // Fresh handlers per connect attempt. `connect(host:port:)`
+        // may try several resolved addresses in turn (e.g. ::1 then
+        // 127.0.0.1 for "localhost"); the initializer runs once per
+        // attempt. A single shared HTTPHandler let a failed first
+        // attempt's `handlerRemoved` null its `ws`, so the retry sent
+        // the upgrade WITHOUT the caller's extra headers (e.g.
+        // Authorization) and the server rejected it. One instance per
+        // channel avoids the cross-attempt poisoning.
+        let httpHandler = HTTPHandler(path: path, host: host, ws: ws)
+        let wsHandler   = WebSocketConnection(ws)
         let upgrader = NIOWebSocketClientUpgrader(
           requestKey: requestKey,
           upgradePipelineHandler: { channel, _ in
@@ -635,7 +644,6 @@ open class WebSocket: ErrorEmitter {
             }
           }
       }
-    return bootstrap
   }
 }
 
