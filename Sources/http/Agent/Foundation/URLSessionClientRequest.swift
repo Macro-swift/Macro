@@ -92,8 +92,25 @@ public final class URLSessionClientRequest: ClientRequest {
     task = agent.options.session.dataTask(with: request) {
       data, urlResponse, error in
       defer { self.task = nil }
-      
-      let response = self.setupResponse(with: urlResponse as? HTTPURLResponse)
+
+      let cleanup = {
+        self.selfRef = nil
+        if self.didRetain { self.didRetain = false; self.core.release() }
+      }
+
+      guard let httpResponse = urlResponse as? HTTPURLResponse else {
+        assert(error != nil, "No response but no error either?")
+        return eventLoop.execute {
+          enum ClientRequestError: Swift.Error {
+            case noResponseAndNoError
+          }
+
+          self.emit(error: error ?? ClientRequestError.noResponseAndNoError)
+          cleanup()
+        }
+      }
+
+      let response = self.setupResponse(with: httpResponse)
       self.response = response
       
       eventLoop.execute {
@@ -105,10 +122,17 @@ public final class URLSessionClientRequest: ClientRequest {
         if let data = data, !data.isEmpty {
           response.push(Buffer(data))
         }
-        response.push(nil) // EOF
-        
-        self.selfRef = nil
-        if self.didRetain { self.didRetain = false; self.core.release() }
+
+        if let error = error {
+          // We got the headers, but not the body. Do *not* call push(nil)
+          // to end/EOF the response.
+          response.emit(error: error)
+        }
+        else {
+          response.push(nil) // EOF
+        }
+
+        cleanup()
       }
     }
 
