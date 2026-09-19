@@ -3,8 +3,10 @@
 //  Macro
 //
 //  Created by Helge Hess.
-//  Copyright © 2020 ZeeZide GmbH. All rights reserved.
+//  Copyright © 2020-2026 ZeeZide GmbH. All rights reserved.
 //
+
+#if canImport(Foundation)
 
 import MacroCore
 import struct Logging.Logger
@@ -72,3 +74,4 @@ public final class URLSessionAgent {
     return clientRequest
   }
 }
+#endif
