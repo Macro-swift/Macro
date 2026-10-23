@@ -20,16 +20,14 @@ public enum DataEncodingError: Swift.Error {
 }
 
 public extension Buffer {
-  
+ 
   /// Initialize the Buffer with the UTF-8 data in the String.
-  @inlinable
-  init(_ string: String) {
+  @inlinable init(_ string: String) {
     self.init(string.utf8)
   }
   
   /// Initialize the Buffer with the UTF-8 data in the String.
-  @inlinable
-  init<S: StringProtocol>(_ string: S) {
+  @inlinable init<S: StringProtocol>(_ string: S) {
     self.init(string.utf8)
   }
 
@@ -57,8 +55,8 @@ public extension Buffer {
 public extension Buffer {
   
   @inlinable
-  func indexOf(_ string: String, _ byteOffset: Int = 0,
-               _ encoding: String.Encoding = .utf8) -> Int
+  func indexOf(_   string : String, _ byteOffset: Int = 0,
+               _ encoding : String.Encoding = .utf8) -> Int
   {
     guard let data = string.data(using: encoding) else { return -1 }
     return indexOf(data, byteOffset)
@@ -66,18 +64,30 @@ public extension Buffer {
 
   
   @inlinable
-  func indexOf(_ string: String, _ byteOffset: Int = 0,
-               _ encoding: String) -> Int
+  func indexOf(_   string : String, _ byteOffset: Int = 0,
+               _ encoding : String) -> Int
   {
-    guard let needle = try? Buffer.from(string, encoding) else {
-      return -1
-    }
+    guard let needle = try? Buffer.from(string, encoding) else { return -1 }
     return indexOf(needle, byteOffset)
   }
 }
 
 public extension Buffer {
   
+  /// The support encodings.
+  enum BinaryEncoding: String, Sendable, CaseIterable {
+
+    /// Two hex digits per byte, e.g. `48656c6c6f`.
+    case hex
+
+    /// Base64 with `=` padding.
+    case base64
+
+    /// URL-safe base64 without padding.
+    case base64url
+  }
+  
+  #if canImport(Foundation)
   /**
    * Creates a Buffer from the given string, in the given encoding (defaults to
    * UTF-8).
@@ -87,9 +97,9 @@ public extension Buffer {
    * - Parameters:
    *   - string:   The string to convert to a Buffer.
    *   - encoding: The requested encoding, defaults to `.utf8`.
-   * - Returns: A Buffer representing the string in the given encoding.
-   * - Throws: CharsetConversionError if the data could not be converted to
-   *           a string.
+   * - Returns:    A Buffer representing the string in the given encoding.
+   * - Throws:     CharsetConversionError if the data could not be converted to
+   *               a string.
    */
   @inlinable
   static func from(_ string: String, _ encoding: String.Encoding = .utf8)
@@ -115,15 +125,16 @@ public extension Buffer {
    *           a string.
    */
   @inlinable
-  static func from<S: StringProtocol>(_ string: S,
-                                      _ encoding: String.Encoding = .utf8)
+  static func from<S>(_ string: S, _ encoding: String.Encoding = .utf8)
                 throws -> Buffer
+    where S: StringProtocol
   {
     guard let data = string.data(using: encoding) else {
       throw CharsetConversionError.failedToConverData(encoding: encoding)
     }
     return Buffer(data)
   }
+  #endif //
 
   /**
    * Creates a Buffer from the given string, in the given encoding (e.g.
@@ -146,18 +157,49 @@ public extension Buffer {
    *           a string.
    */
   @inlinable
-  static func from<S: StringProtocol>(_ string: S, _ encoding: String) throws
-              -> Buffer
+  static func from<S>(_ string: S, _ encoding: String) throws -> Buffer
+    where S: StringProtocol
+  {
+    if let binaryEncoding = BinaryEncoding(rawValue: encoding) {
+      return try from(string, binaryEncoding)
+    }
+    #if canImport(Foundation)
+      return try from(string, .encodingWithName(encoding))
+    #else
+      throw CharsetConversionError() // Meh
+    #endif
+  }
+
+  /**
+   * Decodes a Buffer from a string in the given encoding.
+   *
+   * Example:
+   * ```swift
+   * let buffer = try Buffer.from("48656c6c6f", .hex)
+   * let string = try buffer.toString()
+   * // "Hello"
+   * ```
+   *
+   * - Parameters:
+   *   - string:   The encoded string, e.g. a hex or base64 string.
+   *   - encoding: The binary encoding of the string.
+   * - Returns:    A Buffer with the decoded bytes.
+   * - Throws:     ``DataDecodingError``
+   */
+  @inlinable
+  static func from<S>(_ string: S, _ encoding: BinaryEncoding) throws -> Buffer
+    where S: StringProtocol
   {
     switch encoding {
-      case "hex":
+      case .hex:
         var buffer = Buffer(capacity: string.utf16.count / 2)
         guard buffer.writeHexString(string) else {
           throw DataDecodingError.failedToDecodeHexString
         }
         return buffer
       
-      case "base64":
+      case .base64:
+        #if canImport(Foundation)
         let s = String(string)
         if let data = Data(base64Encoded: s) { return Buffer(data) }
 
@@ -174,19 +216,17 @@ public extension Buffer {
           default:
             assertionFailure("Invalid % operation.")
         }
+        #endif
         throw DataDecodingError.failedToDecodeBase64
 
-      case "base64url":
-        return try Self.from(String(string.map {
+      case .base64url:
+        return try from(String(string.map {
           switch $0 {
             case "-" : return "+"
             case "_" : return "/"
             default  : return $0
           }
-        }), "base64")
-
-      default:
-        return try from(string, .encodingWithName(encoding))
+        }), .base64)
     }
   }
   
@@ -206,10 +246,8 @@ public extension Buffer {
    */
   @inlinable
   static func isEncoding(_ encoding: String) -> Bool {
-    switch encoding {
-      case "hex", "base64", "base64url": return true
-      default: return String.Encoding.isEncoding(encoding)
-    }
+    BinaryEncoding(rawValue: encoding) != nil 
+    || String.Encoding.isEncoding(encoding)
   }
   
   /**
@@ -251,10 +289,32 @@ public extension Buffer {
    */
   @inlinable
   func toString(_ encoding: String) throws -> String {
+    if let binaryEncoding = BinaryEncoding(rawValue: encoding) {
+      return toString(binaryEncoding)
+    }
+    return try toString(.encodingWithName(encoding))
+  }
+
+  /**
+   * Returns the contents of the Buffer as a string in the given encoding.
+   *
+   * Example:
+   * ```swift
+   * let buffer = Buffer("Hello".utf8)
+   * let string = buffer.toString(.hex)
+   * // "48656c6c6f"
+   * ```
+   *
+   * - Parameters:
+   *   - encoding: The encoding, e.g. `.hex` or `.base64`.
+   * - Returns:    The encoded string.
+   */
+  @inlinable
+  func toString(_ encoding: BinaryEncoding) -> String {
     switch encoding {
-      case "hex"       : return hexEncodedString()
-      case "base64"    : return data.base64EncodedString()
-      case "base64url" :
+      case .hex       : return hexEncodedString()
+      case .base64    : return data.base64EncodedString()
+      case .base64url :
         var b64 = data.base64EncodedString()
         if let eqIdx = b64.firstIndex(of: "=") { b64 = String(b64[..<eqIdx]) }
         return String(b64.map {
@@ -264,8 +324,6 @@ public extension Buffer {
             default  : return $0
           }
         })
-
-      default: return try toString(.encodingWithName(encoding))
     }
   }
 }
