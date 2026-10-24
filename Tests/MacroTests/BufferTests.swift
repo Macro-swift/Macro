@@ -23,15 +23,15 @@ final class BufferTests: XCTestCase {
 
     #if false // this part is non-sense, it creates an UTF-8 buffer
     #if false
-    let utf16Buffer = try Buffer.from("\u{039a}\u{0391}\u{03a3}\u{03a3}\u{0395}")
+    let utf16 = try Buffer.from("\u{039a}\u{0391}\u{03a3}\u{03a3}\u{0395}")
     #else
     // "utf16le" is not a known encoding for us :-)
-    let utf16Buffer =
-          try Buffer.from("\u{039a}\u{0391}\u{03a3}\u{03a3}\u{0395}", "utf16le")
+    let utf16 = try Buffer.from("\u{039a}\u{0391}\u{03a3}\u{03a3}\u{0395}", 
+                                "utf16le")
     #endif
 
-    XCTAssertEqual(4, utf16Buffer.indexOf("\u{03a3}",  0, "utf16le"))
-    XCTAssertEqual(6, utf16Buffer.indexOf("\u{03a3}", -4, "utf16le"))
+    XCTAssertEqual(4, utf16.indexOf("\u{03a3}",  0, "utf16le"))
+    XCTAssertEqual(6, utf16.indexOf("\u{03a3}", -4, "utf16le"))
     #endif
   }
   
@@ -117,13 +117,42 @@ final class BufferTests: XCTestCase {
     XCTAssertEqual(try buf.toString(), "Hello")
   }
 
+  func testEncodingNames() throws {
+    XCTAssertEqual(try Buffer.from("48656c6c6f", "hex"),    Buffer("Hello"))
+    XCTAssertEqual(try Buffer.from("SGVsbG8=",   "base64"), Buffer("Hello"))
+    XCTAssertEqual(try Buffer.from("Hello",      "utf8"),   Buffer("Hello"))
+    XCTAssertEqual(try Buffer("Hello").toString("hex"),       "48656c6c6f")
+    XCTAssertEqual(try Buffer("Hello").toString("base64url"), "SGVsbG8")
+    XCTAssertEqual(try Buffer("Hello").toString("utf-8"),     "Hello")
+    XCTAssertEqual(try Buffer("Hello").toString("latin1"),    "Hello")
+  }
+
+  func testUnknownEncodingNamesThrow() {
+    XCTAssertThrowsError(try Buffer.from("Hello", "utf-9")) {
+      XCTAssertEqual($0 as? UnknownEncodingError, UnknownEncodingError("utf-9"))
+    }
+    XCTAssertThrowsError(try Buffer("Hello").toString("hx")) {
+      XCTAssertEqual($0 as? UnknownEncodingError, UnknownEncodingError("hx"))
+    }
+    XCTAssertFalse(Buffer.isEncoding("hx"))
+  }
+
+  func testInvalidEncodedDataThrows() {
+    XCTAssertThrowsError(try Buffer.from("4865z", "hex")) {
+      XCTAssertNotNil($0 as? DataDecodingError)
+    }
+  }
+
   static let allTests = [
-    ( "testIndexOf"      , testIndexOf      ),
-    ( "testLastIndexOf"  , testLastIndexOf  ),
-    ( "testSlice"        , testSlice        ),
-    ( "testJSON"         , testJSON         ),
-    ( "testDescription"  , testDescription  ),
-    ( "testStringLiteral", testStringLiteral),
-    ( "testArrayLiteral" , testArrayLiteral )
+    ( "testIndexOf"                   , testIndexOf      ),
+    ( "testLastIndexOf"               , testLastIndexOf  ),
+    ( "testSlice"                     , testSlice        ),
+    ( "testJSON"                      , testJSON         ),
+    ( "testDescription"               , testDescription  ),
+    ( "testStringLiteral"             , testStringLiteral),
+    ( "testArrayLiteral"              , testArrayLiteral ),
+    ( "testEncodingNames"             , testEncodingNames),
+    ( "testUnknownEncodingNamesThrow" , testUnknownEncodingNamesThrow ),
+    ( "testInvalidEncodedDataThrows"  , testInvalidEncodedDataThrows  )
   ]
 }

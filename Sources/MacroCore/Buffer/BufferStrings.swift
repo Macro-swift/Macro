@@ -11,30 +11,33 @@ import struct Foundation.Data
 #endif
 import NIOCore
 
-public enum DataDecodingError: Swift.Error {
+public enum DataDecodingError: Swift.Error, Equatable, Sendable {
   case failedToDecodeHexString
   case failedToDecodeBase64
 }
-public enum DataEncodingError: Swift.Error {
+public enum DataEncodingError: Swift.Error, Equatable, Sendable {
   case failedToReadData
+}
+
+/// Thrown on unknown encoding passed to e.g. ``Buffer/from(_:_:)-(_,String)``.
+public struct UnknownEncodingError: Swift.Error, Equatable, Sendable {
+
+  /// The encoding name that was not recognized.
+  public let encoding: String
+
+  @inlinable public init(_ encoding: String) { self.encoding = encoding }
 }
 
 public extension Buffer {
  
   /// Initialize the Buffer with the UTF-8 data in the String.
-  @inlinable init(_ string: String) {
-    self.init(string.utf8)
-  }
+  @inlinable init(_ string: String) { self.init(string.utf8) }
   
   /// Initialize the Buffer with the UTF-8 data in the String.
-  @inlinable init<S: StringProtocol>(_ string: S) {
-    self.init(string.utf8)
-  }
+  @inlinable init<S: StringProtocol>(_ string: S) { self.init(string.utf8) }
 
   @inlinable // avoids an alloc
-  mutating func append(_ string: String) {
-    byteBuffer.writeString(string)
-  }
+  mutating func append(_ string: String) { byteBuffer.writeString(string) }
 
   @inlinable
   mutating func append<S: StringProtocol>(_ string: S) {
@@ -153,8 +156,9 @@ public extension Buffer {
    *   - string:   The string to convert to a Buffer.
    *   - encoding: The requested encoding, e.g. 'utf8' or 'hex'.
    * - Returns: A Buffer representing the string in the given encoding.
-   * - Throws: CharsetConversionError if the data could not be converted to
-   *           a string.
+   * - Throws: ``UnknownEncodingError`` if the encoding name is not known,
+   *           CharsetConversionError if the string could not be converted,
+   *           ``DataDecodingError`` for invalid hex or base64.
    */
   @inlinable
   static func from<S>(_ string: S, _ encoding: String) throws -> Buffer
@@ -164,9 +168,12 @@ public extension Buffer {
       return try from(string, binaryEncoding)
     }
     #if canImport(Foundation)
-      return try from(string, .encodingWithName(encoding))
+      guard let stringEncoding = String.Encoding.from(encoding) else {
+        throw UnknownEncodingError(encoding)
+      }
+      return try from(string, stringEncoding)
     #else
-      throw CharsetConversionError() // Meh
+      throw UnknownEncodingError(encoding)
     #endif
   }
 
@@ -284,7 +291,8 @@ public extension Buffer {
    *
    * - Parameter encoding: The requested encoding, e.g. 'hex' or 'base64'
    * - Returns: A string representing the Buffer in the given encoding.
-   * - Throws: CharsetConversionError if the data could not be converted to
+   * - Throws: ``UnknownEncodingError`` if the encoding name is not known,
+   *           CharsetConversionError if the data could not be converted to
    *           a string.
    */
   @inlinable
@@ -292,7 +300,10 @@ public extension Buffer {
     if let binaryEncoding = BinaryEncoding(rawValue: encoding) {
       return toString(binaryEncoding)
     }
-    return try toString(.encodingWithName(encoding))
+    guard let stringEncoding = String.Encoding.from(encoding) else {
+      throw UnknownEncodingError(encoding)
+    }
+    return try toString(stringEncoding)
   }
 
   /**
