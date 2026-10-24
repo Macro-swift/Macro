@@ -15,6 +15,7 @@ import enum     MacroCore.process
 import enum     MacroCore.CharsetConversionError
 import enum     MacroCore.MacroError
 import struct   MacroCore.Buffer
+import struct   MacroCore.UnknownEncodingError
 #if canImport(Foundation)
   import struct Foundation.Data
   import struct Foundation.URL
@@ -138,8 +139,14 @@ public func readFile(on eventLoop : EventLoop? = nil,
                      _   encoding : String,
                      yield        : @escaping ( Error?, String? ) -> Void)
 {
-  readFile(on: eventLoop, path, String.Encoding.encodingWithName(encoding),
-           yield: yield)
+  guard Buffer.isEncoding(encoding) else {
+    return yield(UnknownEncodingError(encoding), nil)
+  }
+  readFile(on: eventLoop, path) { error, buffer in
+    guard let buffer else { return yield(error, nil) }
+    do    { yield(nil, try buffer.toString(encoding)) }
+    catch { yield(error, nil) }
+  }
 }
 
 
@@ -251,8 +258,10 @@ public func writeFile(_ path: String, _ string: String,
                       _ encoding: String, atomic: Bool = true,
                       whenDone: @escaping ( Error? ) -> Void)
 {
-  writeFile(path, string, .encodingWithName(encoding), atomic: atomic,
-            whenDone: whenDone)
+  let buffer : Buffer
+  do    { buffer = try Buffer.from(string, encoding) }
+  catch { return whenDone(error) }
+  writeFile(path, buffer, atomic: atomic, whenDone: whenDone)
 }
 
 
@@ -322,7 +331,18 @@ public func readFileSync(_ path: String, _ encoding: String.Encoding) -> String?
  */
 @inlinable
 public func readFileSync(_ path: String, _ encoding: String) -> String? {
-  return readFileSync(path, String.Encoding.encodingWithName(encoding))
+  guard Buffer.isEncoding(encoding) else {
+    process.emitWarning(UnknownEncodingError(encoding), name: #function)
+    return nil
+  }
+  guard let buffer = readFileSync(path) else { return nil }
+  do {
+    return try buffer.toString(encoding)
+  }
+  catch {
+    process.emitWarning(error, name: #function)
+    return nil
+  }
 }
 
 /**
@@ -406,7 +426,7 @@ public func writeFileSync(_ path: String, _ string: String,
 public func writeFileSync(_ path: String, _ string: String,
                           _ encoding: String, atomic: Bool = true) throws
 {
-  try writeFileSync(path, string, .encodingWithName(encoding), atomic: atomic)
+  try writeFileSync(path, try Buffer.from(string, encoding), atomic: atomic)
 }
 
 #endif // canImport/Foundation

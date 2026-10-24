@@ -14,6 +14,7 @@ import enum     NIO.ChannelError
 import class    MacroCore.MacroCore
 import enum     MacroCore.CharsetConversionError
 import struct   MacroCore.Buffer
+import struct   MacroCore.UnknownEncodingError
 import enum     MacroCore.MacroError
 import struct   Foundation.Data
 import struct   Foundation.URL
@@ -96,7 +97,13 @@ public extension promise {
                        _       path : String,
                        _   encoding : String) -> EventLoopFuture<String>
   {
-    return readFile(on: eventLoop, path, .encodingWithName(encoding))
+    guard Buffer.isEncoding(encoding) else {
+      return MacroCore.shared.fallbackEventLoop(eventLoop)
+        .makeFailedFuture(UnknownEncodingError(encoding))
+    }
+    return readFile(on: eventLoop, path).flatMapThrowing {
+      try $0.toString(encoding)
+    }
   }
   
   @inlinable
@@ -131,7 +138,13 @@ public extension promise {
                         _   encoding : String)
               -> EventLoopFuture<Void>
   {
-    return writeFile(on: eventLoop, path, string, .encodingWithName(encoding))
+    do {
+      return writeFile(on: eventLoop, path, try Buffer.from(string, encoding))
+    }
+    catch {
+      return MacroCore.shared.fallbackEventLoop(eventLoop)
+        .makeFailedFuture(error)
+    }
   }
   
   @inlinable
