@@ -77,8 +77,8 @@ public extension Buffer {
 
 public extension Buffer {
   
-  /// The support encodings.
-  enum BinaryEncoding: String, Sendable, CaseIterable {
+  /// The supported binary encodings.
+  enum BinaryEncoding: String, CaseIterable, Sendable {
 
     /// Two hex digits per byte, e.g. `48656c6c6f`.
     case hex
@@ -88,6 +88,22 @@ public extension Buffer {
 
     /// URL-safe base64 without padding.
     case base64url
+
+    /**
+     * Case-insensitive init (both HEX and hex work).
+     *
+     * - Parameters:
+     *   - rawValue: The name of the encoding, e.g. `"hex"`.
+     */
+    @inlinable
+    public init?(rawValue: String) {
+      switch rawValue.lowercased() {
+        case "hex"       : self = .hex
+        case "base64"    : self = .base64
+        case "base64url" : self = .base64url
+        default          : return nil
+      }
+    }
   }
   
   #if canImport(Foundation)
