@@ -4,6 +4,7 @@
 
 import xsys
 import struct MacroCore.Buffer
+import struct MacroCore.UnknownEncodingError
 #if canImport(Foundation)
   import struct Foundation.Data
 #endif
@@ -65,7 +66,10 @@ public func readFile(_ path: String, _ encoding: String.Encoding)
 public func readFile(_ path: String, _ encoding: String)
               async throws -> String
 {
-  try await readFile(path, .encodingWithName(encoding))
+  guard Buffer.isEncoding(encoding) else {
+    throw UnknownEncodingError(encoding)
+  }
+  return try await readFile(path).toString(encoding)
 }
 
 /// Write a ``Buffer`` to a file.

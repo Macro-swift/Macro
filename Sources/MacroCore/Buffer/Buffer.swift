@@ -97,6 +97,19 @@ public struct Buffer: Codable, Hashable, Sendable {
   }
 
   /**
+   * Overwrite all bytes of the Buffer with the given value.
+   *
+   * - Parameters:
+   *   - value: The byte to write, e.g. `0`.
+   */
+  @inlinable
+  public mutating func fill(_ value: UInt8) {
+    byteBuffer.withUnsafeMutableReadableBytes {
+      _ = $0.initializeMemory(as: UInt8.self, repeating: value)
+    }
+  }
+
+  /**
    * Grabs the first `k` bytes from the Buffer and returns it as a new Buffer.
    *
    * If `k` is bigger than the bytes available, this returns all available bytes
