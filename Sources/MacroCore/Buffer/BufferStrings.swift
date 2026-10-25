@@ -265,12 +265,14 @@ public extension Buffer {
    *
    * - Parameters:
    *   - string:   The encoded string, e.g. a hex or base64 string.
-   *   - encoding: The encoding of the string.
+   *   - encoding: The encoding of the string (def: UTF-8).
    * - Returns:    A Buffer with the decoded bytes.
-   * - Throws:     ``DataDecodingError``
+   * - Throws:     A `TypeError` ``JSError`` if the string is `nil`,
+   *               ``UnknownEncodingError``, ``DataDecodingError``.
    */
   @inlinable
-  static func from<S>(_ string: S?, _ encoding: String) throws -> Buffer
+  static func from<S>(_ string: S?, _ encoding: String = "utf8") throws
+                -> Buffer
     where S: StringProtocol
   {
     guard let string else {
