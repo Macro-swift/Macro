@@ -252,6 +252,59 @@ public extension Buffer {
         }), .base64)
     }
   }
+
+  /**
+   * Decodes a Buffer from a string in the given encoding.
+   *
+   * Example:
+   * ```swift
+   * let buffer = try Buffer.from("48656c6c6f", "hex")
+   * let string = try buffer.toString()
+   * // "Hello"
+   * ```
+   *
+   * - Parameters:
+   *   - string:   The encoded string, e.g. a hex or base64 string.
+   *   - encoding: The encoding of the string.
+   * - Returns:    A Buffer with the decoded bytes.
+   * - Throws:     ``DataDecodingError``
+   */
+  @inlinable
+  static func from<S>(_ string: S?, _ encoding: String) throws -> Buffer
+    where S: StringProtocol
+  {
+    guard let string else {
+      throw JSError("TypeError", "The first argument must be of type string.")
+    }
+    return try from(string, encoding)
+  }
+
+  /**
+   * Decodes a Buffer from an optional string in the given encoding.
+   *
+   * Example:
+   * ```swift
+   * let buffer = try Buffer.from("48656c6c6f", .hex)
+   * let string = try buffer.toString()
+   * // "Hello"
+   * ```
+   *
+   * - Parameters:
+   *   - string:   The encoded string, e.g. a hex or base64 string.
+   *   - encoding: The binary encoding of the string.
+   * - Returns:    A Buffer with the decoded bytes.
+   * - Throws:     A `TypeError` ``JSError`` if the string is `nil`,
+   *               ``DataDecodingError`` for invalid data.
+   */
+  @inlinable
+  static func from<S>(_ string: S?, _ encoding: BinaryEncoding) throws -> Buffer
+    where S: StringProtocol
+  {
+    guard let string else {
+      throw JSError("TypeError", "The first argument must be of type string.")
+    }
+    return try from(string, encoding)
+  }
   
   /**
    * Returns true if the string argument represents a valid encoding, i.e.
