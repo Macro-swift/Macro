@@ -102,6 +102,11 @@ open class IncomingMessage: ReadableByteStream, CustomStringConvertible,
   /// The SwiftNIO `Channel` backing the message.
   public private(set) var socket : NIO.Channel?
 
+  /// Whether the message arrived over an encrypted (TLS) connection.
+  /// Node: `req.socket.encrypted`, but we don't have that on Channel's.
+  /// This does NOT consider X-Forwarded-Proto etc.
+  public var isEncrypted = false
+
   /**
    * Use ``EnvironmentKey``s to store extra information alongside requests.
    * This is similar to using a Node/Express `locals` dictionary (or attaching
