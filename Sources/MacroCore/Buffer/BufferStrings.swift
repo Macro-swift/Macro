@@ -216,7 +216,7 @@ public extension Buffer {
     switch encoding {
       case .hex:
         var buffer = Buffer(capacity: string.utf16.count / 2)
-        guard buffer.writeHexString(string) else {
+        guard buffer.writeHex(string) else {
           throw DataDecodingError.failedToDecodeHexString
         }
         return buffer
@@ -411,3 +411,115 @@ public extension Buffer {
 }
 
 #endif // canImport(Foundation)
+
+public extension Buffer {
+
+  /**
+   * Decodes a Buffer from the (ASCII) bytes of a hex or base64 text.
+   *
+   * Example:
+   * ```swift
+   * let buffer = try Buffer.from(line.utf8, .base64)
+   * let buffer = try Buffer.from(otherBuffer, .hex)
+   * ```
+   *
+   * - Parameters:
+   *   - bytes:    The bytes of the encoded text, e.g. a hex or base64 string.
+   *   - encoding: The binary encoding of the text.
+   * - Returns:    A Buffer with the decoded bytes.
+   * - Throws:     ``DataDecodingError``
+   */
+  @inlinable
+  static func from<S>(_ bytes: S, _ encoding: BinaryEncoding) throws -> Buffer
+    where S: Sequence, S.Element == UInt8
+  {
+    switch encoding {
+      case .hex:
+        var buffer = Buffer(capacity: bytes.underestimatedCount / 2)
+        guard buffer.writeHex(bytes) else {
+          throw DataDecodingError.failedToDecodeHexString
+        }
+        return buffer
+
+      case .base64, .base64url:
+        var buffer = Buffer(capacity: bytes.underestimatedCount / 4 * 3 + 3)
+        guard buffer.writeBase64(bytes, urlSafe: encoding == .base64url) else {
+          throw DataDecodingError.failedToDecodeBase64
+        }
+        return buffer
+    }
+  }
+}
+
+extension Buffer {
+
+  /**
+   * Appends the base64 encoded bytes to the Buffer.
+   *
+   * - Parameters:
+   *   - base64:  The bytes of a base64 encoded text.
+   *   - urlSafe: Whether `-` and `_` are accepted.
+   * - Returns:   true if successful, false if the input is invalid
+   */
+  @usableFromInline
+  @discardableResult
+  mutating func writeBase64<S>(_ base64: S, urlSafe: Bool = false) -> Bool
+    where S: Sequence, S.Element == UInt8
+  {
+    @inline(__always) func decodeSextet(_ c: UInt8) -> UInt32? {
+      switch c {
+        case UInt8(ascii: "A")...UInt8(ascii: "Z"):
+          return UInt32(c - UInt8(ascii: "A"))
+        case UInt8(ascii: "a")...UInt8(ascii: "z"):
+          return UInt32(c - UInt8(ascii: "a") + 26)
+        case UInt8(ascii: "0")...UInt8(ascii: "9"):
+          return UInt32(c - UInt8(ascii: "0") + 52)
+        case UInt8(ascii: "+") : return 62
+        case UInt8(ascii: "/") : return 63
+        case UInt8(ascii: "-") : return urlSafe ? 62 : nil
+        case UInt8(ascii: "_") : return urlSafe ? 63 : nil
+        default                : return nil
+      }
+    }
+
+    let start   = byteBuffer.writerIndex
+    var bits    = UInt32(0) // the pending sextets
+    var count   = 0         // number of pending sextets, 0...3
+    var padding = 0         // number of `=` seen
+
+    for c in base64 {
+      if c == UInt8(ascii: "=") {
+        padding += 1
+        continue
+      }
+      guard padding == 0, let sextet = decodeSextet(c) else {
+        byteBuffer.moveWriterIndex(to: start)
+        return false
+      }
+      
+      bits   = (bits << 6) | sextet
+      count += 1
+      if count == 4 {
+        byteBuffer.writeInteger(UInt8(truncatingIfNeeded: bits >> 16))
+        byteBuffer.writeInteger(UInt8(truncatingIfNeeded: bits >> 8))
+        byteBuffer.writeInteger(UInt8(truncatingIfNeeded: bits))
+        bits  = 0
+        count = 0
+      }
+    }
+
+    guard count != 1, padding == 0 || (count > 1 && count + padding == 4) else {
+      byteBuffer.moveWriterIndex(to: start)
+      return false
+    }
+    
+    if count == 2 {
+      byteBuffer.writeInteger(UInt8(truncatingIfNeeded: bits >> 4))
+    }
+    else if count == 3 {
+      byteBuffer.writeInteger(UInt8(truncatingIfNeeded: bits >> 10))
+      byteBuffer.writeInteger(UInt8(truncatingIfNeeded: bits >> 2))
+    }
+    return true
+  }
+}
