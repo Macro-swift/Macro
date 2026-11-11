@@ -88,32 +88,7 @@ public extension Buffer {
   @inlinable
   @discardableResult
   mutating func writeHex<S: StringProtocol>(_ hex: S) -> Bool {
-    guard !hex.isEmpty else { return true }
-    
-    // https://stackoverflow.com/questions/41485494/convert-hex-encoded-string
-    func decodeNibble(u: UInt16) -> UInt8? {
-      switch(u) {
-        case 0x30 ... 0x39: return UInt8(u - 0x30)
-        case 0x41 ... 0x46: return UInt8(u - 0x41 + 10)
-        case 0x61 ... 0x66: return UInt8(u - 0x61 + 10)
-        default:            return nil
-      }
-    }
-
-    var even = true
-    var byte : UInt8 = 0
-    for c in hex.utf16 {
-      guard let val = decodeNibble(u: c) else { return false }
-      if even {
-        byte = val << 4
-      }
-      else {
-        byte += val
-        byteBuffer.writeInteger(byte)
-      }
-      even = !even
-    }
-    return even
+    return writeHex(hex.utf8)
   }
 }
 

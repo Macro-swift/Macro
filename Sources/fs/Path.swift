@@ -177,8 +177,10 @@ public extension PathModule {
         let i = c.startIndex
         let second = c.index(after: i)
         let third  = c.index(after: second)
-        if c[second] == 58 /* : */ && (c[third] == 47 || c[third] == 92) {
-          return true 
+        if c[second] == UInt8(ascii: ":")
+           && (c[third] == UInt8(ascii: "/") || c[third] == UInt8(ascii: "\\"))
+        {
+          return true
         }
       }
       return p.hasPrefix("\\") || p.hasPrefix("/")
