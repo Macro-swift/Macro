@@ -16,6 +16,7 @@ import Logging   // Logger
 import NIOCore   // IOError
 import NIO       // NIOAny,EventLoopFuture,ServerBootstrap,Channel,...
 import NIOHTTP1  // HTTPServerRequestPart,NIOHTTPServerUpgradeConfiguration
+import NIOTLS    // TLSUserEvent
 import NIOConcurrencyHelpers // NIOLock
 import Atomics
 import xsys
@@ -144,11 +145,9 @@ open class Server: ErrorEmitter, CustomStringConvertible {
      */
     @inlinable
     public init(log          : Logger = Logger(label: "μ.http"),
-                readTimeout  : Int    = 0,
-                writeTimeout : Int    = 0,
+                readTimeout  : Int    = 0,    writeTimeout : Int  = 0,
                 idleTimeout  : Int    = 15_000,
-                tcpKeepAlive : Bool   = true,
-                noDelay      : Bool   = true)
+                tcpKeepAlive : Bool   = true, noDelay      : Bool = true)
     {
       self.log          = log
       self.readTimeout  = readTimeout
@@ -532,6 +531,8 @@ open class Server: ErrorEmitter, CustomStringConvertible {
                                  request  : IncomingMessage,
                                  response : ServerResponse )?
     private var waitForEnd   = false
+    /// Set when a TLS handler (NIOSSL) reports a completed handshake.
+    private var isEncrypted  = false
 
     init(server: Server) {
       self.server = server
@@ -551,6 +552,14 @@ open class Server: ErrorEmitter, CustomStringConvertible {
     func channelInactive(context: ChannelHandlerContext) {
       connLog.trace("HTTP connection closed \(connectionID)")
       context.fireChannelInactive()
+    }
+
+    func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+      if case .handshakeCompleted = event as? TLSUserEvent {
+        connLog.trace("TLS handshake completed \(connectionID)")
+        isEncrypted = true
+      }
+      context.fireUserInboundEventTriggered(event)
     }
 
     final func channelRead(context: ChannelHandlerContext, data: NIOAny) {
@@ -588,6 +597,7 @@ open class Server: ErrorEmitter, CustomStringConvertible {
           
           // TBD:  Should the ServerResponse know its IncomingMessage?
           let request  = IncomingMessage(head, socket: context.channel, log:log)
+          request.isEncrypted = isEncrypted
           
           let response = ServerResponse(channel: context.channel, log: log)
           response.version = head.version

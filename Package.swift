@@ -50,6 +50,7 @@ let package = Package(
               .product(name: "NIO",                   package: "swift-nio"),
               .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
               .product(name: "NIOHTTP1",              package: "swift-nio"),
+              .product(name: "NIOTLS",                package: "swift-nio"),
               "MacroCore"
             ],
             exclude: [ "README.md" ],
@@ -96,7 +97,10 @@ let package = Package(
                 swiftSettings: [ .swiftLanguageMode(.v6) ]),
 
     .testTarget(name: "MacroTests",
-                dependencies: [ "MacroTestUtilities", "ws", "xsys" ],
+                dependencies: [
+                  "MacroTestUtilities", "ws", "xsys",
+                  .product(name: "NIOTLS", package: "swift-nio")
+                ],
                 swiftSettings: [ .swiftLanguageMode(.v5) ])
   ]
 )

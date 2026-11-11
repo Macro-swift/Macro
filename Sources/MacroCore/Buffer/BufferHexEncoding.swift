@@ -71,7 +71,7 @@ public extension Buffer {
    * Example:
    * ```swift
    * let buffer = Buffer()
-   * buffer.writeHexString("48656c6c6f")
+   * buffer.writeHex("48656c6c6f")
    * let string = try buffer.toString()
    * // "Hello"
    * ```
@@ -82,38 +82,59 @@ public extension Buffer {
    * // "Hello"
    * ```
    * - Parameters:
-   *   - hexString: A hex encoded string, no spaces etc allowed between the
-   *                bytes.
+   *   - hex: A hex encoded string, no spaces etc allowed between the bytes.
    * - Returns: true if successful, false if the input is invalid
    */
   @inlinable
   @discardableResult
-  mutating func writeHexString<S: StringProtocol>(_ hexString: S) -> Bool {
-    guard !hexString.isEmpty else { return true }
-    
-    // https://stackoverflow.com/questions/41485494/convert-hex-encoded-string
-    func decodeNibble(u: UInt16) -> UInt8? {
-      switch(u) {
-        case 0x30 ... 0x39: return UInt8(u - 0x30)
-        case 0x41 ... 0x46: return UInt8(u - 0x41 + 10)
-        case 0x61 ... 0x66: return UInt8(u - 0x61 + 10)
-        default:            return nil
+  mutating func writeHex<S: StringProtocol>(_ hex: S) -> Bool {
+    return writeHex(hex.utf8)
+  }
+}
+
+extension Buffer {
+
+  /**
+   * Appends the bytes represented by a hex encoded ASCII bytes to the Buffer.
+   *
+   * If the input is invalid, the Buffer is left unchanged.
+   *
+   * - Parameters:
+   *   - hex: The bytes of a hex encoded text, no spaces etc allowed between
+   *          the bytes.
+   * - Returns: true if successful, false if the input is invalid
+   */
+  @usableFromInline
+  @discardableResult
+  mutating func writeHex<S>(_ hex: S) -> Bool
+    where S: Sequence, S.Element == UInt8
+  {
+    @inline(__always) func decodeNibble(_ c: UInt8) -> UInt8? {
+      switch c {
+        case UInt8(ascii: "0")...UInt8(ascii: "9"):
+          return c - UInt8(ascii: "0")
+        case UInt8(ascii: "A")...UInt8(ascii: "F"):
+          return c - UInt8(ascii: "A") + 10
+        case UInt8(ascii: "a")...UInt8(ascii: "f"):
+          return c - UInt8(ascii: "a") + 10
+        default          : return nil
       }
     }
 
-    var even = true
-    var byte : UInt8 = 0
-    for c in hexString.utf16 {
-      guard let val = decodeNibble(u: c) else { return false }
-      if even {
-        byte = val << 4
+    let start = byteBuffer.writerIndex
+    var even  = true
+    var byte  : UInt8 = 0
+    for c in hex {
+      guard let value = decodeNibble(c) else {
+        byteBuffer.moveWriterIndex(to: start)
+        return false
       }
-      else {
-        byte += val
-        byteBuffer.writeInteger(byte)
-      }
+      
+      if even { byte = value << 4 }
+      else    { byteBuffer.writeInteger(byte | value) }
       even = !even
     }
+    if !even { byteBuffer.moveWriterIndex(to: start) }
     return even
   }
 }
